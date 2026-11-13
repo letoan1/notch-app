@@ -20,7 +20,7 @@
     <rect width="640" height="380" fill="#0d0d18"/>
     <circle cx="580" cy="320" r="170" fill="#22d3ee" opacity=".25" filter="url(#b60)"/>
     <text x="36" y="56" font-size="24" font-weight="800" fill="#fff">Kéo file lên notch, thả ra bất cứ đâu</text>
-    <text x="36" y="84" font-size="14" fill="#fff" opacity=".6">Khay cất tạm file · chuyển Desktop vẫn còn nguyên</text>
+    <text x="36" y="84" font-size="14" fill="#fff" opacity=".6">Đổi tên, di chuyển file vẫn còn trong khay · chuột phải để AirDrop / Chia sẻ</text>
 
     <rect x="36" y="112" width="568" height="300" rx="18" fill="url(#wall)"/>
     <rect x="36" y="112" width="568" height="26" fill="#fff" opacity=".18"/>
@@ -67,6 +67,24 @@
     <path d="M459 172 v22 m-8 -8 l8 8 l8 -8" fill="none" stroke="#fff" stroke-opacity=".9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M446 200 h26" stroke="#fff" stroke-opacity=".9" stroke-width="2.2" stroke-linecap="round"/>
     <text x="459" y="228" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">Thả vào khay</text>
+
+    <!-- Menu chuột phải trên mockup.png -->
+    <g>
+      <rect x="226" y="212" width="150" height="130" rx="8" fill="#000" opacity=".45" transform="translate(0 6)" filter="url(#b12)"/>
+      <rect x="226" y="212" width="150" height="130" rx="8" fill="#2a2a30" fill-opacity=".97" stroke="#fff" stroke-opacity=".12"/>
+      <g font-size="12" fill="#fff">
+        <text x="240" y="232" opacity=".9">Mở</text>
+        <text x="240" y="252" opacity=".9">Hiện trong Finder</text>
+        <line x1="236" y1="261" x2="366" y2="261" stroke="#fff" stroke-opacity=".12"/>
+        <rect x="230" y="267" width="142" height="19" rx="4" fill="#0a84ff"/>
+        <text x="240" y="281" font-weight="600">AirDrop</text>
+        <text x="240" y="301" opacity=".9">Chia sẻ</text>
+        <text x="362" y="301" opacity=".6" text-anchor="end">›</text>
+        <line x1="236" y1="310" x2="366" y2="310" stroke="#fff" stroke-opacity=".12"/>
+        <text x="240" y="330" opacity=".9">Gỡ khỏi khay</text>
+      </g>
+      <path d="M0 0 L0 17 L4.5 13 L7.5 20 L10 19 L7 12 L13 12 Z" transform="translate(330 276)" fill="#000" stroke="#fff" stroke-width="1.3" stroke-linejoin="round"/>
+    </g>
 
     <!-- File đang kéo -->
     <g transform="translate(470 298) rotate(-10)">

@@ -88,6 +88,10 @@
       <rect x="462" y="48.5" width="7" height="3.5" rx="1.2"/>
     </g>
     <circle cx="465.5" cy="57" r="3.2" fill="#000"/>
+    <!-- nút Cài đặt -->
+    <circle cx="886" cy="57" r="6" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="3" stroke-dasharray="2.1 2.1"/>
+    <circle cx="886" cy="57" r="4.2" fill="#fff" opacity=".5"/>
+    <circle cx="886" cy="57" r="1.8" fill="#000"/>
     <path d="M907.5 52.5 A7 7 0 1 0 916.5 52.5" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="1.6" stroke-linecap="round"/>
     <line x1="912" y1="48" x2="912" y2="56" stroke="#fff" stroke-opacity=".5" stroke-width="1.6" stroke-linecap="round"/>
 

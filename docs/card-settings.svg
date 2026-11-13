@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="470" viewBox="0 0 1280 470">
+  <defs>
+    <clipPath id="card"><rect width="1280" height="470" rx="28"/></clipPath>
+    <linearGradient id="screen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3a40d9"/>
+      <stop offset="1" stop-color="#b04fd6"/>
+    </linearGradient>
+    <linearGradient id="key" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a3a44"/>
+      <stop offset="1" stop-color="#26262e"/>
+    </linearGradient>
+    <filter id="b60" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="60"/></filter>
+    <filter id="b14" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="14"/></filter>
+  </defs>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .press { animation: press 1.8s ease-in-out infinite; }
+    @keyframes press { 0%, 60%, 100% { transform: translateY(0); } 70%, 85% { transform: translateY(4px); } }
+    .langA { animation: langA 4s ease-in-out infinite; }
+    .langB { animation: langB 4s ease-in-out infinite; }
+    @keyframes langA { 0%, 40% { opacity: 1; } 50%, 90% { opacity: 0; } 100% { opacity: 1; } }
+    @keyframes langB { 0%, 40% { opacity: 0; } 50%, 90% { opacity: 1; } 100% { opacity: 0; } }
+    .hop { animation: hop 5s ease-in-out infinite; }
+    @keyframes hop { 0%, 35% { transform: translateX(0); } 50%, 85% { transform: translateX(160px); } 100% { transform: translateX(0); } }
+  </style>
+  <g clip-path="url(#card)">
+    <rect width="1280" height="470" fill="#0d0d18"/>
+    <circle cx="300" cy="80" r="220" fill="#5b5bf6" opacity=".22" filter="url(#b60)"/>
+    <circle cx="1100" cy="420" r="220" fill="#d946ef" opacity=".18" filter="url(#b60)"/>
+
+    <!-- Cửa sổ Cài đặt -->
+    <rect x="60" y="40" width="560" height="400" rx="12" fill="#000" opacity=".5" transform="translate(0 10)" filter="url(#b14)"/>
+    <rect x="60" y="40" width="560" height="400" rx="12" fill="#1f1f24" stroke="#fff" stroke-opacity=".1"/>
+    <circle cx="80" cy="57" r="6" fill="#ff5f57"/>
+    <circle cx="98" cy="57" r="6" fill="#febc2e"/>
+    <circle cx="116" cy="57" r="6" fill="#28c840"/>
+    <text x="340" y="62" font-size="13" font-weight="700" fill="#fff" opacity=".85" text-anchor="middle">Cài đặt Notch</text>
+
+    <g font-size="13" fill="#fff">
+      <!-- Chung -->
+      <text x="92" y="98" font-size="12" font-weight="600" opacity=".5">Chung</text>
+      <rect x="84" y="106" width="512" height="32" rx="8" fill="#fff" fill-opacity=".05"/>
+      <text x="100" y="127" opacity=".9">Ngôn ngữ</text>
+      <text x="568" y="127" opacity=".55" text-anchor="end">Tự động (theo hệ thống)</text>
+      <path d="M576 120 l3 -3 l3 3 M576 128 l3 3 l3 -3" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.3" stroke-linecap="round"/>
+
+      <!-- Notch -->
+      <text x="92" y="160" font-size="12" font-weight="600" opacity=".5">Notch</text>
+      <rect x="84" y="168" width="512" height="120" rx="8" fill="#fff" fill-opacity=".05"/>
+      <text x="100" y="188" opacity=".9">Mở notch khi</text>
+      <text x="568" y="188" opacity=".55" text-anchor="end">Rê chuột vào</text>
+      <line x1="100" y1="198" x2="580" y2="198" stroke="#fff" stroke-opacity=".06"/>
+      <text x="100" y="218" opacity=".9">Độ trễ khi rê chuột</text>
+      <text x="568" y="218" opacity=".55" text-anchor="end">0.15 s</text>
+      <line x1="100" y1="228" x2="580" y2="228" stroke="#fff" stroke-opacity=".06"/>
+      <text x="100" y="248" opacity=".9">Phím tắt mở / đóng</text>
+      <rect x="494" y="235" width="78" height="20" rx="5" fill="#fff" fill-opacity=".1"/>
+      <text x="533" y="249" font-size="12" font-weight="600" text-anchor="middle">⌥ Space</text>
+      <line x1="100" y1="258" x2="580" y2="258" stroke="#fff" stroke-opacity=".06"/>
+      <text x="100" y="278" opacity=".9">Hiện trên</text>
+      <text x="568" y="278" opacity=".55" text-anchor="end">Màn hình có con trỏ</text>
+      <g fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.3" stroke-linecap="round">
+        <path d="M576 181 l3 -3 l3 3 M576 189 l3 3 l3 -3"/>
+        <path d="M576 211 l3 -3 l3 3 M576 219 l3 3 l3 -3"/>
+        <path d="M576 271 l3 -3 l3 3 M576 279 l3 3 l3 -3"/>
+      </g>
+
+      <!-- Tab -->
+      <text x="92" y="310" font-size="12" font-weight="600" opacity=".5">Tab</text>
+      <rect x="84" y="318" width="512" height="60" rx="8" fill="#fff" fill-opacity=".05"/>
+      <text x="100" y="338" opacity=".9">Nhạc</text>
+      <text x="100" y="368" opacity=".9">Khay file</text>
+      <text x="350" y="338" opacity=".9">Lịch</text>
+      <text x="350" y="368" opacity=".9">Gương camera</text>
+      <g>
+        <rect x="290" y="326" width="28" height="16" rx="8" fill="#30d158"/><circle cx="310" cy="334" r="6.5" fill="#fff"/>
+        <rect x="290" y="356" width="28" height="16" rx="8" fill="#30d158"/><circle cx="310" cy="364" r="6.5" fill="#fff"/>
+        <rect x="552" y="326" width="28" height="16" rx="8" fill="#30d158"/><circle cx="572" cy="334" r="6.5" fill="#fff"/>
+        <rect x="552" y="356" width="28" height="16" rx="8" fill="#30d158"/><circle cx="572" cy="364" r="6.5" fill="#fff"/>
+      </g>
+
+      <!-- Khay file -->
+      <text x="92" y="400" font-size="12" font-weight="600" opacity=".5">Khay file</text>
+      <rect x="84" y="406" width="512" height="28" rx="8" fill="#fff" fill-opacity=".05"/>
+      <text x="100" y="425" opacity=".9">Tự dọn khay</text>
+      <text x="568" y="425" opacity=".55" text-anchor="end">Sau 7 ngày</text>
+      <path d="M576 418 l3 -3 l3 3 M576 426 l3 3 l3 -3" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="1.3" stroke-linecap="round"/>
+    </g>
+
+    <!-- Bên phải -->
+    <text x="700" y="104" font-size="32" font-weight="800" fill="#fff">Tuỳ biến theo cách bạn dùng</text>
+    <text x="700" y="138" font-size="15" fill="#fff" opacity=".6">Tiếng Việt / English · phím tắt · nhiều màn hình</text>
+    <text x="700" y="160" font-size="15" fill="#fff" opacity=".6">bật tắt từng tab · tự dọn khay sau 1 / 7 / 30 ngày</text>
+
+    <!-- Phím ⌥ Space -->
+    <g class="press">
+      <rect x="700" y="196" width="70" height="60" rx="12" fill="url(#key)" stroke="#fff" stroke-opacity=".14"/>
+      <text x="735" y="235" font-size="26" fill="#fff" opacity=".9" text-anchor="middle">⌥</text>
+      <rect x="784" y="196" width="220" height="60" rx="12" fill="url(#key)" stroke="#fff" stroke-opacity=".14"/>
+      <text x="894" y="232" font-size="16" font-weight="600" fill="#fff" opacity=".85" text-anchor="middle">Space</text>
+    </g>
+    <text x="1022" y="232" font-size="15" fill="#fff" opacity=".7">mở / đóng notch</text>
+
+    <!-- Ngôn ngữ -->
+    <rect x="700" y="286" width="200" height="44" rx="22" fill="#fff" fill-opacity=".08" stroke="#fff" stroke-opacity=".15"/>
+    <text class="langA" x="800" y="314" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">🇻🇳 Tiếng Việt</text>
+    <text class="langB" opacity="0" x="800" y="314" font-size="16" font-weight="700" fill="#fff" text-anchor="middle">🇬🇧 English</text>
+
+    <!-- Hai màn hình, notch chạy theo con trỏ -->
+    <g>
+      <rect x="930" y="290" width="130" height="80" rx="8" fill="url(#screen)" stroke="#fff" stroke-opacity=".2"/>
+      <rect x="985" y="370" width="20" height="14" fill="#fff" opacity=".15"/>
+      <rect x="970" y="384" width="50" height="4" rx="2" fill="#fff" opacity=".2"/>
+      <rect x="1090" y="290" width="130" height="80" rx="8" fill="url(#screen)" stroke="#fff" stroke-opacity=".2"/>
+      <rect x="1145" y="370" width="20" height="14" fill="#fff" opacity=".15"/>
+      <rect x="1130" y="384" width="50" height="4" rx="2" fill="#fff" opacity=".2"/>
+      <g class="hop">
+        <path d="M977 290 h36 v6 a5 5 0 0 1 -5 5 h-26 a5 5 0 0 1 -5 -5 z" fill="#000"/>
+        <path d="M0 0 L0 13 L3.5 10 L6 15.5 L8 14.6 L5.6 9.3 L10 9.3 Z" transform="translate(1000 318)" fill="#000" stroke="#fff" stroke-width="1.1" stroke-linejoin="round"/>
+      </g>
+    </g>
+    <text x="1075" y="412" font-size="13" fill="#fff" opacity=".55" text-anchor="middle">notch đi theo con trỏ giữa các màn hình</text>
+  </g>
+  <rect x=".5" y=".5" width="1279" height="469" rx="27.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+</svg>

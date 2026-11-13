@@ -23,16 +23,22 @@ Không đổi Desktop, không mở thêm cửa sổ.</p>
 
 <p align="center"><img src="docs/card-mirror.svg" alt="Soi gương camera và đèn viền trước khi họp" width="100%"></p>
 
+<p align="center"><img src="docs/card-settings.svg" alt="Cài đặt: ngôn ngữ, phím tắt, nhiều màn hình, bật tắt tab" width="100%"></p>
+
 App viết bằng SwiftUI + AppKit, build bằng Swift Package Manager, **không cần Xcode** (chỉ cần Command Line Tools).
 
 ## Tính năng
 
 - **Nhạc**: bài đang phát của Spotify / Apple Music (ảnh bìa, tiến trình, ⏮ ⏯ ⏭); hai cánh notch hiện ảnh bìa + sóng nhạc khi thu gọn. Bấm ảnh bìa để mở app nhạc.
 - **Lịch**: dải 7 ngày, chuyển tuần bằng ‹ › / vuốt trackpad; sự kiện của ngày đang chọn, nút vào Google Meet / Zoom / Teams.
-- **Khay**: kéo file lên notch để cất tạm, kéo ra để thả vào app khác; icon tài liệu tô màu theo loại file, badge số file trên tab.
+- **Khay**: kéo file lên notch để cất tạm, kéo ra để thả vào app khác; icon tài liệu tô màu theo loại file, badge số file trên tab. Khay giữ liên kết (bookmark) tới file gốc nên đổi tên / di chuyển file vẫn còn; chuột phải để **AirDrop**, **Chia sẻ**, Hiện trong Finder; tuỳ chọn tự dọn sau 1 / 7 / 30 ngày.
 - **Gương camera** 📷: soi webcam ngay trên notch trước khi họp (lật kiểu gương / như người khác thấy), kèm cuộc họp sắp tới và nút vào Meet. Camera chỉ chạy khi đang mở tab, không ghi hay lưu hình.
 - **Đèn viền**: viền trắng ấm quanh mép màn hình rọi sáng mặt khi gọi video trong phòng tối; 3 mức Dịu / Vừa / Mạnh, không chặn chuột, vẫn sáng khi notch thu gọn.
 - **Báo pin**: cắm sạc thì notch hiện % pin vài giây.
+- **Cài đặt** ⚙️: mở bằng rê chuột hoặc bấm, độ trễ khi rê, bật / tắt từng tab (nhạc, lịch, khay, gương).
+- **Tiếng Việt / English**: theo ngôn ngữ hệ thống hoặc chọn trong Cài đặt.
+- **Phím tắt** mở / đóng notch (mặc định ⌥ Space, không cần quyền Accessibility).
+- **Nhiều màn hình**: hiện notch trên màn hình có notch, màn hình chính, hoặc màn hình đang có con trỏ (màn hình ngoài được vẽ notch giả).
 - **Claude Code**: hiện yêu cầu xin quyền (Cho phép / Từ chối / Luôn cho phép) và câu hỏi của Claude (chọn đáp án hoặc gõ "Khác…") ngay trên notch, qua hook `PermissionRequest`.
 
 ## Build & cài
