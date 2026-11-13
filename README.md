@@ -10,7 +10,7 @@
   <img src="https://img.shields.io/badge/Claude%20Code-hook-D97757" alt="Claude Code hook">
 </p>
 
-<p align="center"><b>Rê chuột lên notch</b> → nhạc, lịch, khay file và cả Claude Code hiện ngay ở mép trên màn hình.<br>
+<p align="center"><b>Rê chuột lên notch</b> → nhạc, lịch, khay file, gương camera và cả Claude Code hiện ngay ở mép trên màn hình.<br>
 Không đổi Desktop, không mở thêm cửa sổ.</p>
 
 <table>
@@ -22,6 +22,9 @@ Không đổi Desktop, không mở thêm cửa sổ.</p>
     <td width="50%"><img src="docs/card-tray.svg" alt="Khay kéo thả file"></td>
     <td width="50%"><img src="docs/card-glance.svg" alt="Báo pin và sóng nhạc khi thu gọn"></td>
   </tr>
+  <tr>
+    <td colspan="2"><img src="docs/card-mirror.svg" alt="Soi gương camera và đèn viền trước khi họp"></td>
+  </tr>
 </table>
 
 App viết bằng SwiftUI + AppKit, build bằng Swift Package Manager, **không cần Xcode** (chỉ cần Command Line Tools).
@@ -30,7 +33,9 @@ App viết bằng SwiftUI + AppKit, build bằng Swift Package Manager, **không
 
 - **Nhạc**: bài đang phát của Spotify / Apple Music (ảnh bìa, tiến trình, ⏮ ⏯ ⏭); hai cánh notch hiện ảnh bìa + sóng nhạc khi thu gọn. Bấm ảnh bìa để mở app nhạc.
 - **Lịch**: dải 7 ngày, chuyển tuần bằng ‹ › / vuốt trackpad; sự kiện của ngày đang chọn, nút vào Google Meet / Zoom / Teams.
-- **Khay**: kéo file lên notch để cất tạm, kéo ra để thả vào app khác.
+- **Khay**: kéo file lên notch để cất tạm, kéo ra để thả vào app khác; icon tài liệu tô màu theo loại file, badge số file trên tab.
+- **Gương camera** 📷: soi webcam ngay trên notch trước khi họp (lật kiểu gương / như người khác thấy), kèm cuộc họp sắp tới và nút vào Meet. Camera chỉ chạy khi đang mở tab, không ghi hay lưu hình.
+- **Đèn viền**: viền trắng ấm quanh mép màn hình rọi sáng mặt khi gọi video trong phòng tối; 3 mức Dịu / Vừa / Mạnh, không chặn chuột, vẫn sáng khi notch thu gọn.
 - **Báo pin**: cắm sạc thì notch hiện % pin vài giây.
 - **Claude Code**: hiện yêu cầu xin quyền (Cho phép / Từ chối / Luôn cho phép) và câu hỏi của Claude (chọn đáp án hoặc gõ "Khác…") ngay trên notch, qua hook `PermissionRequest`.
 
@@ -41,7 +46,7 @@ scripts/make-signing-cert.sh   # 1 lần: chứng chỉ ký code tự ký trong 
 ./build.sh install             # build, ký, cài vào /Applications/Notch.app rồi mở
 ```
 
-Ký bằng chứng chỉ cố định để macOS giữ các quyền đã cấp (điều khiển Spotify, đọc Lịch) qua các lần build. Không có chứng chỉ thì `build.sh` ký ad-hoc và macOS sẽ hỏi lại quyền sau mỗi lần build.
+Ký bằng chứng chỉ cố định để macOS giữ các quyền đã cấp (điều khiển Spotify, đọc Lịch, camera) qua các lần build. Không có chứng chỉ thì `build.sh` ký ad-hoc và macOS sẽ hỏi lại quyền sau mỗi lần build.
 
 Lệnh khác: `./build.sh run` (chạy bản trong `build/`), `scripts/set-icon.sh <ảnh>` (đổi icon), `scripts/set-icon.sh --default`.
 

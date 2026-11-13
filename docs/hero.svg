@@ -75,7 +75,19 @@
     <!-- Hàng tab -->
     <rect x="370" y="46" width="34" height="22" rx="11" fill="#fff" opacity=".14"/>
     <text x="387" y="62" font-size="13" fill="#fff" text-anchor="middle">♪</text>
-    <text x="440" y="62" font-size="11" fill="#fff" opacity=".45" text-anchor="middle" font-weight="600">Khay 3</text>
+    <!-- icon khay + badge, icon camera -->
+    <g fill="#fff" opacity=".45">
+      <rect x="420" y="49" width="12" height="2" rx="1"/>
+      <rect x="419" y="52.5" width="14" height="2" rx="1"/>
+      <path d="M416 56 h4.5 l2 2.6 h7 l2 -2.6 h4.5 v6 a2 2 0 0 1 -2 2 h-16 a2 2 0 0 1 -2 -2 z"/>
+    </g>
+    <circle cx="437" cy="49" r="6" fill="#fff" opacity=".9"/>
+    <text x="437" y="52" font-size="8" font-weight="800" fill="#000" text-anchor="middle">3</text>
+    <g fill="#fff" opacity=".45">
+      <rect x="457" y="51" width="17" height="12" rx="3"/>
+      <rect x="462" y="48.5" width="7" height="3.5" rx="1.2"/>
+    </g>
+    <circle cx="465.5" cy="57" r="3.2" fill="#000"/>
     <path d="M907.5 52.5 A7 7 0 1 0 916.5 52.5" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="1.6" stroke-linecap="round"/>
     <line x1="912" y1="48" x2="912" y2="56" stroke="#fff" stroke-opacity=".5" stroke-width="1.6" stroke-linecap="round"/>
 
