@@ -175,7 +175,7 @@ final class PermissionCenter: ObservableObject {
         case .allowAlways:
             body = ["behavior": "allow", "updatedPermissions": request.suggestions ?? []]
         case .deny:
-            body = ["behavior": "deny", "message": "Người dùng từ chối trên notch."]
+            body = ["behavior": "deny", "message": L("Người dùng từ chối trên notch.", "The user denied this on the notch.")]
         }
         request.connection.respond([
             "hookSpecificOutput": ["hookEventName": "PermissionRequest", "decision": body],

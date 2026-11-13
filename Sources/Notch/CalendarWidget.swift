@@ -8,7 +8,7 @@ struct CalendarWidget: View {
 
     private var cal: Calendar {
         var c = Calendar(identifier: .gregorian)
-        c.locale = Locale(identifier: "vi_VN")
+        c.locale = Lang.locale
         return c
     }
 
@@ -18,12 +18,24 @@ struct CalendarWidget: View {
                 Text(calendar.monthTitle)
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.white.opacity(0.85))
-                Spacer()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .layoutPriority(1)
+                Spacer(minLength: 4)
                 if calendar.weekOffset != 0 {
-                    Button("Hôm nay") { calendar.resetToToday() }
-                        .buttonStyle(PillButtonStyle(fill: .white.opacity(0.1), text: .white.opacity(0.8)))
-                        .controlSize(.mini)
-                        .transition(.opacity)
+                    Button { calendar.resetToToday() } label: {
+                        Text(L("Hôm nay", "Today"))
+                            .font(.system(size: 10.5, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.85))
+                            .lineLimit(1)
+                            .fixedSize()
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(.white.opacity(0.12)))
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .transition(.opacity)
                 }
                 NavButton(symbol: "chevron.left") { calendar.shiftWeek(-1) }
                 NavButton(symbol: "chevron.right") { calendar.shiftWeek(1) }
@@ -43,9 +55,9 @@ struct CalendarWidget: View {
             case .granted:
                 events
             case .notDetermined:
-                prompt("Cho phép đọc lịch", action: calendar.requestAccess)
+                prompt(L("Cho phép đọc lịch", "Allow calendar access"), action: calendar.requestAccess)
             case .denied:
-                prompt("Mở Cài đặt để cấp quyền lịch", action: calendar.openPrivacySettings)
+                prompt(L("Mở Cài đặt để cấp quyền lịch", "Open Settings to allow calendar access"), action: calendar.openPrivacySettings)
             }
         }
         .padding(.horizontal, 14)
@@ -58,25 +70,25 @@ struct CalendarWidget: View {
     private var events: some View {
         let items = calendar.selectedEvents
         if items.isEmpty {
-            Text(calendar.isTodaySelected ? "Hôm nay không còn sự kiện" : "Không có sự kiện")
+            Text(calendar.isTodaySelected ? L("Hôm nay không còn sự kiện", "No more events today") : L("Không có sự kiện", "No events"))
                 .font(.system(size: 11))
                 .foregroundStyle(.white.opacity(0.45))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.leading, 4)
         } else {
-            VStack(alignment: .leading, spacing: 4) {
-                ForEach(items.prefix(2)) { item in
-                    EventRow(item: item, isToday: calendar.isTodaySelected)
+            // Cuộn dọc trong phần còn lại: nhiều sự kiện không đẩy tiêu đề tháng ra ngoài.
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(items) { item in
+                        EventRow(item: item, isToday: calendar.isTodaySelected)
+                    }
                 }
-                if items.count > 2 {
-                    Text("+\(items.count - 2) sự kiện nữa")
-                        .font(.system(size: 10))
-                        .foregroundStyle(.white.opacity(0.4))
-                        .padding(.leading, 4)
-                }
+                .padding(.bottom, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture { calendar.openCalendarApp() }
             }
-            .contentShape(Rectangle())
-            .onTapGesture { calendar.openCalendarApp() }
+            .frame(maxHeight: .infinity)
         }
     }
 
@@ -220,7 +232,7 @@ struct JoinButton: View {
         .buttonStyle(.plain)
         .help(meeting.url.absoluteString)
         .contextMenu {
-            Button("Sao chép link") {
+            Button(L("Sao chép link", "Copy link")) {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(meeting.url.absoluteString, forType: .string)
             }
@@ -259,10 +271,10 @@ private struct EventRow: View {
     }
 
     private var timeText: String {
-        if item.allDay { return "Cả ngày" }
+        if item.allDay { return L("Cả ngày", "All day") }
         let f = DateFormatter()
         f.dateFormat = "HH:mm"
-        if isToday, item.start <= Date() { return "Đang diễn ra · đến \(f.string(from: item.end))" }
+        if isToday, item.start <= Date() { return L("Đang diễn ra · đến \(f.string(from: item.end))", "Now · until \(f.string(from: item.end))") }
         return "\(f.string(from: item.start)) – \(f.string(from: item.end))"
     }
 }

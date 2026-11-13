@@ -7,6 +7,7 @@ struct NotchRootView: View {
     @ObservedObject var tray: TrayStore
     @ObservedObject var calendar: CalendarStore
     let camera: CameraMirror
+    @ObservedObject var settings: SettingsStore
 
     private let spring = Animation.spring(response: 0.42, dampingFraction: 0.82)
     // Không dùng macro @Namespace/@State (plugin chỉ có trong Xcode).
@@ -23,7 +24,7 @@ struct NotchRootView: View {
             shape.fill(Color.black)
             if model.expanded {
                 ExpandedView(model: model, media: media, permissions: permissions, tray: tray,
-                             calendar: calendar, camera: camera,
+                             calendar: calendar, camera: camera, settings: settings,
                              notchHeight: notch.height, ns: ns.wrappedValue)
                     .frame(width: NotchModel.expandedWidth - 28,
                            height: notch.height + model.expandedBodyHeight)
@@ -48,7 +49,7 @@ struct NotchRootView: View {
         .animation(spring, value: model.chargePeek)
         .animation(spring, value: media.hasTrack)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .environment(\.locale, Locale(identifier: "vi_VN"))
+        .environment(\.locale, settings.locale)
     }
 }
 
@@ -112,7 +113,7 @@ struct ChargeWings: View {
                 Image(systemName: "bolt.fill")
                     .font(.system(size: 11, weight: .bold))
                     .foregroundStyle(green)
-                Text(peek.charging ? "Đang sạc" : "Đã cắm sạc")
+                Text(peek.charging ? L("Đang sạc", "Charging") : L("Đã cắm sạc", "Plugged in"))
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(.white.opacity(0.85))
                     .lineLimit(1)
@@ -161,30 +162,48 @@ struct ExpandedView: View {
     @ObservedObject var tray: TrayStore
     @ObservedObject var calendar: CalendarStore
     let camera: CameraMirror
+    @ObservedObject var settings: SettingsStore
     let notchHeight: CGFloat
     let ns: Namespace.ID
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
-                TabPill(symbol: "music.note", label: nil, selected: model.tab == .media) {
-                    model.tab = .media
+                let tabs = settings.enabledTabs
+                if tabs.contains(.media) {
+                    TabPill(symbol: settings.showMedia ? "music.note" : "calendar", label: nil,
+                            selected: model.tab == .media) {
+                        model.tab = .media
+                    }
                 }
-                TabPill(symbol: "tray.full.fill", label: nil, selected: model.tab == .tray,
-                        badge: tray.files.isEmpty ? nil : tray.files.count) {
-                    model.tab = .tray
+                if tabs.contains(.tray) {
+                    TabPill(symbol: "tray.full.fill", label: nil, selected: model.tab == .tray,
+                            badge: tray.files.isEmpty ? nil : tray.files.count) {
+                        model.tab = .tray
+                    }
                 }
-                TabPill(symbol: "camera.fill", label: nil, selected: model.tab == .mirror) {
-                    model.tab = .mirror
+                if tabs.contains(.mirror) {
+                    TabPill(symbol: "camera.fill", label: nil, selected: model.tab == .mirror) {
+                        model.tab = .mirror
+                    }
                 }
                 Spacer()
+                Button { SettingsWindowController.shared.show() } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.5))
+                        .frame(width: 22, height: 22)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(L("Cài đặt", "Settings"))
                 Button { NSApp.terminate(nil) } label: {
                     Image(systemName: "power")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.5))
                 }
                 .buttonStyle(.plain)
-                .help("Thoát Notch")
+                .help(L("Thoát Notch", "Quit Notch"))
             }
             .padding(.horizontal, 18)
             .frame(height: notchHeight)
@@ -201,27 +220,39 @@ struct ExpandedView: View {
                 }
                 .id(request.id)
                 .transition(.opacity)
-            } else if model.tab == .tray || model.dropTargeted {
+            } else if settings.showTray && (model.tab == .tray || model.dropTargeted) {
                 TrayView(tray: tray, targeted: model.dropTargeted)
-            } else if model.tab == .mirror {
+            } else if settings.showMirror && model.tab == .mirror {
                 MirrorView(camera: camera, calendar: calendar)
+            } else if settings.enabledTabs.isEmpty {
+                Text(L("Bật ít nhất một tab trong Cài đặt ⚙️", "Turn on at least one tab in Settings ⚙️"))
+                    .font(.system(size: 13))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 HStack(spacing: 0) {
+                    if settings.showMedia {
                     Group {
                         if let track = media.track {
                             PlayerView(media: media, track: track, ns: ns)
                         } else {
-                            Text("Không có nhạc đang phát")
+                            Text(L("Không có nhạc đang phát", "Nothing playing"))
                                 .font(.system(size: 13))
                                 .foregroundStyle(.white.opacity(0.5))
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                     }
-                    .frame(width: 350)
-                    Rectangle().fill(.white.opacity(0.08))
-                        .frame(width: 1)
-                        .padding(.bottom, 16)
-                    CalendarWidget(calendar: calendar)
+                    .frame(width: settings.showCalendar ? 350 : nil)
+                    .frame(maxWidth: settings.showCalendar ? nil : .infinity)
+                    }
+                    if settings.showMedia && settings.showCalendar {
+                        Rectangle().fill(.white.opacity(0.08))
+                            .frame(width: 1)
+                            .padding(.bottom, 16)
+                    }
+                    if settings.showCalendar {
+                        CalendarWidget(calendar: calendar)
+                    }
                 }
             }
         }
@@ -232,6 +263,7 @@ struct ExpandedView: View {
             get: { model.dropTargeted },
             set: { model.dropTargeted = $0 }
         )) { providers in
+            guard settings.showTray else { return false }
             tray.accept(providers)
             model.tab = .tray
             return true
@@ -287,7 +319,7 @@ struct PlayerView: View {
                 .background(ArtworkGlow(image: media.artwork))
                 .contentShape(Rectangle())
                 .onTapGesture { media.openPlayer() }
-                .help("Mở \(track.player.rawValue)")
+                .help(L("Mở \(track.player.rawValue)", "Open \(track.player.rawValue)"))
 
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 3) {

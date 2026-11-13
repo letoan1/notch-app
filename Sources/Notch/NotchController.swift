@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import Combine
 
 /// Cửa sổ trong suốt phủ vùng notch, nằm trên menu bar.
 final class NotchPanel: NSPanel {
@@ -49,15 +50,42 @@ final class NotchController {
     private var dragCountAtMouseDown = 0
     private var fileDragActive = false
 
+    private let settings = SettingsStore.shared
+    private let hotKey = HotKey()
+    private var cancellables = Set<AnyCancellable>()
+    /// Menu chuột phải đang mở: giữ notch, không thu lại (thu lại sẽ đóng menu).
+    private var menuTracking = false
+    /// Mở bằng phím tắt: giữ mở tới khi bấm lại phím tắt hoặc chuột vào rồi rời notch.
+    private var pinned = false
+    private var hoverStart: Date?
+
     init() {
-        screen = Self.targetScreen()
+        screen = NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? NSScreen.screens[0]
         panel = NotchPanel(contentRect: NSRect(origin: .zero, size: Self.canvas))
-        panel.contentView = FirstMouseHostingView(rootView: NotchRootView(model: model, media: media, permissions: permissions,
-                                                                  tray: tray, calendar: calendar,
-                                                                  camera: camera))
+        panel.contentView = makeRootView()
         panel.ignoresMouseEvents = true
         layout()
         panel.orderFrontRegardless()
+
+        // @Published phát trước khi gán → receive(on:) để đọc giá trị mới.
+        settings.$language.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in
+            MainActor.assumeIsolated { self?.rebuildRootView() }
+        }.store(in: &cancellables)
+        settings.$hotkey.receive(on: DispatchQueue.main).sink { [weak self] _ in
+            MainActor.assumeIsolated { self?.applyHotkey() }
+        }.store(in: &cancellables)
+        settings.$displayMode.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in
+            MainActor.assumeIsolated { self?.layout() }
+        }.store(in: &cancellables)
+        hotKey.onPress = { [weak self] in
+            MainActor.assumeIsolated { self?.toggleFromHotkey() }
+        }
+        for (name, tracking) in [(NSMenu.didBeginTrackingNotification, true),
+                                 (NSMenu.didEndTrackingNotification, false)] {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.menuTracking = tracking }
+            }
+        }
 
         NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
@@ -80,13 +108,54 @@ final class NotchController {
         battery.start()
     }
 
-    /// Ưu tiên màn hình có notch thật, không có thì dùng màn hình chính (notch giả).
-    private static func targetScreen() -> NSScreen {
-        NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? NSScreen.main ?? NSScreen.screens[0]
+    private func makeRootView() -> NSView {
+        FirstMouseHostingView(rootView: NotchRootView(model: model, media: media, permissions: permissions,
+                                                      tray: tray, calendar: calendar, camera: camera,
+                                                      settings: settings))
+    }
+
+    /// Đổi ngôn ngữ: dựng lại toàn bộ view để mọi chuỗi L(...) được tính lại.
+    private func rebuildRootView() {
+        panel.contentView = makeRootView()
+    }
+
+    private func applyHotkey() {
+        if let (code, mods) = settings.hotkey.carbon {
+            hotKey.register(keyCode: code, modifiers: mods)
+        } else {
+            hotKey.unregister()
+        }
+    }
+
+    private func toggleFromHotkey() {
+        if model.expanded {
+            setExpanded(false)
+        } else {
+            pinned = true
+            setExpanded(true)
+        }
+    }
+
+    private static var primaryScreen: NSScreen { NSScreen.screens.first ?? NSScreen.main! }
+
+    private static func screen(containing point: NSPoint) -> NSScreen? {
+        NSScreen.screens.first { NSMouseInRect(point, $0.frame, false) }
+    }
+
+    /// Màn hình hiện notch theo cài đặt; màn hình không có notch thật thì vẽ notch giả.
+    private func targetScreen() -> NSScreen {
+        switch settings.displayMode {
+        case .notch:
+            return NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? Self.primaryScreen
+        case .main:
+            return Self.primaryScreen
+        case .mouse:
+            return Self.screen(containing: NSEvent.mouseLocation) ?? Self.primaryScreen
+        }
     }
 
     private func layout() {
-        screen = Self.targetScreen()
+        screen = targetScreen()
         model.update(for: screen)
         let f = screen.frame
         panel.setFrame(NSRect(x: f.midX - Self.canvas.width / 2,
@@ -113,8 +182,23 @@ final class NotchController {
             if !model.expanded { setExpanded(true) }
             return
         }
+        if menuTracking {
+            lastInside = Date()
+            return
+        }
+        // Tab đang chọn bị tắt trong Cài đặt → chuyển sang tab bật đầu tiên.
+        let tabs = settings.enabledTabs
+        if let first = tabs.first, !tabs.contains(model.tab) { model.tab = first }
+
+        let wasDown = wasLeftDown
         let leftDown = updateDragState()
+        let pressBegan = leftDown && !wasDown
         let mouse = NSEvent.mouseLocation
+        // "Theo con trỏ": notch nhảy sang màn hình có chuột (chỉ khi đang thu gọn).
+        if settings.displayMode == .mouse, !model.expanded,
+           let under = Self.screen(containing: mouse), under != screen {
+            layout()
+        }
         let size = model.shapeSize(playing: media.hasTrack)
         let f = screen.frame
         // Đang kéo file thì nới vùng bắt rộng hơn cho dễ "ném" vào notch.
@@ -125,13 +209,25 @@ final class NotchController {
 
         if hot.contains(mouse) {
             lastInside = Date()
+            pinned = false
             if !model.expanded {
-                if fileDragActive { model.tab = .tray }
-                setExpanded(true)
+                if fileDragActive {
+                    if settings.showTray { model.tab = .tray }
+                    setExpanded(true)
+                } else if settings.openMode == .click {
+                    if pressBegan { setExpanded(true) }
+                } else {
+                    let start = hoverStart ?? Date()
+                    hoverStart = start
+                    if Date().timeIntervalSince(start) >= settings.hoverDelay { setExpanded(true) }
+                }
             }
-        } else if model.expanded, !leftDown, Date().timeIntervalSince(lastInside) > 0.25 {
-            // Không thu lại khi chuột còn giữ: đang kéo file ra khỏi khay.
-            setExpanded(false)
+        } else {
+            hoverStart = nil
+            if model.expanded, !pinned, !leftDown, Date().timeIntervalSince(lastInside) > 0.25 {
+                // Không thu lại khi chuột còn giữ: đang kéo file ra khỏi khay.
+                setExpanded(false)
+            }
         }
 
         // Chuột ở xa notch thì poll thưa để CPU được ngủ; lại gần / đang kéo thì 60Hz.
@@ -174,12 +270,18 @@ final class NotchController {
               mouse.y < f.maxY - model.notchSize.height
         else { return event }
 
+        let dx = event.scrollingDeltaX, dy = event.scrollingDeltaY
+        let horizontal = abs(dx) > abs(dy)
+        // Dải ngày + tiêu đề tháng (~78pt dưới hàng tab): cuộn dọc ở đây cũng đổi tuần.
+        // Dưới đó là danh sách sự kiện: cuộn dọc để danh sách tự cuộn.
+        let inWeekStrip = mouse.y >= f.maxY - model.notchSize.height - 78
+        if !horizontal && !inWeekStrip { return event }
+
         // Bỏ quán tính để một lần vuốt chỉ chuyển một tuần.
         if !event.momentumPhase.isEmpty { return nil }
         if event.phase == .began { scrollAccum = 0 }
         let scale: CGFloat = event.hasPreciseScrollingDeltas ? 1 : 10
-        let dx = event.scrollingDeltaX, dy = event.scrollingDeltaY
-        scrollAccum += (abs(dx) > abs(dy) ? dx : dy) * scale
+        scrollAccum += (horizontal ? dx : dy) * scale
 
         guard abs(scrollAccum) > 30, Date().timeIntervalSince(lastWeekShift) > 0.35 else { return nil }
         calendar.shiftWeek(scrollAccum < 0 ? 1 : -1)
@@ -223,6 +325,7 @@ final class NotchController {
     private func setExpanded(_ value: Bool) {
         model.expanded = value
         if !value {
+            pinned = false
             model.dropTargeted = false
             calendar.resetToToday()
         }

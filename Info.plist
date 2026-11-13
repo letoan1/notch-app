@@ -21,12 +21,12 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Notch đọc bài đang phát và điều khiển Spotify/Music.</string>
+	<string>Notch đọc bài đang phát và điều khiển Spotify/Music. — Notch reads the current track and controls Spotify/Music.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Notch hiển thị các sự kiện hôm nay trong lịch của bạn.</string>
+	<string>Notch hiển thị các sự kiện trong lịch của bạn. — Notch shows your calendar events.</string>
 	<key>NSCalendarsUsageDescription</key>
-	<string>Notch hiển thị các sự kiện hôm nay trong lịch của bạn.</string>
+	<string>Notch hiển thị các sự kiện trong lịch của bạn. — Notch shows your calendar events.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Notch hiện hình camera để bạn soi gương trước khi họp. Không ghi hay lưu hình.</string>
+	<string>Notch hiện hình camera để bạn soi gương trước khi họp, không ghi hay lưu hình. — Notch shows your camera as a mirror before calls; nothing is recorded or saved.</string>
 </dict>
 </plist>

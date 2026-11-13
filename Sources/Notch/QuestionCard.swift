@@ -30,7 +30,7 @@ struct QuestionCard: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 Image(systemName: "sparkle").foregroundStyle(claude)
-                Text("Claude hỏi").foregroundStyle(.white)
+                Text(L("Claude hỏi", "Claude asks")).foregroundStyle(.white)
                 Text("· \(request.project)").foregroundStyle(.white.opacity(0.5))
                 if !question.header.isEmpty {
                     Text(question.header)
@@ -57,7 +57,7 @@ struct QuestionCard: View {
 
             if typing.wrappedValue {
                 VStack(alignment: .leading, spacing: 5) {
-                    TextField("Nhập câu trả lời của bạn…", text: otherText.projectedValue)
+                    TextField(L("Nhập câu trả lời của bạn…", "Type your answer…"), text: otherText.projectedValue)
                         .textFieldStyle(.plain)
                         .font(.system(size: 12))
                         .foregroundStyle(.white)
@@ -69,8 +69,8 @@ struct QuestionCard: View {
                         .onSubmit { submitOther() }
                         .onExitCommand { typing.wrappedValue = false }
                     Text(question.multiSelect && !picked.wrappedValue.isEmpty
-                         ? "Gửi kèm \(picked.wrappedValue.count) lựa chọn đã tích · Enter để gửi · Esc để quay lại"
-                         : "Enter để gửi · Esc để quay lại")
+                         ? L("Gửi kèm \(picked.wrappedValue.count) lựa chọn đã tích · Enter để gửi · Esc để quay lại", "Sends with \(picked.wrappedValue.count) checked option(s) · Enter to send · Esc to go back")
+                         : L("Enter để gửi · Esc để quay lại", "Enter to send · Esc to go back"))
                         .font(.system(size: 10))
                         .foregroundStyle(.white.opacity(0.4))
                 }
@@ -89,22 +89,22 @@ struct QuestionCard: View {
             Spacer(minLength: 0)
 
             HStack {
-                Button("Trả lời trong VS Code", action: dismiss)
+                Button(L("Trả lời trong VS Code", "Answer in VS Code"), action: dismiss)
                     .buttonStyle(PillButtonStyle(fill: .white.opacity(0.08), text: .white.opacity(0.6)))
-                    .help("Ẩn thẻ này; dùng hộp thoại gốc")
+                    .help(L("Ẩn thẻ này; dùng hộp thoại gốc", "Hide this card and use the original dialog"))
                 Spacer()
                 if typing.wrappedValue {
-                    Button("Gửi") { submitOther() }
+                    Button(L("Gửi", "Send")) { submitOther() }
                         .buttonStyle(PillButtonStyle(fill: trimmedOther.isEmpty ? .white.opacity(0.1) : claude,
                                                      text: .white))
                         .disabled(trimmedOther.isEmpty)
                 } else {
-                    Button("Khác…") { startTyping() }
+                    Button(L("Khác…", "Other…")) { startTyping() }
                         .buttonStyle(PillButtonStyle(fill: .white.opacity(0.1), text: .white.opacity(0.85)))
-                        .help("Gõ câu trả lời riêng")
+                        .help(L("Gõ câu trả lời riêng", "Type your own answer"))
                 }
                 if question.multiSelect && !typing.wrappedValue {
-                    Button(isLast ? "Gửi" : "Tiếp") { commitMulti() }
+                    Button(isLast ? L("Gửi", "Send") : L("Tiếp", "Next")) { commitMulti() }
                         .buttonStyle(PillButtonStyle(fill: picked.wrappedValue.isEmpty ? .white.opacity(0.1) : claude,
                                                      text: .white))
                         .disabled(picked.wrappedValue.isEmpty)

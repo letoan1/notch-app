@@ -12,10 +12,10 @@ final class EdgeLight: ObservableObject {
 
         var title: String {
             switch self {
-            case .off: return "Đèn viền"
-            case .soft: return "Đèn: Dịu"
-            case .medium: return "Đèn: Vừa"
-            case .strong: return "Đèn: Mạnh"
+            case .off: return L("Đèn viền", "Edge light")
+            case .soft: return L("Đèn: Dịu", "Light: Soft")
+            case .medium: return L("Đèn: Vừa", "Light: Medium")
+            case .strong: return L("Đèn: Mạnh", "Light: Strong")
             }
         }
 

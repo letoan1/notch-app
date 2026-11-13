@@ -12,7 +12,7 @@ struct PermissionCard: View {
             HStack(spacing: 6) {
                 Image(systemName: "sparkle")
                     .foregroundStyle(claude)
-                Text("Claude xin quyền")
+                Text(L("Claude xin quyền", "Claude needs permission"))
                     .foregroundStyle(.white)
                 Text("· \(request.project)")
                     .foregroundStyle(.white.opacity(0.5))
@@ -54,13 +54,13 @@ struct PermissionCard: View {
 
             HStack(spacing: 8) {
                 Spacer()
-                Button("Từ chối") { decide(.deny) }
+                Button(L("Từ chối", "Deny")) { decide(.deny) }
                     .buttonStyle(PillButtonStyle(fill: .white.opacity(0.1), text: .white.opacity(0.8)))
                 if request.canAlwaysAllow {
-                    Button("Luôn cho phép") { decide(.allowAlways) }
+                    Button(L("Luôn cho phép", "Always allow")) { decide(.allowAlways) }
                         .buttonStyle(PillButtonStyle(fill: .white.opacity(0.1), text: .white))
                 }
-                Button("Cho phép") { decide(.allow) }
+                Button(L("Cho phép", "Allow")) { decide(.allow) }
                     .buttonStyle(PillButtonStyle(fill: claude, text: .white))
             }
         }

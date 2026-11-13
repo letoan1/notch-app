@@ -58,8 +58,8 @@ final class CalendarStore: ObservableObject {
     /// "Tháng 11, 2026" theo ngày đang chọn.
     var monthTitle: String {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "vi_VN")
-        f.dateFormat = "'Tháng' M, yyyy"
+        f.locale = Lang.locale
+        f.dateFormat = Lang.isVietnamese ? "'Tháng' M, yyyy" : "MMMM yyyy"
         return f.string(from: selectedDay)
     }
 
@@ -157,7 +157,7 @@ final class CalendarStore: ObservableObject {
             .sorted { ($0.isAllDay ? 0 : 1, $0.startDate) < ($1.isAllDay ? 0 : 1, $1.startDate) }
             .map {
                 Item(id: $0.eventIdentifier ?? UUID().uuidString,
-                     title: $0.title ?? "(Không tiêu đề)",
+                     title: $0.title ?? L("(Không tiêu đề)", "(No title)"),
                      start: $0.startDate, end: $0.endDate, allDay: $0.isAllDay,
                      color: Color(nsColor: $0.calendar?.color ?? .systemBlue),
                      meeting: Self.meeting(in: $0))

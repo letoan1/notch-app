@@ -22,7 +22,11 @@ struct TrayView: View {
                 .frame(width: tray.files.isEmpty ? nil : 150)
                 .contextMenu {
                     if !tray.files.isEmpty {
-                        Button("Xoá hết khay (file gốc không bị xoá)") { tray.clear() }
+                        Button(L("AirDrop tất cả", "AirDrop all")) {
+                            NSSharingService(named: .sendViaAirDrop)?.perform(withItems: tray.files)
+                        }
+                        Divider()
+                        Button(L("Xoá hết khay (file gốc không bị xoá)", "Clear tray (files stay on disk)")) { tray.clear() }
                     }
                 }
         }
@@ -58,7 +62,7 @@ private struct DropZone: View {
                 VStack(spacing: 8) {
                     Image(systemName: "arrow.down.to.line")
                         .font(.system(size: 22, weight: .semibold))
-                    Text(targeted ? "Thả vào khay" : (wide ? "Kéo file lên notch để cất tạm" : "Thả vào khay"))
+                    Text(targeted || !wide ? L("Thả vào khay", "Drop here") : L("Kéo file lên notch để cất tạm", "Drag files onto the notch to keep them here"))
                         .font(.system(size: 12, weight: .bold))
                 }
                 .foregroundStyle(.white.opacity(targeted ? 1 : 0.85))
@@ -110,6 +114,7 @@ private struct TrayTile: View {
         .onHover { hover.wrappedValue = $0 }
         .onTapGesture(count: 2) { NSWorkspace.shared.open(url) }
         .onDrag { NSItemProvider(object: url as NSURL) }
+        .contextMenu { ShareMenu(url: url, remove: remove) }
         .help(url.path)
     }
 }
@@ -186,5 +191,33 @@ private struct DocFold: Shape {
         p.addLine(to: CGPoint(x: r.maxX, y: r.minY + fold))
         p.closeSubpath()
         return p
+    }
+}
+
+/// Menu chuột phải của 1 file trong khay: mở, Finder, AirDrop, Chia sẻ (dịch vụ của macOS), gỡ.
+private struct ShareMenu: View {
+    let url: URL
+    let remove: () -> Void
+
+    var body: some View {
+        Button(L("Mở", "Open")) { NSWorkspace.shared.open(url) }
+        Button(L("Hiện trong Finder", "Show in Finder")) {
+            NSWorkspace.shared.activateFileViewerSelecting([url])
+        }
+        Divider()
+        Button("AirDrop") {
+            NSSharingService(named: .sendViaAirDrop)?.perform(withItems: [url])
+        }
+        Menu(L("Chia sẻ", "Share")) {
+            ForEach(NSSharingService.sharingServices(forItems: [url]), id: \.title) { service in
+                Button {
+                    service.perform(withItems: [url])
+                } label: {
+                    Label { Text(service.title) } icon: { Image(nsImage: service.image) }
+                }
+            }
+        }
+        Divider()
+        Button(L("Gỡ khỏi khay", "Remove from tray"), action: remove)
     }
 }
