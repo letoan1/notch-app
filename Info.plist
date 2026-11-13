@@ -26,6 +26,8 @@
 	<string>Notch hiển thị các sự kiện trong lịch của bạn. — Notch shows your calendar events.</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>Notch hiển thị các sự kiện trong lịch của bạn. — Notch shows your calendar events.</string>
+	<key>NSAudioCaptureUsageDescription</key>
+	<string>Notch nghe âm thanh của Spotify/Music để vẽ sóng nhạc theo nhạc thật, không ghi hay lưu lại. — Notch listens to Spotify/Music audio to draw a live visualizer; nothing is recorded or saved.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Notch hiện hình camera để bạn soi gương trước khi họp, không ghi hay lưu hình. — Notch shows your camera as a mirror before calls; nothing is recorded or saved.</string>
 </dict>

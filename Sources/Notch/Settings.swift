@@ -31,11 +31,12 @@ final class SettingsStore: ObservableObject {
     }
 
     enum DisplayMode: String, CaseIterable, Identifiable {
-        case notch, mouse, main
+        case notch, all, mouse, main
         var id: String { rawValue }
         var title: String {
             switch self {
             case .notch: return L("Màn hình có notch", "Screen with a notch")
+            case .all: return L("Tất cả màn hình (đồng bộ)", "All screens (synced)")
             case .mouse: return L("Màn hình đang có con trỏ", "Screen with the pointer")
             case .main: return L("Màn hình chính", "Main screen")
             }
@@ -67,6 +68,26 @@ final class SettingsStore: ObservableObject {
 
     static let hoverDelays: [Double] = [0, 0.15, 0.3, 0.5]
 
+    /// Kích thước notch khi mở: phóng cả nội dung quanh mép trên.
+    enum ExpandedSize: String, CaseIterable, Identifiable {
+        case compact, regular, large
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .compact: return L("Gọn", "Compact")
+            case .regular: return L("Vừa", "Regular")
+            case .large: return L("Rộng", "Large")
+            }
+        }
+        var scale: CGFloat {
+            switch self {
+            case .compact: return 0.88
+            case .regular: return 1
+            case .large: return 1.15
+            }
+        }
+    }
+
     @Published var language: Language { didSet { save(language.rawValue, "language") } }
     @Published var theme: Theme { didSet { save(theme.rawValue, "theme") } }
     @Published var openMode: OpenMode { didSet { save(openMode.rawValue, "openMode") } }
@@ -80,6 +101,11 @@ final class SettingsStore: ObservableObject {
     /// Tự gỡ file khỏi khay sau N ngày kể từ lúc thả vào; 0 = không bao giờ.
     @Published var trayExpiryDays: Int { didSet { save(trayExpiryDays, "trayExpiryDays") } }
     static let trayExpiryOptions = [0, 1, 7, 30]
+    @Published var screenshotsToTray: Bool { didSet { save(screenshotsToTray, "screenshotsToTray") } }
+    @Published var realVisualizer: Bool { didSet { save(realVisualizer, "realVisualizer") } }
+    @Published var showPet: Bool { didSet { save(showPet, "showPet") } }
+    @Published var expandedSize: ExpandedSize { didSet { save(expandedSize.rawValue, "expandedSize") } }
+    @Published var haptics: Bool { didSet { save(haptics, "haptics") } }
 
     private init() {
         let d = UserDefaults.standard
@@ -94,6 +120,11 @@ final class SettingsStore: ObservableObject {
         showTray = d.object(forKey: "tab.tray") as? Bool ?? true
         showMirror = d.object(forKey: "tab.mirror") as? Bool ?? true
         trayExpiryDays = d.object(forKey: "trayExpiryDays") as? Int ?? 0
+        screenshotsToTray = d.object(forKey: "screenshotsToTray") as? Bool ?? true
+        realVisualizer = d.object(forKey: "realVisualizer") as? Bool ?? true
+        showPet = d.object(forKey: "showPet") as? Bool ?? true
+        expandedSize = ExpandedSize(rawValue: d.string(forKey: "expandedSize") ?? "") ?? .regular
+        haptics = d.object(forKey: "haptics") as? Bool ?? true
     }
 
     /// Các tab đang bật, theo thứ tự hiển thị.

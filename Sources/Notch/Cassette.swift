@@ -30,6 +30,12 @@ extension Font {
 
 struct CassettePlayerView: View {
     @ObservedObject var media: NowPlaying
+    /// Đang tua: vị trí đích (giây) + vị trí lúc bắt đầu kéo.
+    private var scrub = State<(target: Double, base: Double)?>(initialValue: nil)
+
+    init(media: NowPlaying) {
+        self.media = media
+    }
 
     var body: some View {
         let track = media.track
@@ -37,16 +43,31 @@ struct CassettePlayerView: View {
         VStack(spacing: 10) {
             // Cập nhật mỗi giây: bộ đếm + lượng băng ở 2 trục.
             TimelineView(.periodic(from: .now, by: 1)) { ctx in
-                let position = track?.position(at: ctx.date) ?? 0
+                let position = scrub.wrappedValue?.target ?? track?.position(at: ctx.date) ?? 0
                 let ratio = (track?.duration ?? 0) > 0 ? position / track!.duration : 0
                 CassetteBody(title: track?.title ?? L("Chưa có băng", "No tape"),
                              artist: track?.artist ?? "",
                              counter: track == nil ? "--:--" : ProgressRow.format(position),
-                             ratio: ratio, playing: playing)
+                             total: track.map { ProgressRow.format($0.duration) } ?? "--:--",
+                             ratio: ratio, playing: playing,
+                             scrubDelta: scrub.wrappedValue.map { $0.target - $0.base })
             }
             .frame(width: 316, height: 150)
             .contentShape(Rectangle())
             .onTapGesture { media.openPlayer() }
+            // Kéo ngang thân băng = tua: hết chiều ngang băng ≈ 1/2 bài.
+            .gesture(DragGesture(minimumDistance: 6)
+                .onChanged { v in
+                    guard let track, track.duration > 0 else { return }
+                    let base = scrub.wrappedValue?.base ?? track.position(at: Date())
+                    let target = min(max(base + v.translation.width / 316 * track.duration / 2, 0), track.duration)
+                    scrub.wrappedValue = (target, base)
+                }
+                .onEnded { _ in
+                    if let s = scrub.wrappedValue { media.seek(s.target) }
+                    scrub.wrappedValue = nil
+                })
+            .help(L("Bấm để mở app nhạc · kéo ngang để tua", "Click to open the player · drag sideways to seek"))
 
             HStack(spacing: 8) {
                 MechKey(symbol: "backward.fill", pressed: false, action: media.previous)
@@ -64,8 +85,11 @@ private struct CassetteBody: View {
     let title: String
     let artist: String
     let counter: String
+    let total: String
     let ratio: Double
     let playing: Bool
+    /// Đang kéo tua: chênh lệch so với lúc bắt đầu (âm = tua lùi).
+    let scrubDelta: Double?
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -77,13 +101,16 @@ private struct CassetteBody: View {
                 HStack {
                     Text("SIDE A")
                     Spacer()
-                    Text(counter).monospacedDigit()
+                    Text("\(counter) / \(total)").monospacedDigit()
                 }
                 .font(.hand(12))
                 .foregroundStyle(CassettePalette.ink)
                 .padding(.horizontal, 10)
                 .frame(height: 20)
                 .background(CassettePalette.band)
+                progressMark
+                    .padding(.horizontal, 10)
+                    .padding(.top, 4)
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(title).font(.hand(19)).lineLimit(1)
                     Spacer(minLength: 4)
@@ -93,7 +120,7 @@ private struct CassetteBody: View {
                 }
                 .foregroundStyle(CassettePalette.ink)
                 .padding(.horizontal, 10)
-                .padding(.top, 4)
+                .padding(.top, 1)
                 VStack(spacing: 9) {
                     ForEach(0..<3, id: \.self) { _ in Rectangle().fill(CassettePalette.line).frame(height: 1) }
                 }
@@ -113,8 +140,53 @@ private struct CassetteBody: View {
             reel(x: 216, wound: ratio)
 
             BottomPlate().fill(CassettePalette.plate, style: FillStyle(eoFill: true))
+
+            if let delta = scrubDelta {
+                // Tờ note to giữa băng khi đang tua: hướng tua + vị trí / tổng.
+                HStack(spacing: 6) {
+                    Image(systemName: delta < 0 ? "backward.fill" : "forward.fill")
+                        .font(.system(size: 13, weight: .bold))
+                    Text("\(counter) / \(total)").font(.hand(22)).monospacedDigit()
+                }
+                .foregroundStyle(CassettePalette.ink)
+                .padding(.horizontal, 12).padding(.vertical, 4)
+                .background(CassettePalette.note)
+                .shadow(color: .black.opacity(0.45), radius: 4, x: 2, y: 3)
+                .rotationEffect(.degrees(-2))
+                .frame(width: 316, height: 150)
+                .offset(y: 8)
+                .transition(.opacity)
+            }
         }
         .frame(width: 316, height: 150)
+        .animation(.easeOut(duration: 0.12), value: scrubDelta == nil)
+    }
+
+    /// Vạch bút đỏ chạy theo bài + đầu đọc tam giác: nhìn là biết đang ở đoạn nào.
+    private var progressMark: some View {
+        GeometryReader { geo in
+            let x = geo.size.width * CGFloat(min(max(ratio, 0), 1))
+            ZStack(alignment: .leading) {
+                Capsule().fill(CassettePalette.line.opacity(0.5)).frame(height: 2)
+                Capsule().fill(CassettePalette.marker).frame(width: max(x, 2), height: 3)
+                Triangle().fill(CassettePalette.ink)
+                    .frame(width: 7, height: 6)
+                    .offset(x: x - 3.5, y: -5)
+            }
+            .frame(height: geo.size.height)
+        }
+        .frame(height: 8)
+    }
+
+    private struct Triangle: Shape {
+        func path(in r: CGRect) -> Path {
+            Path { p in
+                p.move(to: CGPoint(x: r.minX, y: r.minY))
+                p.addLine(to: CGPoint(x: r.maxX, y: r.minY))
+                p.addLine(to: CGPoint(x: r.midX, y: r.maxY))
+                p.closeSubpath()
+            }
+        }
     }
 
     /// Trục băng: đĩa băng nâu to/nhỏ theo lượng băng đang cuộn + bánh răng quay khi phát.

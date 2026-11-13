@@ -136,7 +136,13 @@ private struct MiniTapeTile: View {
     }
 
     var body: some View {
-        MiniTape(band: fileTint(url), name: url.lastPathComponent.precomposedStringWithCanonicalMapping)
+        Group {
+            if FileThumbnails.isVisual(url) {
+                Polaroid(url: url)
+            } else {
+                MiniTape(band: fileTint(url), name: url.lastPathComponent.precomposedStringWithCanonicalMapping)
+            }
+        }
             .frame(width: 112, height: 76)
             .overlay(alignment: .topTrailing) {
                 if hover.wrappedValue {
@@ -157,6 +163,39 @@ private struct MiniTapeTile: View {
             .onDrag { NSItemProvider(object: url as NSURL) }
             .fileMenu(url: url, remove: remove, onThemed: onMenu)
             .help(url.path)
+    }
+}
+
+/// File ảnh / video trên kệ: tấm Polaroid dán băng keo, chú thích viết tay, nghiêng nhẹ.
+private struct Polaroid: View {
+    let url: URL
+
+    var body: some View {
+        let name = url.deletingPathExtension().lastPathComponent.precomposedStringWithCanonicalMapping
+        // Góc nghiêng cố định theo tên file để mỗi tấm một kiểu nhưng không nhảy khi vẽ lại.
+        let tilt = Double(name.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) % 97 } % 7) - 3
+        VStack(spacing: 2) {
+            ThumbnailImage(url: url, size: CGSize(width: 84, height: 50)) {
+                CassettePalette.window.overlay(Image(systemName: "photo").foregroundStyle(CassettePalette.faded))
+            }
+            .frame(width: 84, height: 50)
+            .clipped()
+            Text(name)
+                .font(.hand(10))
+                .foregroundStyle(CassettePalette.ink)
+                .lineLimit(1).truncationMode(.middle)
+                .frame(width: 84)
+        }
+        .padding(.horizontal, 5).padding(.top, 5).padding(.bottom, 3)
+        .background(Color(red: 0.97, green: 0.95, blue: 0.9))
+        .shadow(color: .black.opacity(0.45), radius: 3, x: 1, y: 3)
+        .overlay(alignment: .top) {
+            Rectangle().fill(CassettePalette.note.opacity(0.7))
+                .frame(width: 34, height: 10)
+                .rotationEffect(.degrees(-tilt * 1.5))
+                .offset(y: -5)
+        }
+        .rotationEffect(.degrees(tilt))
     }
 }
 

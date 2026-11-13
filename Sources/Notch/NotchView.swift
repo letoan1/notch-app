@@ -29,15 +29,31 @@ struct NotchRootView: View {
                              notchHeight: notch.height, ns: ns.wrappedValue)
                     .frame(width: NotchModel.expandedWidth - 28,
                            height: notch.height + model.expandedBodyHeight)
+                    .scaleEffect(NotchModel.scale, anchor: .top)
                     .transition(.notchContent)
-            } else if let peek = model.chargePeek {
-                ChargeWings(peek: peek, wing: NotchModel.peekWing)
-                    .frame(width: notch.width + NotchModel.peekWing * 2, height: notch.height)
-                    .transition(.notchContent)
+            } else if let peek = model.peek {
+                Group {
+                    switch peek {
+                    case let .charge(charge): ChargeWings(peek: charge, wing: peek.wing)
+                    case let .audio(name, symbol): AudioWings(name: name, symbol: symbol, wing: peek.wing)
+                    case let .screenshot(thumb): ScreenshotWings(thumb: thumb, wing: peek.wing)
+                    }
+                }
+                .frame(width: notch.width + peek.wing * 2, height: notch.height)
+                .offset(x: -model.petWing / 2)
+                .transition(.notchContent)
             } else if media.hasTrack {
                 CollapsedWings(media: media, height: notch.height, ns: ns.wrappedValue)
                     .frame(width: notch.width + notch.height * 2, height: notch.height)
+                    .offset(x: -model.petWing / 2)
                     .transition(.notchContent)
+            }
+            if model.petShown {
+                PetView()
+                    .frame(width: model.petWing, height: notch.height)
+                    .padding(.trailing, model.topRadius)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .transition(.opacity)
             }
         }
         .frame(width: size.width, height: size.height, alignment: .top)
@@ -45,10 +61,13 @@ struct NotchRootView: View {
         .overlay(shape.stroke(Theme.isPixel ? PixelPalette.border.opacity(model.expanded ? 1 : 0) : Color.white.opacity(model.expanded ? 0.08 : 0),
                               lineWidth: Theme.isPixel ? 3 : 1))
         .shadow(color: .black.opacity(model.expanded ? 0.6 : 0), radius: 18, y: 8)
+        .offset(x: model.shapeOffsetX)
+        .animation(spring, value: settings.showPet)
+        .animation(spring, value: settings.expandedSize)
         .animation(spring, value: model.expanded)
         .animation(spring, value: model.tall)
         .animation(spring, value: model.mirrorMode)
-        .animation(spring, value: model.chargePeek)
+        .animation(spring, value: model.peek)
         .animation(spring, value: media.hasTrack)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .environment(\.locale, settings.locale)
@@ -150,6 +169,77 @@ struct ChargeWings: View {
     }
 }
 
+/// Vừa kết nối tai nghe: icon + tên thiết bị bên trái, "Đã kết nối" bên phải.
+struct AudioWings: View {
+    let name: String
+    let symbol: String
+    let wing: CGFloat
+
+    var body: some View {
+        let cassette = Theme.isCassette
+        HStack(spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: symbol)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(cassette ? CassettePalette.ink : .white)
+                Text(name)
+                    .font(cassette ? .hand(13) : .ui(11, weight: .semibold))
+                    .foregroundStyle(cassette ? CassettePalette.ink : .white.opacity(0.85))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+            .padding(.horizontal, cassette ? 6 : 0)
+            .padding(.vertical, cassette ? 2 : 0)
+            .background(cassette ? CassettePalette.note : Color.clear)
+            .rotationEffect(.degrees(cassette ? -2 : 0))
+            .frame(width: wing - 8)
+            .padding(.leading, 8)
+            Spacer(minLength: 0)
+            HStack(spacing: 4) {
+                Circle().fill(Color(red: 0.30, green: 0.85, blue: 0.40)).frame(width: 6, height: 6)
+                Text(L("Đã kết nối", "Connected"))
+                    .font(cassette ? .hand(13) : .ui(11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.75))
+                    .lineLimit(1)
+            }
+            .frame(width: wing)
+        }
+    }
+}
+
+/// Vừa chụp màn hình: ảnh thu nhỏ bên trái, "Vào khay" bên phải.
+struct ScreenshotWings: View {
+    let thumb: NSImage?
+    let wing: CGFloat
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Group {
+                if let thumb {
+                    Image(nsImage: thumb).resizable().aspectRatio(contentMode: .fill)
+                } else {
+                    Image(systemName: "camera.viewfinder").font(.system(size: 14, weight: .semibold))
+                }
+            }
+            .frame(width: 36, height: 22)
+            .clipShape(RoundedRectangle(cornerRadius: Theme.isPixel ? 0 : 4))
+            .overlay(RoundedRectangle(cornerRadius: Theme.isPixel ? 0 : 4)
+                .stroke(Theme.isCassette ? CassettePalette.label : .white.opacity(0.5), lineWidth: Theme.isPixel ? 2 : 1))
+            .rotationEffect(.degrees(Theme.isCassette ? -3 : 0))
+            .frame(width: wing)
+            Spacer(minLength: 0)
+            HStack(spacing: 4) {
+                ThemedIcon(symbol: "tray.full.fill").font(.system(size: 10, weight: .semibold))
+                Text(L("Vào khay", "In tray"))
+                    .font(Theme.isCassette ? .hand(13) : .ui(11, weight: .semibold))
+                    .lineLimit(1)
+            }
+            .foregroundStyle(.white.opacity(0.8))
+            .frame(width: wing)
+        }
+    }
+}
+
 private struct BatteryGlyph: View {
     let level: Double
     let color: Color
@@ -207,6 +297,10 @@ struct ExpandedView: View {
                     }
                 }
                 Spacer()
+                if settings.showPet {
+                    // Notch mở: thú cưng lên hàng tab (Claude hỏi vẫn thấy nó giật mình); bấm để vuốt ve.
+                    PetView().frame(width: 34, height: notchHeight)
+                }
                 Button { SettingsWindowController.shared.show() } label: {
                     ThemedIcon(symbol: "gearshape.fill")
                         .font(.ui(11, weight: .semibold))
@@ -306,6 +400,7 @@ struct ExpandedView: View {
             set: { model.dropTargeted = $0 }
         )) { providers in
             guard settings.showTray else { return false }
+            Haptics.tap(.alignment)
             tray.accept(providers)
             model.tab = .tray
             return true
@@ -382,7 +477,7 @@ struct PlayerView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { media.openPlayer() }
 
-                ProgressRow(track: track, accent: media.accent)
+                ProgressRow(track: track, accent: media.accent, seek: media.seek)
 
                 HStack(spacing: 14) {
                     ControlButton(symbol: "backward.fill", size: 18, action: media.previous)
@@ -401,31 +496,64 @@ struct PlayerView: View {
 struct ProgressRow: View {
     let track: Track
     let accent: Color
+    var seek: ((Double) -> Void)?
+    /// Tỉ lệ đang kéo (nil = không kéo): thanh đi theo chuột, thả ra mới tua thật.
+    private var drag = State<Double?>(initialValue: nil)
+    private var hover = State(initialValue: false)
+
+    init(track: Track, accent: Color, seek: ((Double) -> Void)? = nil) {
+        self.track = track
+        self.accent = accent
+        self.seek = seek
+    }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30)) { ctx in
-            let pos = track.position(at: ctx.date)
-            let ratio = track.duration > 0 ? pos / track.duration : 0
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !track.isPlaying && drag.wrappedValue == nil)) { ctx in
+            let live = track.duration > 0 ? track.position(at: ctx.date) / track.duration : 0
+            let ratio = drag.wrappedValue ?? live
+            let active = hover.wrappedValue || drag.wrappedValue != nil
             HStack(spacing: 8) {
-                Text(Self.format(pos))
+                Text(Self.format(ratio * track.duration))
                 GeometryReader { geo in
-                    if Theme.isPixel {
-                        PixelSegments(ratio: ratio, accent: PixelPalette.pink)
-                    } else {
-                    ZStack(alignment: .leading) {
-                        Capsule().fill(.white.opacity(0.2))
-                        Capsule()
-                            .fill(LinearGradient(colors: [accent.opacity(0.75), accent],
-                                                 startPoint: .leading, endPoint: .trailing))
-                            .frame(width: geo.size.width * ratio)
-                    }
-                    }
+                    bar(ratio: ratio, active: active, width: geo.size.width)
+                        .frame(height: active && !Theme.isPixel ? 7 : 5)
+                        .frame(maxHeight: .infinity)
+                        .contentShape(Rectangle())
+                        .gesture(DragGesture(minimumDistance: 0)
+                            .onChanged { drag.wrappedValue = min(max($0.location.x / geo.size.width, 0), 1) }
+                            .onEnded { v in
+                                let r = min(max(v.location.x / geo.size.width, 0), 1)
+                                seek?(r * track.duration)
+                                drag.wrappedValue = nil
+                            })
                 }
-                .frame(height: 5)
+                .frame(height: 14)
+                .onHover { hover.wrappedValue = $0 && seek != nil }
+                .animation(.easeOut(duration: 0.12), value: active)
                 Text(Self.format(track.duration))
             }
             .font(.ui(11, weight: .medium).monospacedDigit())
             .foregroundStyle(.white.opacity(0.55))
+        }
+    }
+
+    @ViewBuilder private func bar(ratio: Double, active: Bool, width: CGFloat) -> some View {
+        if Theme.isPixel {
+            PixelSegments(ratio: ratio, accent: PixelPalette.pink)
+        } else {
+            ZStack(alignment: .leading) {
+                Capsule().fill(.white.opacity(0.2))
+                Capsule()
+                    .fill(LinearGradient(colors: [accent.opacity(0.75), accent],
+                                         startPoint: .leading, endPoint: .trailing))
+                    .frame(width: width * ratio)
+                if active {
+                    Circle().fill(.white)
+                        .frame(width: 11, height: 11)
+                        .shadow(color: .black.opacity(0.4), radius: 2)
+                        .offset(x: min(max(width * ratio - 5.5, -2), width - 9))
+                }
+            }
         }
     }
 
@@ -528,13 +656,61 @@ final class EqualizerLayerView: NSView {
         CATransaction.commit()
     }
 
+    private var active = false
+    private var faking = false
+    private var link: CADisplayLink?
+
     func update(color: NSColor, active: Bool) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         bars.forEach { $0.backgroundColor = color.cgColor }
         CATransaction.commit()
+        self.active = active
+        refresh()
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        refresh()
+    }
+
+    /// Đang phát + bật sóng thật: display link 30fps đọc mức âm thanh; không có dữ liệu thì giả lập.
+    private func refresh() {
+        let live = active && window != nil && AudioSpectrum.enabled
+        if live, link == nil {
+            let l = displayLink(target: self, selector: #selector(step))
+            l.preferredFrameRateRange = CAFrameRateRange(minimum: 15, maximum: 30, preferred: 30)
+            l.add(to: .main, forMode: .common)
+            link = l
+        } else if !live {
+            link?.invalidate()
+            link = nil
+        }
+        setFaking(active && (!live || AudioSpectrum.shared.currentLevels() == nil))
+        if !active {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            bars.forEach { $0.transform = CATransform3DIdentity }
+            CATransaction.commit()
+        }
+    }
+
+    @objc private func step() {
+        guard let levels = AudioSpectrum.shared.currentLevels() else { setFaking(true); return }
+        setFaking(false)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for (i, bar) in bars.enumerated() where i < levels.count {
+            bar.transform = CATransform3DMakeScale(1, CGFloat(0.22 + 0.78 * levels[i]), 1)
+        }
+        CATransaction.commit()
+    }
+
+    private func setFaking(_ on: Bool) {
+        guard on != faking else { return }
+        faking = on
         for (i, bar) in bars.enumerated() {
-            if active, bar.animation(forKey: "eq") == nil {
+            if on {
                 let anim = CABasicAnimation(keyPath: "transform.scale.y")
                 anim.fromValue = 0.3
                 anim.toValue = 1
@@ -543,7 +719,7 @@ final class EqualizerLayerView: NSView {
                 anim.repeatCount = .infinity
                 anim.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
                 bar.add(anim, forKey: "eq")
-            } else if !active {
+            } else {
                 bar.removeAnimation(forKey: "eq")
             }
         }

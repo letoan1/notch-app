@@ -145,7 +145,7 @@ struct QuestionCard: View {
         typing.wrappedValue = true
         // Panel chỉ nhận bàn phím lúc có câu hỏi (allowsKey); makeKey để ô gõ nhận phím
         // mà không kích hoạt app (nonactivatingPanel) → VS Code vẫn là app đang dùng.
-        NSApp.windows.first { $0 is NotchPanel }?.makeKey()
+        NSApp.windows.first { ($0 as? NotchPanel)?.allowsKey == true }?.makeKey()
         DispatchQueue.main.async { focused.wrappedValue = true }
     }
 

@@ -1,3 +1,4 @@
+import QuickLookThumbnailing
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -90,7 +91,17 @@ private struct TrayTile: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            DocGlyph(url: url)
+            if FileThumbnails.isVisual(url) {
+                ThumbnailImage(url: url, size: CGSize(width: 72, height: 55)) { DocGlyph(url: url) }
+                    .frame(width: 72, height: 55)
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.isPixel ? 0 : 6))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.isPixel ? 0 : 6)
+                        .strokeBorder(Theme.isPixel ? PixelPalette.border : .white.opacity(0.25), lineWidth: Theme.isPixel ? 2 : 1))
+                    .background(Rectangle().fill(Theme.isPixel ? PixelPalette.shadow : .clear).offset(x: 3, y: 3))
+                    .shadow(color: .black.opacity(Theme.isPixel ? 0 : 0.4), radius: 6, y: 3)
+            } else {
+                DocGlyph(url: url)
+            }
             Text(url.lastPathComponent.precomposedStringWithCanonicalMapping)  // tên file macOS ở dạng NFD → NFC để font hiện đủ dấu
                 .font(.ui(11))
                 .foregroundStyle(.white.opacity(0.8))
@@ -321,8 +332,66 @@ private struct TrayMenuOverlay: ViewModifier {
 
     /// Bảng chia sẻ của macOS, neo tại vị trí chuột trên cửa sổ notch.
     private func showSharePicker(_ url: URL) {
-        guard let view = NSApp.windows.first(where: { $0 is NotchPanel })?.contentView, let window = view.window else { return }
+        guard let view = NSApp.windows.first(where: { $0 is NotchPanel && !$0.ignoresMouseEvents })?.contentView, let window = view.window else { return }
         let point = view.convert(window.convertPoint(fromScreen: NSEvent.mouseLocation), from: nil)
         NSSharingServicePicker(items: [url]).show(relativeTo: NSRect(origin: point, size: .init(width: 1, height: 1)), of: view, preferredEdge: .minY)
+    }
+}
+
+// MARK: - Ảnh xem trước
+
+/// Ảnh xem trước của file ảnh / video qua QuickLook (cache theo đường dẫn + ngày sửa).
+@MainActor
+enum FileThumbnails {
+    private static let cache = NSCache<NSString, NSImage>()
+
+    static func isVisual(_ url: URL) -> Bool {
+        guard let type = UTType(filenameExtension: url.pathExtension) else { return false }
+        return type.conforms(to: .image) || type.conforms(to: .movie)
+    }
+
+    private static func key(_ url: URL, _ size: CGSize) -> NSString {
+        let modified = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
+        return "\(url.path)|\(modified?.timeIntervalSince1970 ?? 0)|\(Int(size.width))x\(Int(size.height))" as NSString
+    }
+
+    static func cached(_ url: URL, size: CGSize) -> NSImage? { cache.object(forKey: key(url, size)) }
+
+    static func load(_ url: URL, size: CGSize) async -> NSImage? {
+        let k = key(url, size)
+        if let hit = cache.object(forKey: k) { return hit }
+        let request = QLThumbnailGenerator.Request(fileAt: url, size: size,
+                                                   scale: NSScreen.main?.backingScaleFactor ?? 2,
+                                                   representationTypes: .thumbnail)
+        guard let rep = try? await QLThumbnailGenerator.shared.generateBestRepresentation(for: request) else { return nil }
+        let image = rep.nsImage
+        cache.setObject(image, forKey: k)
+        return image
+    }
+}
+
+/// Ảnh xem trước lấp đầy khung; chưa có (đang tải / không tạo được) thì hiện placeholder.
+struct ThumbnailImage<Placeholder: View>: View {
+    let url: URL
+    let size: CGSize
+    let placeholder: Placeholder
+    private var image: State<NSImage?>
+
+    init(url: URL, size: CGSize, @ViewBuilder placeholder: () -> Placeholder) {
+        self.url = url
+        self.size = size
+        self.placeholder = placeholder()
+        image = State(initialValue: FileThumbnails.cached(url, size: size))
+    }
+
+    var body: some View {
+        Group {
+            if let img = image.wrappedValue {
+                Image(nsImage: img).resizable().aspectRatio(contentMode: .fill)
+            } else {
+                placeholder
+            }
+        }
+        .task(id: url) { image.wrappedValue = await FileThumbnails.load(url, size: size) }
     }
 }

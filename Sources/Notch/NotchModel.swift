@@ -12,6 +12,8 @@ final class NotchModel: ObservableObject {
     @Published private(set) var notchSize = CGSize(width: 190, height: 32)
 
     static let expandedWidth: CGFloat = 620
+    /// Tỉ lệ notch mở theo Cài đặt (Gọn / Vừa / Rộng).
+    static var scale: CGFloat { SettingsStore.shared.expandedSize.scale }
     static let normalBodyHeight: CGFloat = 154
     static let tallBodyHeight: CGFloat = 222
 
@@ -20,9 +22,21 @@ final class NotchModel: ObservableObject {
         let charging: Bool
     }
 
-    /// Vừa cắm sạc: hiện 2 cánh pin vài giây (kiểu iPhone).
-    @Published var chargePeek: ChargePeek?
-    static let peekWing: CGFloat = 80
+    /// Thông báo nhanh ở 2 cánh notch vài giây (kiểu iPhone): cắm sạc, kết nối tai nghe.
+    enum Peek: Equatable {
+        case charge(ChargePeek)
+        case audio(name: String, symbol: String)
+        case screenshot(NSImage?)
+
+        var wing: CGFloat {
+            switch self {
+            case .charge, .screenshot: return 80
+            case .audio: return 118
+            }
+        }
+    }
+
+    @Published var peek: Peek?
 
     /// Thẻ câu hỏi của Claude cần cao hơn để vừa 4 lựa chọn.
     @Published var tall = false
@@ -41,6 +55,12 @@ final class NotchModel: ObservableObject {
     var topRadius: CGFloat { expanded ? 14 : 6 }
     var bottomRadius: CGFloat { expanded ? 24 : 10 }
 
+    /// Thú cưng ngồi ở cánh phải khi notch thu gọn (không che thông báo nhanh).
+    var petShown: Bool { SettingsStore.shared.showPet && !expanded }
+    var petWing: CGFloat { petShown ? notchSize.height : 0 }
+    /// Cánh thú cưng chỉ thêm bên phải: dời khung sang phải nửa cánh để mép trái vẫn khớp notch.
+    var shapeOffsetX: CGFloat { petWing / 2 }
+
     func update(for screen: NSScreen) {
         let top = screen.safeAreaInsets.top
         if top > 0, let l = screen.auxiliaryTopLeftArea, let r = screen.auxiliaryTopRightArea {
@@ -54,9 +74,9 @@ final class NotchModel: ObservableObject {
     /// Kích thước khung shape (đã gồm 2 "tai" ở mép trên).
     func shapeSize(playing: Bool) -> CGSize {
         if expanded {
-            return CGSize(width: Self.expandedWidth, height: notchSize.height + expandedBodyHeight)
+            return CGSize(width: Self.expandedWidth * Self.scale, height: (notchSize.height + expandedBodyHeight) * Self.scale)
         }
-        let wings = chargePeek != nil ? Self.peekWing * 2 : (playing ? notchSize.height * 2 : 0)
-        return CGSize(width: notchSize.width + topRadius * 2 + wings, height: notchSize.height)
+        let wings = peek.map { $0.wing * 2 } ?? (playing ? notchSize.height * 2 : 0)
+        return CGSize(width: notchSize.width + topRadius * 2 + wings + petWing, height: notchSize.height)
     }
 }

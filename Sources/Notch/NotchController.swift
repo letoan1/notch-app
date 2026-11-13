@@ -31,18 +31,52 @@ final class FirstMouseHostingView<Content: View>: NSHostingView<Content> {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 }
 
+extension NSScreen {
+    var displayID: CGDirectDisplayID? {
+        deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID
+    }
+}
+
+/// Notch trên 1 màn hình: panel + model riêng (mở/thu, kích thước notch), dữ liệu dùng chung.
+@MainActor
+final class NotchSlot {
+    let panel = NotchPanel(contentRect: NSRect(origin: .zero, size: NotchController.canvas))
+    let model = NotchModel()
+    var screen: NSScreen
+
+    init(screen: NSScreen) {
+        self.screen = screen
+        panel.ignoresMouseEvents = true
+    }
+
+    func place() {
+        model.update(for: screen)
+        let f = screen.frame
+        panel.setFrame(NSRect(x: f.midX - NotchController.canvas.width / 2,
+                              y: f.maxY - NotchController.canvas.height,
+                              width: NotchController.canvas.width,
+                              height: NotchController.canvas.height),
+                       display: true)
+        panel.orderFrontRegardless()
+    }
+}
+
 @MainActor
 final class NotchController {
     static let canvas = CGSize(width: 760, height: 320)
 
-    let model = NotchModel()
     let media = NowPlaying()
     let permissions = PermissionCenter()
     let tray = TrayStore()
     let calendar = CalendarStore()
     let camera = CameraMirror()
-    private let panel: NotchPanel
-    private var screen: NSScreen
+    /// Mỗi màn hình hiện notch có 1 slot; chế độ "Tất cả màn hình" thì nhiều slot cùng lúc.
+    private var slots: [NotchSlot] = []
+    /// Slot dưới chuột / đang mở. Chỉ slot này được mở, các slot khác giữ thu gọn.
+    private var active: NotchSlot!
+    private var model: NotchModel { active.model }
+    private var panel: NotchPanel { active.panel }
+    private var screen: NSScreen { active.screen }
     private var hoverTimer: Timer?
     private var lastInside = Date.distantPast
     // Theo dõi kéo file toàn hệ thống: cửa sổ đang ignoresMouseEvents nên không tự nhận drag.
@@ -61,13 +95,8 @@ final class NotchController {
     private var mouseMonitors: [Any] = []
 
     init() {
-        screen = NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? NSScreen.screens[0]
         Theme.registerFonts()
-        panel = NotchPanel(contentRect: NSRect(origin: .zero, size: Self.canvas))
-        panel.contentView = makeRootView()
-        panel.ignoresMouseEvents = true
         layout()
-        panel.orderFrontRegardless()
 
         // @Published phát trước khi gán → receive(on:) để đọc giá trị mới.
         settings.$language.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in
@@ -95,6 +124,15 @@ final class NotchController {
         permissions.$requests.receive(on: DispatchQueue.main).sink { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }.store(in: &cancellables)
+        // Mở / đóng từ script (kiểm thử, phím tắt bên ngoài): notifyutil -p / DistributedNotificationCenter.
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name("local.toan.notch.toggle"),
+                                                            object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.toggleFromHotkey() }
+        }
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name("local.toan.notch.settings"),
+                                                            object: nil, queue: .main) { _ in
+            MainActor.assumeIsolated { SettingsWindowController.shared.show() }
+        }
         hotKey.onPress = { [weak self] in
             MainActor.assumeIsolated { self?.toggleFromHotkey() }
         }
@@ -121,12 +159,57 @@ final class NotchController {
         media.start()
         permissions.start()
         battery.onPlugIn = { [weak self] status in
-            MainActor.assumeIsolated { self?.showChargePeek(status) }
+            MainActor.assumeIsolated {
+                self?.showPeek(.charge(.init(percent: status.percent, charging: status.charging)))
+            }
         }
         battery.start()
+        audio.onConnect = { [weak self] device in
+            MainActor.assumeIsolated { self?.showPeek(.audio(name: device.name, symbol: device.symbol)) }
+        }
+        audio.start()
+        media.$track.receive(on: DispatchQueue.main).sink { [weak self] track in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.updatePet()
+                // Đổi bài khi đang phát → nhảy mừng.
+                let title = track?.title
+                if let title, title != self.lastTitle, self.lastTitle != nil, track?.isPlaying == true, self.settings.showPet {
+                    PetState.shared.react(.happy)
+                }
+                self.lastTitle = title
+            }
+        }.store(in: &cancellables)
+        tray.$files.receive(on: DispatchQueue.main).sink { [weak self] files in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if files.count > self.lastTrayCount, self.settings.showPet { PetState.shared.react(.happy) }
+                self.lastTrayCount = files.count
+            }
+        }.store(in: &cancellables)
+        PetState.shared.startIdleActions()
+        // Kiểm tra "rảnh lâu → ngủ" thưa: 30s/lần.
+        petTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.updatePet() }
+        }
+        petTimer?.tolerance = 5
+        screenshots.onNew = { [weak self] url, thumb in
+            MainActor.assumeIsolated {
+                guard let self, self.settings.screenshotsToTray, self.settings.showTray else { return }
+                self.tray.add(url)
+                self.showPeek(.screenshot(thumb))
+            }
+        }
+        screenshots.keep = { [weak self] in
+            MainActor.assumeIsolated { self?.tray.files ?? [] }
+        }
+        screenshots.start()
+        settings.$realVisualizer.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in
+            MainActor.assumeIsolated { self?.media.syncSpectrum() }
+        }.store(in: &cancellables)
     }
 
-    private func makeRootView() -> NSView {
+    private func makeRootView(_ model: NotchModel) -> NSView {
         FirstMouseHostingView(rootView: NotchRootView(model: model, media: media, permissions: permissions,
                                                       tray: tray, calendar: calendar, camera: camera,
                                                       settings: settings))
@@ -134,7 +217,7 @@ final class NotchController {
 
     /// Đổi ngôn ngữ: dựng lại toàn bộ view để mọi chuỗi L(...) được tính lại.
     private func rebuildRootView() {
-        panel.contentView = makeRootView()
+        for slot in slots { slot.panel.contentView = makeRootView(slot.model) }
     }
 
     private func applyHotkey() {
@@ -146,6 +229,7 @@ final class NotchController {
     }
 
     private func toggleFromHotkey() {
+        if !model.expanded { activateSlotUnderMouse() }
         if model.expanded {
             setExpanded(false)
         } else {
@@ -165,25 +249,59 @@ final class NotchController {
         switch settings.displayMode {
         case .notch:
             return NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? Self.primaryScreen
-        case .main:
+        case .main, .all:
             return Self.primaryScreen
         case .mouse:
             return Self.screen(containing: NSEvent.mouseLocation) ?? Self.primaryScreen
         }
     }
 
+    /// Dựng slot theo cài đặt: 1 notch, hoặc mỗi màn hình 1 notch. Giữ lại panel cũ khi được.
     private func layout() {
-        screen = targetScreen()
-        model.update(for: screen)
-        let f = screen.frame
-        panel.setFrame(NSRect(x: f.midX - Self.canvas.width / 2,
-                              y: f.maxY - Self.canvas.height,
-                              width: Self.canvas.width,
-                              height: Self.canvas.height),
-                       display: true)
+        let all = settings.displayMode == .all
+        let screens = all ? NSScreen.screens : [targetScreen()]
+        var pool = slots
+        var kept: [NotchSlot] = []
+        for target in screens {
+            let slot: NotchSlot
+            if let i = pool.firstIndex(where: { $0.screen.displayID == target.displayID }) {
+                slot = pool.remove(at: i)
+            } else if !all, !pool.isEmpty {
+                slot = pool.removeFirst()   // chế độ 1 notch: dời panel sang màn hình mới
+            } else {
+                slot = NotchSlot(screen: target)
+                slot.panel.contentView = makeRootView(slot.model)
+            }
+            slot.screen = target
+            slot.place()
+            kept.append(slot)
+        }
+        for slot in pool { slot.panel.orderOut(nil) }
+        let previous = active
+        slots = kept
+        if previous == nil || !kept.contains(where: { $0 === previous }) {
+            active = slot(under: NSEvent.mouseLocation) ?? kept[0]
+            if let previous { active.model.tab = previous.model.tab }
+        }
+    }
+
+    private func slot(under point: NSPoint) -> NotchSlot? {
+        guard let id = Self.screen(containing: point)?.displayID else { return nil }
+        return slots.first { $0.screen.displayID == id }
+    }
+
+    /// Chuột sang màn hình khác (notch đang thu): chuyển quyền tương tác sang notch màn đó.
+    private func activateSlotUnderMouse() {
+        guard slots.count > 1, !model.expanded,
+              let next = slot(under: NSEvent.mouseLocation), next !== active else { return }
+        next.model.tab = model.tab
+        hoverStart = nil
+        active = next
     }
 
     private func tick() {
+        activateSlotUnderMouse()
+        updatePet()
         let isQuestion = permissions.current?.questions?.isEmpty == false
         if model.tall != isQuestion { model.tall = isQuestion }
         let wantMirror = model.tab == .mirror
@@ -215,14 +333,14 @@ final class NotchController {
         let mouse = NSEvent.mouseLocation
         // "Theo con trỏ": notch nhảy sang màn hình có chuột (chỉ khi đang thu gọn).
         if settings.displayMode == .mouse, !model.expanded,
-           let under = Self.screen(containing: mouse), under != screen {
+           let under = Self.screen(containing: mouse), under.displayID != screen.displayID {
             layout()
         }
         let size = model.shapeSize(playing: media.hasTrack)
         let f = screen.frame
         // Đang kéo file thì nới vùng bắt rộng hơn cho dễ "ném" vào notch.
         let margin: (CGFloat, CGFloat) = fileDragActive && !model.expanded ? (40, 30) : (4, 4)
-        let hot = NSRect(x: f.midX - size.width / 2, y: f.maxY - size.height,
+        let hot = NSRect(x: f.midX - size.width / 2 + model.shapeOffsetX, y: f.maxY - size.height,
                          width: size.width, height: size.height)
             .insetBy(dx: -margin.0, dy: -margin.1)
 
@@ -258,15 +376,51 @@ final class NotchController {
     private let battery = BatteryMonitor()
     private var peekToken = 0
 
-    private func showChargePeek(_ status: BatteryMonitor.Status) {
+    private let audio = AudioDeviceMonitor()
+    private var petTimer: Timer?
+    private var lastTitle: String?
+    private var lastTrayCount = Int.max
+
+    /// Mood thú cưng theo sự kiện: Claude hỏi > có nhạc > rảnh lâu thì ngủ > ngồi chơi.
+    /// Mắt nhìn theo con trỏ.
+    private func updatePet() {
+        guard settings.showPet, active != nil else { return }
+        let f = screen.frame
+        let petX: CGFloat
+        if model.expanded {
+            petX = f.midX + (NotchModel.expandedWidth / 2 - 95) * NotchModel.scale
+        } else {
+            let w = model.shapeSize(playing: media.hasTrack).width
+            petX = f.midX + model.shapeOffsetX + w / 2 - model.topRadius - model.petWing / 2
+        }
+        PetState.shared.setLook((NSEvent.mouseLocation.x - petX) / 220)
+        let idle = CGEventSource.secondsSinceLastEventType(.combinedSessionState,
+                                                           eventType: CGEventType(rawValue: ~0)!)
+        let mood: PetMood = permissions.current != nil ? .alert
+            : media.isPlaying ? .dance
+            : idle > 120 ? .sleep : .idle
+        if PetState.shared.mood != mood { PetState.shared.mood = mood }
+    }
+    private let screenshots = ScreenshotWatcher()
+
+    private func showPeek(_ peek: NotchModel.Peek) {
+        if settings.showPet {
+            switch peek {
+            case .charge: PetState.shared.react(.charge)
+            case .audio: PetState.shared.react(.headphones)
+            case .screenshot: PetState.shared.react(.surprise)
+            }
+        }
         guard !model.expanded else { return }
         peekToken += 1
         let token = peekToken
-        model.chargePeek = .init(percent: status.percent, charging: status.charging)
+        for slot in slots where !slot.model.expanded {
+            slot.model.peek = peek
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 3.2) { [weak self] in
             MainActor.assumeIsolated {
                 guard let self, self.peekToken == token else { return }
-                self.model.chargePeek = nil
+                for slot in self.slots { slot.model.peek = nil }
             }
         }
     }
@@ -284,16 +438,17 @@ final class NotchController {
         // Chỉ vùng lịch: bên phải cột nhạc (340pt), dưới hàng tab.
         let mouse = NSEvent.mouseLocation
         let f = screen.frame
-        let left = f.midX - NotchModel.expandedWidth / 2 + 14 + 341
-        guard mouse.x > left, mouse.x < f.midX + NotchModel.expandedWidth / 2,
-              mouse.y < f.maxY - model.notchSize.height
+        let s = NotchModel.scale
+        let left = f.midX + (-NotchModel.expandedWidth / 2 + 14 + 341) * s
+        guard mouse.x > left, mouse.x < f.midX + NotchModel.expandedWidth / 2 * s,
+              mouse.y < f.maxY - model.notchSize.height * s
         else { return event }
 
         let dx = event.scrollingDeltaX, dy = event.scrollingDeltaY
         let horizontal = abs(dx) > abs(dy)
         // Dải ngày + tiêu đề tháng (~78pt dưới hàng tab): cuộn dọc ở đây cũng đổi tuần.
         // Dưới đó là danh sách sự kiện: cuộn dọc để danh sách tự cuộn.
-        let inWeekStrip = mouse.y >= f.maxY - model.notchSize.height - 78
+        let inWeekStrip = mouse.y >= f.maxY - (model.notchSize.height + 78) * s
         if !horizontal && !inWeekStrip { return event }
 
         // Bỏ quán tính để một lần vuốt chỉ chuyển một tuần.
@@ -344,6 +499,7 @@ final class NotchController {
     }
 
     private func setExpanded(_ value: Bool) {
+        if value, !model.expanded { Haptics.tap(.levelChange) }
         model.expanded = value
         if !value {
             pinned = false

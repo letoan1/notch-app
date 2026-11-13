@@ -102,7 +102,7 @@ final class ScriptRunner: @unchecked Sendable {
 
 @MainActor
 final class NowPlaying: ObservableObject {
-    @Published private(set) var track: Track?
+    @Published private(set) var track: Track? { didSet { syncSpectrum() } }
     @Published private(set) var artwork: NSImage? {
         didSet { accent = artwork.flatMap { $0.accentColor() }.map(Color.init(nsColor:)) ?? .white }
     }
@@ -118,6 +118,11 @@ final class NowPlaying: ObservableObject {
     private var refreshing = false
     private var pending = false
     private var artworkKey = ""
+    /// Sau khi bấm play/pause: trạng thái chờ player xác nhận. Kết quả đọc trái ngược trong
+    /// khoảng này là dữ liệu cũ (lần đọc chạy dở, player chưa kịp đổi) → bỏ qua để icon không nhảy.
+    private var expected: (playing: Bool, until: Date)?
+    /// Sau khi tua: bỏ qua kết quả đọc còn vị trí cũ (lệch > 2s so với đích) trong 1.5s.
+    private var seekTarget: (position: Double, at: Date)?
 
     func start() {
         let center = DistributedNotificationCenter.default()
@@ -140,11 +145,28 @@ final class NowPlaying: ObservableObject {
             t.fetchedAt = Date()
             t.isPlaying.toggle()
             track = t
+            expected = (t.isPlaying, Date().addingTimeInterval(2))
         }
         send("playpause")
     }
 
     func next() { send("next track") }
+
+    /// Chỉ nghe âm thanh khi đang phát + bật trong Cài đặt.
+    func syncSpectrum() {
+        let bundle = track?.isPlaying == true && AudioSpectrum.enabled ? track?.player.bundleID : nil
+        AudioSpectrum.shared.follow(bundle)
+    }
+
+    /// Tua tới `seconds` (Spotify / Music đều nhận `player position` theo giây).
+    func seek(_ seconds: Double) {
+        guard var t = track else { return }
+        t.position = seconds
+        t.fetchedAt = Date()
+        track = t
+        seekTarget = (seconds, Date())
+        send("set player position to \(String(format: "%.2f", seconds))")
+    }
 
     /// Đưa app đang phát (Spotify / Music) lên trước.
     func openPlayer() {
@@ -170,6 +192,29 @@ final class NowPlaying: ObservableObject {
 
     private func apply(_ next: Track?) {
         refreshing = false
+        if let e = expected {
+            if Date() < e.until, let n = next, n.isPlaying != e.playing {
+                if pending {
+                    pending = false
+                    refresh()
+                } else {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+                        MainActor.assumeIsolated { self?.refresh() }
+                    }
+                }
+                return
+            }
+            expected = nil
+        }
+        if let s = seekTarget, let n = next {
+            let elapsed = Date().timeIntervalSince(s.at)
+            let want = s.position + (n.isPlaying ? elapsed : 0)
+            if elapsed < 1.5, n.title == track?.title, abs(n.position(at: Date()) - want) > 2 {
+                if pending { pending = false; refresh() }
+                return
+            }
+            seekTarget = nil
+        }
         let unchanged: Bool
         switch (track, next) {
         case (nil, nil): unchanged = true
