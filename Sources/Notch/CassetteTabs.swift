@@ -85,6 +85,12 @@ struct MiniReel: View {
 struct CassetteTrayView: View {
     @ObservedObject var tray: TrayStore
     let targeted: Bool
+    private var menu = State<TrayMenuTarget?>(initialValue: nil)
+
+    init(tray: TrayStore, targeted: Bool) {
+        self.tray = tray
+        self.targeted = targeted
+    }
 
     var body: some View {
         HStack(spacing: 14) {
@@ -93,7 +99,7 @@ struct CassetteTrayView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
                             ForEach(tray.files, id: \.self) { url in
-                                MiniTapeTile(url: url) { tray.remove(url) }
+                                MiniTapeTile(url: url, remove: { tray.remove(url) }, onMenu: { menu.wrappedValue = .init(url: url, point: $0) })
                             }
                         }
                         .padding(.horizontal, 2)
@@ -105,15 +111,7 @@ struct CassetteTrayView: View {
             }
             TapeSlot(targeted: targeted, wide: tray.files.isEmpty)
                 .frame(width: tray.files.isEmpty ? nil : 170)
-                .contextMenu {
-                    if !tray.files.isEmpty {
-                        Button(L("AirDrop tất cả", "AirDrop all")) {
-                            NSSharingService(named: .sendViaAirDrop)?.perform(withItems: tray.files)
-                        }
-                        Divider()
-                        Button(L("Xoá hết khay (file gốc không bị xoá)", "Clear tray (files stay on disk)")) { tray.clear() }
-                    }
-                }
+                .trayDropMenu(tray: tray) { menu.wrappedValue = .init(url: nil, point: $0) }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 18)
@@ -121,21 +119,24 @@ struct CassetteTrayView: View {
         .padding(.bottom, 14)
         .onAppear { tray.prune() }
         .animation(.easeOut(duration: 0.15), value: targeted)
+        .trayMenu(menu.binding, tray: tray)
     }
 }
 
 private struct MiniTapeTile: View {
     let url: URL
     let remove: () -> Void
+    let onMenu: (CGPoint) -> Void
     private var hover = State(initialValue: false)
 
-    init(url: URL, remove: @escaping () -> Void) {
+    init(url: URL, remove: @escaping () -> Void, onMenu: @escaping (CGPoint) -> Void) {
         self.url = url
         self.remove = remove
+        self.onMenu = onMenu
     }
 
     var body: some View {
-        MiniTape(band: fileTint(url), name: url.lastPathComponent)
+        MiniTape(band: fileTint(url), name: url.lastPathComponent.precomposedStringWithCanonicalMapping)
             .frame(width: 112, height: 76)
             .overlay(alignment: .topTrailing) {
                 if hover.wrappedValue {
@@ -154,7 +155,7 @@ private struct MiniTapeTile: View {
             .onHover { hover.wrappedValue = $0 }
             .onTapGesture(count: 2) { NSWorkspace.shared.open(url) }
             .onDrag { NSItemProvider(object: url as NSURL) }
-            .contextMenu { ShareMenu(url: url, remove: remove) }
+            .fileMenu(url: url, remove: remove, onThemed: onMenu)
             .help(url.path)
     }
 }

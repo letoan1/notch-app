@@ -58,6 +58,7 @@ final class NotchController {
     /// Mở bằng phím tắt: giữ mở tới khi bấm lại phím tắt hoặc chuột vào rồi rời notch.
     private var pinned = false
     private var hoverStart: Date?
+    private var mouseMonitors: [Any] = []
 
     init() {
         screen = NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? NSScreen.screens[0]
@@ -80,6 +81,19 @@ final class NotchController {
         }.store(in: &cancellables)
         settings.$displayMode.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in
             MainActor.assumeIsolated { self?.layout() }
+        }.store(in: &cancellables)
+        // Chuột theo sự kiện (không cần quyền Accessibility): notch thu gọn + chuột đứng yên = không thức dậy.
+        let mask: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged, .leftMouseDown, .leftMouseUp, .rightMouseDown]
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] _ in
+            MainActor.assumeIsolated { self?.tick() }
+        }) { mouseMonitors.append(global) }
+        if let local = NSEvent.addLocalMonitorForEvents(matching: mask, handler: { [weak self] event in
+            MainActor.assumeIsolated { self?.tick() }
+            return event
+        }) { mouseMonitors.append(local) }
+        // Yêu cầu của Claude tới lúc chuột đứng yên vẫn phải mở notch.
+        permissions.$requests.receive(on: DispatchQueue.main).sink { [weak self] _ in
+            MainActor.assumeIsolated { self?.tick() }
         }.store(in: &cancellables)
         hotKey.onPress = { [weak self] in
             MainActor.assumeIsolated { self?.toggleFromHotkey() }
@@ -184,6 +198,7 @@ final class NotchController {
         if permissions.current != nil {
             lastInside = Date()
             if !model.expanded { setExpanded(true) }
+            scheduleHover(Self.fastPoll)
             return
         }
         if menuTracking {
@@ -235,9 +250,9 @@ final class NotchController {
         }
 
         // Chuột ở xa notch thì poll thưa để CPU được ngủ; lại gần / đang kéo thì 60Hz.
-        let near = model.expanded || leftDown
-            || (abs(mouse.x - f.midX) < 260 && mouse.y > f.maxY - 140)
-        scheduleHover(near ? Self.fastPoll : Self.slowPoll)
+        // Timer chỉ khi đang bận (notch mở / giữ chuột / chờ độ trễ hover); còn lại sống bằng sự kiện chuột.
+        let busy = model.expanded || leftDown || hoverStart != nil
+        scheduleHover(busy ? Self.fastPoll : nil)
     }
 
     private let battery = BatteryMonitor()
@@ -298,10 +313,12 @@ final class NotchController {
     private static let slowPoll: TimeInterval = 0.1
     private var hoverInterval: TimeInterval = 0
 
-    private func scheduleHover(_ interval: TimeInterval) {
-        guard interval != hoverInterval else { return }
-        hoverInterval = interval
+    private func scheduleHover(_ interval: TimeInterval?) {
+        guard (interval ?? 0) != hoverInterval else { return }
+        hoverInterval = interval ?? 0
         hoverTimer?.invalidate()
+        hoverTimer = nil
+        guard let interval else { return }
         let timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }

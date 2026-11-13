@@ -4,6 +4,12 @@ import UniformTypeIdentifiers
 struct TrayView: View {
     @ObservedObject var tray: TrayStore
     let targeted: Bool
+    private var menu = State<TrayMenuTarget?>(initialValue: nil)
+
+    init(tray: TrayStore, targeted: Bool) {
+        self.tray = tray
+        self.targeted = targeted
+    }
 
     var body: some View {
         HStack(spacing: 16) {
@@ -11,7 +17,7 @@ struct TrayView: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 14) {
                         ForEach(tray.files, id: \.self) { url in
-                            TrayTile(url: url) { tray.remove(url) }
+                            TrayTile(url: url, remove: { tray.remove(url) }, onMenu: { menu.wrappedValue = .init(url: url, point: $0) })
                         }
                     }
                     .padding(.horizontal, 2)
@@ -20,15 +26,7 @@ struct TrayView: View {
             }
             DropZone(targeted: targeted, wide: tray.files.isEmpty)
                 .frame(width: tray.files.isEmpty ? nil : 150)
-                .contextMenu {
-                    if !tray.files.isEmpty {
-                        Button(L("AirDrop tất cả", "AirDrop all")) {
-                            NSSharingService(named: .sendViaAirDrop)?.perform(withItems: tray.files)
-                        }
-                        Divider()
-                        Button(L("Xoá hết khay (file gốc không bị xoá)", "Clear tray (files stay on disk)")) { tray.clear() }
-                    }
-                }
+                .trayDropMenu(tray: tray) { menu.wrappedValue = .init(url: nil, point: $0) }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.horizontal, 20)
@@ -36,6 +34,7 @@ struct TrayView: View {
         .padding(.bottom, 16)
         .onAppear { tray.prune() }
         .animation(.easeOut(duration: 0.15), value: targeted)
+        .trayMenu(menu.binding, tray: tray)
     }
 }
 
@@ -51,17 +50,18 @@ private struct DropZone: View {
     }
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 14)
-            .fill(.white.opacity(targeted ? 0.14 : 0.07))
+        RoundedRectangle(cornerRadius: Theme.isPixel ? 0 : 14)
+            .fill(Theme.isPixel ? Color(red: 0.1, green: 0.09, blue: 0.2) : .white.opacity(targeted ? 0.14 : 0.07))
             .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(.white.opacity(targeted ? 0.95 : 0.6),
-                            style: StrokeStyle(lineWidth: 1.6, dash: [7, 5], dashPhase: phase.wrappedValue))
+                RoundedRectangle(cornerRadius: Theme.isPixel ? 0 : 14)
+                    .stroke(Theme.isPixel ? PixelPalette.border.opacity(targeted ? 1 : 0.85) : .white.opacity(targeted ? 0.95 : 0.6),
+                            style: StrokeStyle(lineWidth: Theme.isPixel ? 4 : 1.6, dash: Theme.isPixel ? [8, 8] : [7, 5], dashPhase: phase.wrappedValue))
             )
             .overlay(
                 VStack(spacing: 8) {
                     Image(systemName: "arrow.down.to.line")
                         .font(.ui(22, weight: .semibold))
+                        .foregroundStyle(Theme.isPixel ? Color(red: 1, green: 0.9, blue: 0.43) : Color.white)
                     Text(targeted || !wide ? L("Thả vào khay", "Drop here") : L("Kéo file lên notch để cất tạm", "Drag files onto the notch to keep them here"))
                         .font(.ui(12, weight: .bold))
                 }
@@ -70,7 +70,7 @@ private struct DropZone: View {
             .scaleEffect(targeted ? 1.03 : 1)
             .onAppear {
                 withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) {
-                    phase.wrappedValue = -24
+                    phase.wrappedValue = Theme.isPixel ? -32 : -24  // đúng 2 chu kỳ dash (8+8 hoặc 7+5) để vòng lặp không giật
                 }
             }
     }
@@ -79,17 +79,19 @@ private struct DropZone: View {
 private struct TrayTile: View {
     let url: URL
     let remove: () -> Void
+    let onMenu: (CGPoint) -> Void
     private var hover = State(initialValue: false)
 
-    init(url: URL, remove: @escaping () -> Void) {
+    init(url: URL, remove: @escaping () -> Void, onMenu: @escaping (CGPoint) -> Void) {
         self.url = url
         self.remove = remove
+        self.onMenu = onMenu
     }
 
     var body: some View {
         VStack(spacing: 8) {
             DocGlyph(url: url)
-            Text(url.lastPathComponent)
+            Text(url.lastPathComponent.precomposedStringWithCanonicalMapping)  // tên file macOS ở dạng NFD → NFC để font hiện đủ dấu
                 .font(.ui(11))
                 .foregroundStyle(.white.opacity(0.8))
                 .lineLimit(1)
@@ -114,7 +116,7 @@ private struct TrayTile: View {
         .onHover { hover.wrappedValue = $0 }
         .onTapGesture(count: 2) { NSWorkspace.shared.open(url) }
         .onDrag { NSItemProvider(object: url as NSURL) }
-        .contextMenu { ShareMenu(url: url, remove: remove) }
+        .fileMenu(url: url, remove: remove, onThemed: onMenu)
         .help(url.path)
     }
 }
@@ -133,7 +135,7 @@ private struct DocGlyph: View {
                 .padding(.bottom, 8)
         }
         .frame(width: 40, height: 55)
-        .shadow(color: color.opacity(0.35), radius: 8, y: 3)
+        .shadow(color: color.opacity(Theme.isPixel ? 0 : 0.35), radius: Theme.isPixel ? 0 : 8, y: 3)
     }
 
     private var label: String {
@@ -219,5 +221,108 @@ struct ShareMenu: View {
         }
         Divider()
         Button(L("Gỡ khỏi khay", "Remove from tray"), action: remove)
+    }
+}
+
+// MARK: - Menu chuột phải theo theme
+
+/// Menu đang mở: của 1 file (url) hoặc của ô thả (url = nil), tại vị trí chuột (toạ độ .global).
+struct TrayMenuTarget: Equatable {
+    let url: URL?
+    let point: CGPoint
+}
+
+extension State where Value == TrayMenuTarget? {
+    var binding: Binding<TrayMenuTarget?> { projectedValue }
+}
+
+extension View {
+    /// Theme mặc định: menu gốc macOS. Pixel / Cassette: bắt chuột phải để hiện ThemedMenu.
+    @ViewBuilder func fileMenu(url: URL, remove: @escaping () -> Void, onThemed: @escaping (CGPoint) -> Void) -> some View {
+        if Theme.current == .standard {
+            contextMenu { ShareMenu(url: url, remove: remove) }
+        } else {
+            overlay { RightClickCatcher(action: onThemed) }
+        }
+    }
+
+    @ViewBuilder func trayDropMenu(tray: TrayStore, onThemed: @escaping (CGPoint) -> Void) -> some View {
+        if Theme.current == .standard {
+            contextMenu {
+                if !tray.files.isEmpty {
+                    Button(L("AirDrop tất cả", "AirDrop all")) {
+                        NSSharingService(named: .sendViaAirDrop)?.perform(withItems: tray.files)
+                    }
+                    Divider()
+                    Button(L("Xoá hết khay (file gốc không bị xoá)", "Clear tray (files stay on disk)")) { tray.clear() }
+                }
+            }
+        } else {
+            overlay { if !tray.files.isEmpty { RightClickCatcher(action: onThemed) } }
+        }
+    }
+
+    func trayMenu(_ target: Binding<TrayMenuTarget?>, tray: TrayStore) -> some View {
+        modifier(TrayMenuOverlay(target: target, tray: tray))
+    }
+}
+
+private struct TrayMenuOverlay: ViewModifier {
+    @Binding var target: TrayMenuTarget?
+    @ObservedObject var tray: TrayStore
+
+    func body(content: Content) -> some View {
+        content
+            .overlay {
+                if let t = target {
+                    GeometryReader { geo in
+                        let frame = geo.frame(in: .global)
+                        let items = menuItems(t)
+                        let h = ThemedMenu.height(items)
+                        let x = min(max(t.point.x - frame.minX + 4, 4), frame.width - ThemedMenu.width - 4)
+                        let y = min(max(t.point.y - frame.minY + 4, 4), frame.height - h - 4)
+                        ZStack(alignment: .topLeading) {
+                            // bấm ra ngoài để đóng
+                            Color.black.opacity(0.001)
+                                .onTapGesture { target = nil }
+                            ThemedMenu(items: items) { target = nil }
+                                .offset(x: x, y: y)
+                        }
+                    }
+                    .transition(.opacity)
+                }
+            }
+            .onDisappear { target = nil }
+            .onChange(of: tray.files) { _, files in
+                if let url = target?.url, !files.contains(url) { target = nil }
+            }
+    }
+
+    private func menuItems(_ t: TrayMenuTarget) -> [ThemedMenu.Item] {
+        guard let url = t.url else {
+            return [
+                .init(title: L("AirDrop tất cả", "AirDrop all"), action: {
+                    NSSharingService(named: .sendViaAirDrop)?.perform(withItems: tray.files)
+                }),
+                .init(title: "", action: nil),
+                .init(title: L("Xoá hết khay", "Clear tray"), action: { tray.clear() }),
+            ]
+        }
+        return [
+            .init(title: L("Mở", "Open"), action: { NSWorkspace.shared.open(url) }),
+            .init(title: L("Hiện trong Finder", "Show in Finder"), action: { NSWorkspace.shared.activateFileViewerSelecting([url]) }),
+            .init(title: "", action: nil),
+            .init(title: "AirDrop", action: { NSSharingService(named: .sendViaAirDrop)?.perform(withItems: [url]) }),
+            .init(title: L("Chia sẻ…", "Share…"), action: { showSharePicker(url) }),
+            .init(title: "", action: nil),
+            .init(title: L("Gỡ khỏi khay", "Remove from tray"), action: { tray.remove(url) }),
+        ]
+    }
+
+    /// Bảng chia sẻ của macOS, neo tại vị trí chuột trên cửa sổ notch.
+    private func showSharePicker(_ url: URL) {
+        guard let view = NSApp.windows.first(where: { $0 is NotchPanel })?.contentView, let window = view.window else { return }
+        let point = view.convert(window.convertPoint(fromScreen: NSEvent.mouseLocation), from: nil)
+        NSSharingServicePicker(items: [url]).show(relativeTo: NSRect(origin: point, size: .init(width: 1, height: 1)), of: view, preferredEdge: .minY)
     }
 }

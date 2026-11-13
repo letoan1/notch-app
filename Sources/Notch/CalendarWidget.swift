@@ -184,7 +184,9 @@ private struct DayCell: View {
                     .font(.ui(13, weight: isToday || isSelected ? .semibold : .regular).monospacedDigit())
                     .foregroundStyle(numberColor)
                     .frame(width: 22, height: 22)
-                    .background(RoundedRectangle(cornerRadius: Theme.isPixel ? 0 : 11).fill(circleFill))
+                    .background(Theme.isPixel
+                    ? AnyView(Rectangle().fill(isToday ? Color(red: 1, green: 0.3, blue: 0.3) : (isSelected ? PixelPalette.pink : Color(red: 0.1, green: 0.09, blue: 0.2))))
+                    : AnyView(RoundedRectangle(cornerRadius: 11).fill(circleFill)))
                 Circle()
                     .fill(.white.opacity(isBusy ? 0.55 : 0))
                     .frame(width: 3, height: 3)
@@ -199,6 +201,7 @@ private struct DayCell: View {
     }
 
     private var numberColor: Color {
+        if Theme.isPixel { return isToday || isSelected ? .white : .white.opacity(0.85) }
         if isSelected { return .white }
         if isToday { return calendarRed }
         return .white.opacity(isWeekend ? 0.5 : 0.8)

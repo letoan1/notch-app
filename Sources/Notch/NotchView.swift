@@ -52,6 +52,7 @@ struct NotchRootView: View {
         .animation(spring, value: media.hasTrack)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .environment(\.locale, settings.locale)
+        .textCase(Theme.isPixel ? .uppercase : nil)
     }
 }
 
@@ -207,7 +208,7 @@ struct ExpandedView: View {
                 }
                 Spacer()
                 Button { SettingsWindowController.shared.show() } label: {
-                    Image(systemName: "gearshape.fill")
+                    ThemedIcon(symbol: "gearshape.fill")
                         .font(.ui(11, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.5))
                         .frame(width: 22, height: 22)
@@ -216,7 +217,7 @@ struct ExpandedView: View {
                 .buttonStyle(.plain)
                 .help(L("Cài đặt", "Settings"))
                 Button { NSApp.terminate(nil) } label: {
-                    Image(systemName: "power")
+                    ThemedIcon(symbol: "power")
                         .font(.ui(11, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.5))
                 }
@@ -322,7 +323,7 @@ struct TabPill: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                if let symbol { Image(systemName: symbol) }
+                if let symbol { ThemedIcon(symbol: symbol) }
                 if let label { Text(label) }
             }
             .font(.ui(11, weight: .semibold))
@@ -409,7 +410,7 @@ struct ProgressRow: View {
                 Text(Self.format(pos))
                 GeometryReader { geo in
                     if Theme.isPixel {
-                        PixelSegments(ratio: ratio, accent: accent)
+                        PixelSegments(ratio: ratio, accent: PixelPalette.pink)
                     } else {
                     ZStack(alignment: .leading) {
                         Capsule().fill(.white.opacity(0.2))
@@ -446,9 +447,11 @@ struct ControlButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: size))
-                .foregroundStyle(.white)
-                .frame(width: 38, height: 34)
-                .background(Circle().fill(.white.opacity(hovering ? 0.12 : 0)))
+                .foregroundStyle(Theme.isPixel ? Color.black : .white)
+                .frame(width: Theme.isPixel ? 52 : 38, height: Theme.isPixel ? 38 : 34)
+                .background(Theme.isPixel
+                    ? AnyView(PixelKey(fill: symbol.hasPrefix("pause") || symbol.hasPrefix("play") ? Color(red: 1, green: 0.9, blue: 0.43) : PixelPalette.border))
+                    : AnyView(Circle().fill(.white.opacity(hovering ? 0.12 : 0))))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -474,7 +477,8 @@ struct Artwork: View {
         }
         .clipShape(RoundedRectangle(cornerRadius: Theme.isPixel ? 2 : corner))
         // Pixel: giữ ảnh bìa nguyên nét (pixel hoá ảnh chụp thật trông như vỡ ảnh), chỉ thêm khung vuông.
-        .overlay(Theme.isPixel ? RoundedRectangle(cornerRadius: 2).strokeBorder(PixelPalette.border, lineWidth: 2) : nil)
+        .overlay(Theme.isPixel ? RoundedRectangle(cornerRadius: 2).strokeBorder(PixelPalette.border, lineWidth: 4) : nil)
+        .background(Theme.isPixel ? Rectangle().fill(PixelPalette.shadow).offset(x: 4, y: 4) : nil)
         .animation(.easeOut(duration: 0.25), value: image)
     }
 }
