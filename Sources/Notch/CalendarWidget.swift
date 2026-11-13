@@ -16,7 +16,7 @@ struct CalendarWidget: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
                 Text(calendar.monthTitle)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.white.opacity(0.85))
                 Spacer()
                 if calendar.weekOffset != 0 {
@@ -169,7 +169,7 @@ private struct DayCell: View {
                     .font(.system(size: 9, weight: .medium))
                     .foregroundStyle(.white.opacity(isWeekend ? 0.3 : 0.45))
                 Text("\(number)")
-                    .font(.system(size: 12, weight: isToday || isSelected ? .semibold : .regular).monospacedDigit())
+                    .font(.system(size: 13, weight: isToday || isSelected ? .semibold : .regular).monospacedDigit())
                     .foregroundStyle(numberColor)
                     .frame(width: 22, height: 22)
                     .background(Circle().fill(circleFill))
@@ -234,19 +234,19 @@ private struct EventRow: View {
 
     var body: some View {
         HStack(spacing: 7) {
-            RoundedRectangle(cornerRadius: 1.5).fill(item.color).frame(width: 3, height: 24)
+            RoundedRectangle(cornerRadius: 1.5).fill(item.color).frame(width: 3, height: 26)
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.title)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.white.opacity(0.9))
                     .lineLimit(1)
                 Text(timeText)
-                    .font(.system(size: 10).monospacedDigit())
+                    .font(.system(size: 11).monospacedDigit())
                     .foregroundStyle(.white.opacity(0.5))
             }
             Spacer(minLength: 4)
             if let meeting = item.meeting {
-                JoinButton(meeting: meeting, prominent: isSoon)
+                JoinButton(meeting: meeting, prominent: true)
             }
         }
         .padding(.leading, 4)

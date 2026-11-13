@@ -166,7 +166,7 @@ struct ExpandedView: View {
                 TabPill(symbol: "music.note", label: nil, selected: model.tab == .media) {
                     model.tab = .media
                 }
-                TabPill(symbol: "tray.full", label: tray.files.isEmpty ? nil : "\(tray.files.count)",
+                TabPill(symbol: nil, label: tray.files.isEmpty ? "Khay" : "Khay \(tray.files.count)",
                         selected: model.tab == .tray) {
                     model.tab = .tray
                 }
@@ -208,7 +208,7 @@ struct ExpandedView: View {
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                     }
-                    .frame(width: 340)
+                    .frame(width: 350)
                     Rectangle().fill(.white.opacity(0.08))
                         .frame(width: 1)
                         .padding(.bottom, 16)
@@ -231,7 +231,7 @@ struct ExpandedView: View {
 }
 
 struct TabPill: View {
-    let symbol: String
+    let symbol: String?
     let label: String?
     let selected: Bool
     let action: () -> Void
@@ -239,7 +239,7 @@ struct TabPill: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 4) {
-                Image(systemName: symbol)
+                if let symbol { Image(systemName: symbol) }
                 if let label { Text(label) }
             }
             .font(.system(size: 11, weight: .semibold))
@@ -259,23 +259,29 @@ struct PlayerView: View {
     let ns: Namespace.ID
 
     var body: some View {
-        HStack(spacing: 14) {
-            Artwork(image: media.artwork, corner: 12)
-                .frame(width: 72, height: 72)
+        HStack(spacing: 20) {
+            Artwork(image: media.artwork, corner: 18)
+                .frame(width: 104, height: 104)
                 .matchedGeometryEffect(id: "artwork", in: ns)
                 .background(ArtworkGlow(image: media.artwork))
                 .contentShape(Rectangle())
                 .onTapGesture { media.openPlayer() }
                 .help("Mở \(track.player.rawValue)")
 
-            VStack(alignment: .leading, spacing: 6) {
-                VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(track.title)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 17, weight: .bold))
                         .foregroundStyle(.white)
-                    Text(track.artist)
-                        .font(.system(size: 12))
-                        .foregroundStyle(.white.opacity(0.6))
+                    HStack(spacing: 8) {
+                        Text(track.artist)
+                            .font(.system(size: 14))
+                            .foregroundStyle(.white.opacity(0.6))
+                        if track.isPlaying {
+                            EqualizerBars(active: true, color: media.accent)
+                                .frame(width: 16, height: 14)
+                        }
+                    }
                 }
                 .lineLimit(1)
                 .contentShape(Rectangle())
@@ -283,16 +289,16 @@ struct PlayerView: View {
 
                 ProgressRow(track: track, accent: media.accent)
 
-                HStack(spacing: 26) {
-                    ControlButton(symbol: "backward.fill", size: 14, action: media.previous)
-                    ControlButton(symbol: track.isPlaying ? "pause.fill" : "play.fill", size: 18, action: media.playPause)
-                    ControlButton(symbol: "forward.fill", size: 14, action: media.next)
+                HStack(spacing: 14) {
+                    ControlButton(symbol: "backward.fill", size: 18, action: media.previous)
+                    ControlButton(symbol: track.isPlaying ? "pause.fill" : "play.fill", size: 24, action: media.playPause)
+                    ControlButton(symbol: "forward.fill", size: 18, action: media.next)
                 }
                 .frame(maxWidth: .infinity)
             }
         }
-        .padding(.horizontal, 22)
-        .padding(.bottom, 14)
+        .padding(.horizontal, 20)
+        .padding(.bottom, 16)
         .frame(maxHeight: .infinity)
     }
 }
@@ -310,13 +316,16 @@ struct ProgressRow: View {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Capsule().fill(.white.opacity(0.2))
-                        Capsule().fill(accent).frame(width: geo.size.width * ratio)
+                        Capsule()
+                            .fill(LinearGradient(colors: [accent.opacity(0.75), accent],
+                                                 startPoint: .leading, endPoint: .trailing))
+                            .frame(width: geo.size.width * ratio)
                     }
                 }
-                .frame(height: 4)
+                .frame(height: 5)
                 Text(Self.format(track.duration))
             }
-            .font(.system(size: 10, weight: .medium).monospacedDigit())
+            .font(.system(size: 11, weight: .medium).monospacedDigit())
             .foregroundStyle(.white.opacity(0.55))
         }
     }
@@ -340,7 +349,7 @@ struct ControlButton: View {
             Image(systemName: symbol)
                 .font(.system(size: size))
                 .foregroundStyle(.white)
-                .frame(width: 32, height: 28)
+                .frame(width: 38, height: 34)
                 .background(Circle().fill(.white.opacity(hovering ? 0.12 : 0)))
                 .contentShape(Rectangle())
         }

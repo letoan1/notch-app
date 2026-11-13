@@ -12,7 +12,7 @@ final class NotchModel: ObservableObject {
     @Published private(set) var notchSize = CGSize(width: 190, height: 32)
 
     static let expandedWidth: CGFloat = 620
-    static let normalBodyHeight: CGFloat = 134
+    static let normalBodyHeight: CGFloat = 180
     static let tallBodyHeight: CGFloat = 222
 
     struct ChargePeek: Equatable {
