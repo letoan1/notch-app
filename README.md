@@ -1,6 +1,30 @@
-# Notch
+<p align="center">
+  <img src="docs/hero.svg" alt="Notch — biến tai thỏ MacBook thành trung tâm điều khiển" width="100%">
+</p>
 
-App "tai thỏ" cho MacBook có notch: rê chuột vào notch để mở bảng điều khiển nhỏ ở mép trên màn hình. Viết bằng SwiftUI + AppKit, build bằng Swift Package Manager, **không cần Xcode** (chỉ cần Command Line Tools).
+<p align="center">
+  <img src="https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white" alt="macOS 14+">
+  <img src="https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&logoColor=white" alt="Swift 5.9">
+  <img src="https://img.shields.io/badge/Xcode-kh%C3%B4ng%20c%E1%BA%A7n-8A46D6" alt="Không cần Xcode">
+  <img src="https://img.shields.io/badge/CPU-~0.5%25%20khi%20thu%20g%E1%BB%8Dn-30D158" alt="CPU ~0.5%">
+  <img src="https://img.shields.io/badge/Claude%20Code-hook-D97757" alt="Claude Code hook">
+</p>
+
+<p align="center"><b>Rê chuột lên notch</b> → nhạc, lịch, khay file và cả Claude Code hiện ngay ở mép trên màn hình.<br>
+Không đổi Desktop, không mở thêm cửa sổ.</p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/card-claude.svg" alt="Duyệt lệnh Claude ngay trên notch"></td>
+    <td width="50%"><img src="docs/card-question.svg" alt="Claude hỏi, trả lời tại chỗ"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/card-tray.svg" alt="Khay kéo thả file"></td>
+    <td width="50%"><img src="docs/card-glance.svg" alt="Báo pin và sóng nhạc khi thu gọn"></td>
+  </tr>
+</table>
+
+App viết bằng SwiftUI + AppKit, build bằng Swift Package Manager, **không cần Xcode** (chỉ cần Command Line Tools).
 
 ## Tính năng
 

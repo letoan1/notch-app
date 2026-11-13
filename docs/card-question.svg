@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="380" viewBox="0 0 640 380">
+  <defs>
+    <linearGradient id="wall" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#5a2a5e"/>
+      <stop offset="1" stop-color="#d06a4f"/>
+    </linearGradient>
+    <clipPath id="card"><rect width="640" height="380" rx="28"/></clipPath>
+    <filter id="b60" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="60"/></filter>
+    <filter id="b12" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="12"/></filter>
+  </defs>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .pick { animation: pick 1.6s ease-in-out infinite alternate; }
+    @keyframes pick { from { stroke-opacity: .45; fill-opacity: .16; } to { stroke-opacity: 1; fill-opacity: .32; } }
+  </style>
+  <g clip-path="url(#card)">
+    <rect width="640" height="380" fill="#0d0d18"/>
+    <circle cx="80" cy="40" r="160" fill="#ff7a59" opacity=".28" filter="url(#b60)"/>
+    <text x="36" y="56" font-size="24" font-weight="800" fill="#fff">Claude hỏi, bạn trả lời tại chỗ</text>
+    <text x="36" y="84" font-size="14" fill="#fff" opacity=".6">Chọn đáp án, hoặc bấm “Khác…” để gõ câu trả lời riêng</text>
+
+    <rect x="36" y="112" width="568" height="300" rx="18" fill="url(#wall)"/>
+    <rect x="36" y="112" width="568" height="26" fill="#fff" opacity=".18"/>
+
+    <path d="M70 112 Q84 112 84 126 L84 336 Q84 362 110 362 L530 362 Q556 362 556 336 L556 126 Q556 112 570 112 Z" fill="#000" opacity=".5" transform="translate(0 8)" filter="url(#b12)"/>
+    <path d="M70 112 Q84 112 84 126 L84 336 Q84 362 110 362 L530 362 Q556 362 556 336 L556 126 Q556 112 570 112 Z" fill="#000"/>
+
+    <path d="M110 154 L112.2 160.8 L119 163 L112.2 165.2 L110 172 L107.8 165.2 L101 163 L107.8 160.8 Z" fill="#d97757"/>
+    <text x="126" y="168" font-size="13" font-weight="700" fill="#fff">Claude hỏi</text>
+    <text x="200" y="168" font-size="13" font-weight="600" fill="#fff" opacity=".45">· my-app</text>
+    <rect x="262" y="155" width="70" height="18" rx="9" fill="#d97757" fill-opacity=".2"/>
+    <text x="297" y="168" font-size="10.5" font-weight="700" fill="#ec9a7b" text-anchor="middle">Giao diện</text>
+
+    <text x="104" y="196" font-size="15" font-weight="700" fill="#fff">Bạn muốn notch trông thế nào?</text>
+
+    <g>
+      <rect x="104" y="208" width="212" height="50" rx="10" fill="#fff" fill-opacity=".08"/>
+      <text x="116" y="229" font-size="13" font-weight="700" fill="#fff">Tối giản</text>
+      <text x="116" y="246" font-size="11" fill="#fff" opacity=".55">Chỉ những gì cần thiết</text>
+
+      <rect class="pick" x="324" y="208" width="212" height="50" rx="10" fill="#d97757" stroke="#d97757" stroke-width="1.2"/>
+      <text x="336" y="229" font-size="13" font-weight="700" fill="#fff">Dynamic Island</text>
+      <text x="336" y="246" font-size="11" fill="#fff" opacity=".7">Bo tròn, nảy nhẹ</text>
+
+      <rect x="104" y="266" width="212" height="50" rx="10" fill="#fff" fill-opacity=".08"/>
+      <text x="116" y="287" font-size="13" font-weight="700" fill="#fff">Kính mờ</text>
+      <text x="116" y="304" font-size="11" fill="#fff" opacity=".55">Nền blur trong suốt</text>
+
+      <rect x="324" y="266" width="212" height="50" rx="10" fill="#fff" fill-opacity=".08"/>
+      <text x="336" y="287" font-size="13" font-weight="700" fill="#fff">Retro</text>
+      <text x="336" y="304" font-size="11" fill="#fff" opacity=".55">Pixel 8-bit</text>
+    </g>
+
+    <g font-size="11" font-weight="700" text-anchor="middle">
+      <rect x="104" y="326" width="146" height="24" rx="12" fill="#fff" fill-opacity=".08"/>
+      <text x="177" y="342" fill="#fff" opacity=".6">Trả lời trong VS Code</text>
+      <rect x="466" y="326" width="70" height="24" rx="12" fill="#fff" fill-opacity=".12"/>
+      <text x="501" y="342" fill="#fff" opacity=".9">Khác…</text>
+    </g>
+  </g>
+  <rect x=".5" y=".5" width="639" height="379" rx="27.5" fill="none" stroke="#fff" stroke-opacity=".08"/>
+</svg>
