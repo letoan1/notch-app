@@ -6,6 +6,7 @@ struct NotchRootView: View {
     @ObservedObject var permissions: PermissionCenter
     @ObservedObject var tray: TrayStore
     @ObservedObject var calendar: CalendarStore
+    let camera: CameraMirror
 
     private let spring = Animation.spring(response: 0.42, dampingFraction: 0.82)
     // Không dùng macro @Namespace/@State (plugin chỉ có trong Xcode).
@@ -22,7 +23,8 @@ struct NotchRootView: View {
             shape.fill(Color.black)
             if model.expanded {
                 ExpandedView(model: model, media: media, permissions: permissions, tray: tray,
-                             calendar: calendar, notchHeight: notch.height, ns: ns.wrappedValue)
+                             calendar: calendar, camera: camera,
+                             notchHeight: notch.height, ns: ns.wrappedValue)
                     .frame(width: NotchModel.expandedWidth - 28,
                            height: notch.height + model.expandedBodyHeight)
                     .transition(.notchContent)
@@ -42,6 +44,7 @@ struct NotchRootView: View {
         .shadow(color: .black.opacity(model.expanded ? 0.6 : 0), radius: 18, y: 8)
         .animation(spring, value: model.expanded)
         .animation(spring, value: model.tall)
+        .animation(spring, value: model.mirrorMode)
         .animation(spring, value: model.chargePeek)
         .animation(spring, value: media.hasTrack)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -157,6 +160,7 @@ struct ExpandedView: View {
     @ObservedObject var permissions: PermissionCenter
     @ObservedObject var tray: TrayStore
     @ObservedObject var calendar: CalendarStore
+    let camera: CameraMirror
     let notchHeight: CGFloat
     let ns: Namespace.ID
 
@@ -166,9 +170,12 @@ struct ExpandedView: View {
                 TabPill(symbol: "music.note", label: nil, selected: model.tab == .media) {
                     model.tab = .media
                 }
-                TabPill(symbol: nil, label: tray.files.isEmpty ? "Khay" : "Khay \(tray.files.count)",
-                        selected: model.tab == .tray) {
+                TabPill(symbol: "tray.full.fill", label: nil, selected: model.tab == .tray,
+                        badge: tray.files.isEmpty ? nil : tray.files.count) {
                     model.tab = .tray
+                }
+                TabPill(symbol: "camera.fill", label: nil, selected: model.tab == .mirror) {
+                    model.tab = .mirror
                 }
                 Spacer()
                 Button { NSApp.terminate(nil) } label: {
@@ -196,6 +203,8 @@ struct ExpandedView: View {
                 .transition(.opacity)
             } else if model.tab == .tray || model.dropTargeted {
                 TrayView(tray: tray, targeted: model.dropTargeted)
+            } else if model.tab == .mirror {
+                MirrorView(camera: camera, calendar: calendar)
             } else {
                 HStack(spacing: 0) {
                     Group {
@@ -234,6 +243,7 @@ struct TabPill: View {
     let symbol: String?
     let label: String?
     let selected: Bool
+    var badge: Int? = nil
     let action: () -> Void
 
     var body: some View {
@@ -247,6 +257,17 @@ struct TabPill: View {
             .padding(.horizontal, 9)
             .padding(.vertical, 4)
             .background(Capsule().fill(.white.opacity(selected ? 0.14 : 0)))
+            .overlay(alignment: .topTrailing) {
+                if let badge {
+                    Text("\(badge)")
+                        .font(.system(size: 8, weight: .bold).monospacedDigit())
+                        .foregroundStyle(.black)
+                        .padding(.horizontal, 3.5)
+                        .frame(minWidth: 13, minHeight: 13)
+                        .background(Capsule().fill(.white.opacity(0.9)))
+                        .offset(x: 3, y: -3)
+                }
+            }
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -298,7 +319,7 @@ struct PlayerView: View {
             }
         }
         .padding(.horizontal, 20)
-        .padding(.bottom, 16)
+        .padding(.bottom, 12)
         .frame(maxHeight: .infinity)
     }
 }

@@ -198,7 +198,7 @@ private struct DayCell: View {
     }
 }
 
-private struct JoinButton: View {
+struct JoinButton: View {
     let meeting: CalendarStore.Meeting
     let prominent: Bool
 

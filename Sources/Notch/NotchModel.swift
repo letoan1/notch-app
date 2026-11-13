@@ -3,7 +3,7 @@ import SwiftUI
 
 @MainActor
 final class NotchModel: ObservableObject {
-    enum Tab { case media, tray }
+    enum Tab { case media, tray, mirror }
 
     @Published var expanded = false
     @Published var tab: Tab = .media
@@ -12,7 +12,7 @@ final class NotchModel: ObservableObject {
     @Published private(set) var notchSize = CGSize(width: 190, height: 32)
 
     static let expandedWidth: CGFloat = 620
-    static let normalBodyHeight: CGFloat = 180
+    static let normalBodyHeight: CGFloat = 154
     static let tallBodyHeight: CGFloat = 222
 
     struct ChargePeek: Equatable {
@@ -26,7 +26,13 @@ final class NotchModel: ObservableObject {
 
     /// Thẻ câu hỏi của Claude cần cao hơn để vừa 4 lựa chọn.
     @Published var tall = false
-    var expandedBodyHeight: CGFloat { tall ? Self.tallBodyHeight : Self.normalBodyHeight }
+    /// Tab gương: cao hơn bình thường một chút cho khung camera.
+    @Published var mirrorMode = false
+    static let mirrorBodyHeight: CGFloat = 190
+
+    var expandedBodyHeight: CGFloat {
+        tall ? Self.tallBodyHeight : (mirrorMode ? Self.mirrorBodyHeight : Self.normalBodyHeight)
+    }
 
     var topRadius: CGFloat { expanded ? 14 : 6 }
     var bottomRadius: CGFloat { expanded ? 24 : 10 }

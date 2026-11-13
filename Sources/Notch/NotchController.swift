@@ -39,6 +39,7 @@ final class NotchController {
     let permissions = PermissionCenter()
     let tray = TrayStore()
     let calendar = CalendarStore()
+    let camera = CameraMirror()
     private let panel: NotchPanel
     private var screen: NSScreen
     private var hoverTimer: Timer?
@@ -52,7 +53,8 @@ final class NotchController {
         screen = Self.targetScreen()
         panel = NotchPanel(contentRect: NSRect(origin: .zero, size: Self.canvas))
         panel.contentView = FirstMouseHostingView(rootView: NotchRootView(model: model, media: media, permissions: permissions,
-                                                                  tray: tray, calendar: calendar))
+                                                                  tray: tray, calendar: calendar,
+                                                                  camera: camera))
         panel.ignoresMouseEvents = true
         layout()
         panel.orderFrontRegardless()
@@ -97,6 +99,8 @@ final class NotchController {
     private func tick() {
         let isQuestion = permissions.current?.questions?.isEmpty == false
         if model.tall != isQuestion { model.tall = isQuestion }
+        let wantMirror = model.tab == .mirror
+        if model.mirrorMode != wantMirror { model.mirrorMode = wantMirror }
         panel.allowsKey = isQuestion
         if !isQuestion, panel.isKeyWindow {
             // Trả bàn phím về app đang dùng (VS Code…) ngay khi hết câu hỏi.

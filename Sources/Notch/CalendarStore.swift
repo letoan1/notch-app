@@ -73,6 +73,15 @@ final class CalendarStore: ObservableObject {
         return windowEvents.filter { $0.start < dayEnd && $0.end > lowerBound }
     }
 
+    /// Sự kiện có giờ sắp tới (hoặc đang diễn ra) trong hôm nay, cho tab gương.
+    var nextEvent: Item? {
+        let now = Date()
+        let cal = Calendar.current
+        return windowEvents.first {
+            !$0.allDay && $0.end > now && cal.isDateInToday($0.start)
+        }
+    }
+
     func resetToToday() {
         if weekOffset != 0 {
             shiftWeek(-weekOffset)
