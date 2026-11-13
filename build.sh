@@ -15,6 +15,8 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/Notch "$APP/Contents/MacOS/Notch"
 cp Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+# Font pixel VT323 (SIL OFL 1.1) cho giao diện Pixel 8-bit.
+cp Resources/VT323-Regular.ttf Resources/OFL-VT323.txt "$APP/Contents/Resources/"
 # Hook cho Claude Code nằm ngoài bundle, đường dẫn cố định để settings trỏ vào.
 cp .build/release/notch-hook build/notch-hook
 

@@ -47,6 +47,9 @@ struct SettingsView: View {
                 Picker(L("Ngôn ngữ", "Language"), selection: $settings.language) {
                     ForEach(SettingsStore.Language.allCases) { Text($0.title).tag($0) }
                 }
+                Picker(L("Giao diện", "Theme"), selection: $settings.theme) {
+                    ForEach(Theme.allCases) { Text($0.title).tag($0) }
+                }
             }
 
             Section("Notch") {

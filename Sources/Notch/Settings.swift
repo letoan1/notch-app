@@ -68,6 +68,7 @@ final class SettingsStore: ObservableObject {
     static let hoverDelays: [Double] = [0, 0.15, 0.3, 0.5]
 
     @Published var language: Language { didSet { save(language.rawValue, "language") } }
+    @Published var theme: Theme { didSet { save(theme.rawValue, "theme") } }
     @Published var openMode: OpenMode { didSet { save(openMode.rawValue, "openMode") } }
     @Published var hoverDelay: Double { didSet { save(hoverDelay, "hoverDelay") } }
     @Published var hotkey: Hotkey { didSet { save(hotkey.rawValue, "hotkey") } }
@@ -83,6 +84,7 @@ final class SettingsStore: ObservableObject {
     private init() {
         let d = UserDefaults.standard
         language = Language(rawValue: d.string(forKey: "language") ?? "") ?? .auto
+        theme = Theme(rawValue: d.string(forKey: "theme") ?? "") ?? .standard
         openMode = OpenMode(rawValue: d.string(forKey: "openMode") ?? "") ?? .hover
         hoverDelay = d.object(forKey: "hoverDelay") as? Double ?? 0
         hotkey = Hotkey(rawValue: d.string(forKey: "hotkey") ?? "") ?? .optionSpace

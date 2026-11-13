@@ -15,13 +15,14 @@ struct NotchRootView: View {
 
     var body: some View {
         let size = model.shapeSize(playing: media.hasTrack)
-        let shape = NotchShape(topRadius: model.topRadius, bottomRadius: model.bottomRadius)
+        let shape = NotchShape(topRadius: model.topRadius, bottomRadius: model.bottomRadius,
+                               pixel: Theme.isPixel && model.expanded)
         let notch = model.notchSize
 
         // Nội dung có kích thước cố định ở trạng thái cuối; khung shape lớn dần và "lộ" nó ra
         // thay vì layout lại chữ ở mỗi frame animation.
         ZStack(alignment: .top) {
-            shape.fill(Color.black)
+            shape.fill(Theme.isCassette ? CassettePalette.background : Color.black)
             if model.expanded {
                 ExpandedView(model: model, media: media, permissions: permissions, tray: tray,
                              calendar: calendar, camera: camera, settings: settings,
@@ -41,7 +42,8 @@ struct NotchRootView: View {
         }
         .frame(width: size.width, height: size.height, alignment: .top)
         .clipShape(shape)
-        .overlay(shape.stroke(Color.white.opacity(model.expanded ? 0.08 : 0), lineWidth: 1))
+        .overlay(shape.stroke(Theme.isPixel ? PixelPalette.border.opacity(model.expanded ? 1 : 0) : Color.white.opacity(model.expanded ? 0.08 : 0),
+                              lineWidth: Theme.isPixel ? 3 : 1))
         .shadow(color: .black.opacity(model.expanded ? 0.6 : 0), radius: 18, y: 8)
         .animation(spring, value: model.expanded)
         .animation(spring, value: model.tall)
@@ -80,18 +82,30 @@ struct CollapsedWings: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            Artwork(image: media.artwork, corner: 6)
-                .frame(width: height - 12, height: height - 12)
-                .matchedGeometryEffect(id: "artwork", in: ns)
-                .frame(width: height, height: height)
+            Group {
+                if Theme.isCassette {
+                    MiniTape(band: CassettePalette.band, name: "")
+                        .frame(width: height - 8, height: (height - 8) * 0.66)
+                } else {
+                    Artwork(image: media.artwork, corner: 6)
+                        .frame(width: height - 12, height: height - 12)
+                        .matchedGeometryEffect(id: "artwork", in: ns)
+                }
+            }
+            .frame(width: height, height: height)
             Spacer(minLength: 0)
             Group {
-                if media.isPlaying {
+                if Theme.isCassette {
+                    HStack(spacing: 3) {
+                        MiniReel(spinning: media.isPlaying).frame(width: 13, height: 13)
+                        MiniReel(spinning: media.isPlaying).frame(width: 13, height: 13)
+                    }
+                } else if media.isPlaying {
                     EqualizerBars(active: true, color: media.accent)
                 } else {
                     // Tạm dừng: nốt nhạc đứng yên thay cho sóng.
                     Image(systemName: "music.note")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.ui(9, weight: .semibold))
                         .foregroundStyle(media.accent.opacity(0.85))
                 }
             }
@@ -111,18 +125,22 @@ struct ChargeWings: View {
         HStack(spacing: 0) {
             HStack(spacing: 4) {
                 Image(systemName: "bolt.fill")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.ui(11, weight: .bold))
                     .foregroundStyle(green)
                 Text(peek.charging ? L("Đang sạc", "Charging") : L("Đã cắm sạc", "Plugged in"))
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.85))
+                    .font(Theme.isCassette ? .hand(13) : .ui(11, weight: .semibold))
+                    .foregroundStyle(Theme.isCassette ? CassettePalette.ink : .white.opacity(0.85))
                     .lineLimit(1)
             }
+            .padding(.horizontal, Theme.isCassette ? 6 : 0)
+            .padding(.vertical, Theme.isCassette ? 2 : 0)
+            .background(Theme.isCassette ? CassettePalette.note : Color.clear)
+            .rotationEffect(.degrees(Theme.isCassette ? -2 : 0))
             .frame(width: wing)
             Spacer(minLength: 0)
             HStack(spacing: 5) {
                 Text("\(peek.percent)%")
-                    .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                    .font(.ui(12, weight: .semibold).monospacedDigit())
                     .foregroundStyle(green)
                 BatteryGlyph(level: Double(peek.percent) / 100, color: green)
             }
@@ -190,7 +208,7 @@ struct ExpandedView: View {
                 Spacer()
                 Button { SettingsWindowController.shared.show() } label: {
                     Image(systemName: "gearshape.fill")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.ui(11, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.5))
                         .frame(width: 22, height: 22)
                         .contentShape(Rectangle())
@@ -199,7 +217,7 @@ struct ExpandedView: View {
                 .help(L("Cài đặt", "Settings"))
                 Button { NSApp.terminate(nil) } label: {
                     Image(systemName: "power")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.ui(11, weight: .semibold))
                         .foregroundStyle(.white.opacity(0.5))
                 }
                 .buttonStyle(.plain)
@@ -212,32 +230,51 @@ struct ExpandedView: View {
                 QuestionCard(request: request, questions: questions,
                              answer: { permissions.answer(request, $0) },
                              dismiss: { permissions.dismiss(request) })
+                    .background { if Theme.isCassette { Corkboard().padding(.horizontal, 10).padding(.bottom, 6) } }
                     .id(request.id)
                     .transition(.opacity)
             } else if let request = permissions.current {
-                PermissionCard(request: request, pending: permissions.requests.count) {
-                    permissions.resolve(request, $0)
+                Group {
+                    if Theme.isCassette {
+                        CassettePermissionCard(request: request, pending: permissions.requests.count) {
+                            permissions.resolve(request, $0)
+                        }
+                    } else {
+                        PermissionCard(request: request, pending: permissions.requests.count) {
+                            permissions.resolve(request, $0)
+                        }
+                    }
                 }
                 .id(request.id)
                 .transition(.opacity)
             } else if settings.showTray && (model.tab == .tray || model.dropTargeted) {
-                TrayView(tray: tray, targeted: model.dropTargeted)
+                if Theme.isCassette {
+                    CassetteTrayView(tray: tray, targeted: model.dropTargeted)
+                } else {
+                    TrayView(tray: tray, targeted: model.dropTargeted)
+                }
             } else if settings.showMirror && model.tab == .mirror {
-                MirrorView(camera: camera, calendar: calendar)
+                if Theme.isCassette {
+                    CassetteMirrorView(camera: camera, calendar: calendar)
+                } else {
+                    MirrorView(camera: camera, calendar: calendar)
+                }
             } else if settings.enabledTabs.isEmpty {
                 Text(L("Bật ít nhất một tab trong Cài đặt ⚙️", "Turn on at least one tab in Settings ⚙️"))
-                    .font(.system(size: 13))
+                    .font(.ui(13))
                     .foregroundStyle(.white.opacity(0.5))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 HStack(spacing: 0) {
                     if settings.showMedia {
                     Group {
-                        if let track = media.track {
+                        if Theme.isCassette {
+                            CassettePlayerView(media: media)
+                        } else if let track = media.track {
                             PlayerView(media: media, track: track, ns: ns)
                         } else {
                             Text(L("Không có nhạc đang phát", "Nothing playing"))
-                                .font(.system(size: 13))
+                                .font(.ui(13))
                                 .foregroundStyle(.white.opacity(0.5))
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
@@ -251,7 +288,11 @@ struct ExpandedView: View {
                             .padding(.bottom, 16)
                     }
                     if settings.showCalendar {
-                        CalendarWidget(calendar: calendar)
+                        if Theme.isCassette {
+                            NoteCalendar(calendar: calendar)
+                        } else {
+                            CalendarWidget(calendar: calendar)
+                        }
                     }
                 }
             }
@@ -284,15 +325,15 @@ struct TabPill: View {
                 if let symbol { Image(systemName: symbol) }
                 if let label { Text(label) }
             }
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(.white.opacity(selected ? 0.95 : 0.45))
+            .font(.ui(11, weight: .semibold))
+            .foregroundStyle(Theme.isCassette ? CassettePalette.ink : .white.opacity(selected ? 0.95 : 0.45))
             .padding(.horizontal, 9)
             .padding(.vertical, 4)
-            .background(Capsule().fill(.white.opacity(selected ? 0.14 : 0)))
+            .background(TabBackground(selected: selected))
             .overlay(alignment: .topTrailing) {
                 if let badge {
                     Text("\(badge)")
-                        .font(.system(size: 8, weight: .bold).monospacedDigit())
+                        .font(.ui(8, weight: .bold).monospacedDigit())
                         .foregroundStyle(.black)
                         .padding(.horizontal, 3.5)
                         .frame(minWidth: 13, minHeight: 13)
@@ -324,11 +365,11 @@ struct PlayerView: View {
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(track.title)
-                        .font(.system(size: 17, weight: .bold))
+                        .font(.ui(17, weight: .bold))
                         .foregroundStyle(.white)
                     HStack(spacing: 8) {
                         Text(track.artist)
-                            .font(.system(size: 14))
+                            .font(.ui(14))
                             .foregroundStyle(.white.opacity(0.6))
                         if track.isPlaying {
                             EqualizerBars(active: true, color: media.accent)
@@ -367,6 +408,9 @@ struct ProgressRow: View {
             HStack(spacing: 8) {
                 Text(Self.format(pos))
                 GeometryReader { geo in
+                    if Theme.isPixel {
+                        PixelSegments(ratio: ratio, accent: accent)
+                    } else {
                     ZStack(alignment: .leading) {
                         Capsule().fill(.white.opacity(0.2))
                         Capsule()
@@ -374,11 +418,12 @@ struct ProgressRow: View {
                                                  startPoint: .leading, endPoint: .trailing))
                             .frame(width: geo.size.width * ratio)
                     }
+                    }
                 }
                 .frame(height: 5)
                 Text(Self.format(track.duration))
             }
-            .font(.system(size: 11, weight: .medium).monospacedDigit())
+            .font(.ui(11, weight: .medium).monospacedDigit())
             .foregroundStyle(.white.opacity(0.55))
         }
     }
@@ -419,7 +464,7 @@ struct Artwork: View {
 
     var body: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: corner).fill(.white.opacity(0.1))
+            RoundedRectangle(cornerRadius: Theme.isPixel ? 2 : corner).fill(.white.opacity(0.1))
             if let image {
                 Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
                     .transition(.opacity)
@@ -427,7 +472,9 @@ struct Artwork: View {
                 Image(systemName: "music.note").foregroundStyle(.white.opacity(0.5))
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: corner))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.isPixel ? 2 : corner))
+        // Pixel: giữ ảnh bìa nguyên nét (pixel hoá ảnh chụp thật trông như vỡ ảnh), chỉ thêm khung vuông.
+        .overlay(Theme.isPixel ? RoundedRectangle(cornerRadius: 2).strokeBorder(PixelPalette.border, lineWidth: 2) : nil)
         .animation(.easeOut(duration: 0.25), value: image)
     }
 }
@@ -455,7 +502,7 @@ final class EqualizerLayerView: NSView {
         wantsLayer = true
         for _ in 0..<4 {
             let bar = CALayer()
-            bar.cornerRadius = Self.barWidth / 2
+            bar.cornerRadius = Theme.isPixel ? 0 : Self.barWidth / 2
             layer?.addSublayer(bar)
             bars.append(bar)
         }

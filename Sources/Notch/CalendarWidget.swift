@@ -16,7 +16,7 @@ struct CalendarWidget: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
                 Text(calendar.monthTitle)
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.ui(12, weight: .bold))
                     .foregroundStyle(.white.opacity(0.85))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -25,7 +25,7 @@ struct CalendarWidget: View {
                 if calendar.weekOffset != 0 {
                     Button { calendar.resetToToday() } label: {
                         Text(L("Hôm nay", "Today"))
-                            .font(.system(size: 10.5, weight: .semibold))
+                            .font(.ui(10.5, weight: .semibold))
                             .foregroundStyle(.white.opacity(0.85))
                             .lineLimit(1)
                             .fixedSize()
@@ -71,7 +71,7 @@ struct CalendarWidget: View {
         let items = calendar.selectedEvents
         if items.isEmpty {
             Text(calendar.isTodaySelected ? L("Hôm nay không còn sự kiện", "No more events today") : L("Không có sự kiện", "No events"))
-                .font(.system(size: 11))
+                .font(.ui(11))
                 .foregroundStyle(.white.opacity(0.45))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.leading, 4)
@@ -95,7 +95,7 @@ struct CalendarWidget: View {
     private func prompt(_ title: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Label(title, systemImage: "calendar.badge.plus")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.ui(11, weight: .semibold))
                 .foregroundStyle(.white.opacity(0.85))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
@@ -118,7 +118,7 @@ private struct NavButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 10, weight: .semibold))
+                .font(.ui(10, weight: .semibold))
                 .foregroundStyle(.white.opacity(hover.wrappedValue ? 0.95 : 0.55))
                 .frame(width: 20, height: 18)
                 .background(RoundedRectangle(cornerRadius: 5).fill(.white.opacity(hover.wrappedValue ? 0.12 : 0)))
@@ -178,13 +178,13 @@ private struct DayCell: View {
         Button(action: select) {
             VStack(spacing: 3) {
                 Text(weekday)
-                    .font(.system(size: 9, weight: .medium))
+                    .font(.ui(9, weight: .medium))
                     .foregroundStyle(.white.opacity(isWeekend ? 0.3 : 0.45))
                 Text("\(number)")
-                    .font(.system(size: 13, weight: isToday || isSelected ? .semibold : .regular).monospacedDigit())
+                    .font(.ui(13, weight: isToday || isSelected ? .semibold : .regular).monospacedDigit())
                     .foregroundStyle(numberColor)
                     .frame(width: 22, height: 22)
-                    .background(Circle().fill(circleFill))
+                    .background(RoundedRectangle(cornerRadius: Theme.isPixel ? 0 : 11).fill(circleFill))
                 Circle()
                     .fill(.white.opacity(isBusy ? 0.55 : 0))
                     .frame(width: 3, height: 3)
@@ -222,11 +222,11 @@ struct JoinButton: View {
                 Image(systemName: "video.fill")
                 Text(meeting.provider)
             }
-            .font(.system(size: 10, weight: .semibold))
+            .font(.ui(10, weight: .semibold))
             .foregroundStyle(prominent ? .white : blue)
             .padding(.horizontal, 7)
             .padding(.vertical, 3)
-            .background(Capsule().fill(prominent ? blue : blue.opacity(0.18)))
+            .background(ThemedBackground(fill: prominent ? blue : blue.opacity(0.18)))
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -249,11 +249,11 @@ private struct EventRow: View {
             RoundedRectangle(cornerRadius: 1.5).fill(item.color).frame(width: 3, height: 26)
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.title)
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.ui(12, weight: .bold))
                     .foregroundStyle(.white.opacity(0.9))
                     .lineLimit(1)
                 Text(timeText)
-                    .font(.system(size: 11).monospacedDigit())
+                    .font(.ui(11).monospacedDigit())
                     .foregroundStyle(.white.opacity(0.5))
             }
             Spacer(minLength: 4)

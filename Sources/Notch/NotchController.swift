@@ -61,6 +61,7 @@ final class NotchController {
 
     init() {
         screen = NSScreen.screens.first { $0.safeAreaInsets.top > 0 } ?? NSScreen.screens[0]
+        Theme.registerFonts()
         panel = NotchPanel(contentRect: NSRect(origin: .zero, size: Self.canvas))
         panel.contentView = makeRootView()
         panel.ignoresMouseEvents = true
@@ -69,6 +70,9 @@ final class NotchController {
 
         // @Published phát trước khi gán → receive(on:) để đọc giá trị mới.
         settings.$language.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in
+            MainActor.assumeIsolated { self?.rebuildRootView() }
+        }.store(in: &cancellables)
+        settings.$theme.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in
             MainActor.assumeIsolated { self?.rebuildRootView() }
         }.store(in: &cancellables)
         settings.$hotkey.receive(on: DispatchQueue.main).sink { [weak self] _ in

@@ -12,7 +12,7 @@ struct MirrorView: View {
                 .frame(width: 300)
             VStack(alignment: .leading, spacing: 8) {
                 Text(L("Sẵn sàng họp?", "Ready for the call?"))
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.ui(15, weight: .bold))
                     .foregroundStyle(.white)
                 meeting
                 Spacer(minLength: 0)
@@ -58,8 +58,8 @@ struct MirrorView: View {
                 .fill(.white.opacity(0.07))
                 .overlay(
                     VStack(spacing: 8) {
-                        Image(systemName: icon).font(.system(size: 24))
-                        Text(text).font(.system(size: 12, weight: .semibold))
+                        Image(systemName: icon).font(.ui(24))
+                        Text(text).font(.ui(12, weight: .semibold))
                     }
                     .foregroundStyle(.white.opacity(0.8))
                 )
@@ -75,11 +75,11 @@ struct MirrorView: View {
                 RoundedRectangle(cornerRadius: 1.5).fill(next.color).frame(width: 3, height: 30)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(next.title)
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.ui(12, weight: .bold))
                         .foregroundStyle(.white.opacity(0.9))
                         .lineLimit(1)
                     Text(Self.timeText(next))
-                        .font(.system(size: 11).monospacedDigit())
+                        .font(.ui(11).monospacedDigit())
                         .foregroundStyle(.white.opacity(0.55))
                         .lineLimit(1)
                 }
@@ -90,7 +90,7 @@ struct MirrorView: View {
             }
         } else {
             Text(calendar.access == .granted ? L("Hôm nay không còn cuộc họp nào", "No more meetings today") : L("Soi lại trước khi lên hình", "Check yourself before going on camera"))
-                .font(.system(size: 12))
+                .font(.ui(12))
                 .foregroundStyle(.white.opacity(0.55))
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -117,13 +117,13 @@ private struct MirrorButton: View {
     var body: some View {
         Button(action: action) {
             Label(title, systemImage: symbol)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.ui(12, weight: .semibold))
                 .foregroundStyle(active ? Color(white: 0.12) : .white.opacity(0.9))
                 .lineLimit(1)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Capsule().fill(active ? warm : .white.opacity(0.12)))
+                .background(ThemedBackground(fill: active ? warm : .white.opacity(0.12)))
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)

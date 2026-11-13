@@ -34,7 +34,7 @@ struct QuestionCard: View {
                 Text("· \(request.project)").foregroundStyle(.white.opacity(0.5))
                 if !question.header.isEmpty {
                     Text(question.header)
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.ui(10, weight: .bold))
                         .foregroundStyle(claude)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 1)
@@ -46,11 +46,11 @@ struct QuestionCard: View {
                         .foregroundStyle(.white.opacity(0.5))
                 }
             }
-            .font(.system(size: 12, weight: .semibold))
+            .font(.ui(12, weight: .semibold))
             .lineLimit(1)
 
             Text(question.text)
-                .font(.system(size: 13, weight: .semibold))
+                .font(.ui(13, weight: .semibold))
                 .foregroundStyle(.white)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -59,7 +59,7 @@ struct QuestionCard: View {
                 VStack(alignment: .leading, spacing: 5) {
                     TextField(L("Nhập câu trả lời của bạn…", "Type your answer…"), text: otherText.projectedValue)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 12))
+                        .font(.ui(12))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 8)
@@ -71,7 +71,7 @@ struct QuestionCard: View {
                     Text(question.multiSelect && !picked.wrappedValue.isEmpty
                          ? L("Gửi kèm \(picked.wrappedValue.count) lựa chọn đã tích · Enter để gửi · Esc để quay lại", "Sends with \(picked.wrappedValue.count) checked option(s) · Enter to send · Esc to go back")
                          : L("Enter để gửi · Esc để quay lại", "Enter to send · Esc to go back"))
-                        .font(.system(size: 10))
+                        .font(.ui(10))
                         .foregroundStyle(.white.opacity(0.4))
                 }
                 .transition(.opacity)
@@ -196,19 +196,19 @@ private struct OptionTile: View {
             HStack(alignment: .top, spacing: 6) {
                 if multi {
                     Image(systemName: selected ? "checkmark.square.fill" : "square")
-                        .font(.system(size: 11))
+                        .font(.ui(11))
                         .foregroundStyle(selected ? accent : .white.opacity(0.4))
                         .padding(.top, 1)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(option.label)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .font(Theme.isCassette ? .hand(15) : .ui(12, weight: .semibold))
+                        .foregroundStyle(Theme.isCassette ? CassettePalette.ink : .white)
                         .lineLimit(1)
                     if !option.description.isEmpty {
                         Text(option.description)
-                            .font(.system(size: 10))
-                            .foregroundStyle(.white.opacity(0.55))
+                            .font(Theme.isCassette ? .hand(12) : .ui(10))
+                            .foregroundStyle(Theme.isCassette ? CassettePalette.faded : .white.opacity(0.55))
                             .lineLimit(2)
                             .multilineTextAlignment(.leading)
                     }
@@ -219,9 +219,21 @@ private struct OptionTile: View {
             .frame(maxWidth: .infinity, minHeight: 50, alignment: .topLeading)
             .background(
                 RoundedRectangle(cornerRadius: 9)
-                    .fill(selected ? accent.opacity(0.25) : .white.opacity(hover.wrappedValue ? 0.13 : 0.07))
+                    .fill(Theme.isCassette ? (selected ? CassettePalette.note : Color(red: 0.98, green: 0.97, blue: 0.93))
+                          : (selected ? accent.opacity(0.25) : .white.opacity(hover.wrappedValue ? 0.13 : 0.07)))
             )
-            .overlay(RoundedRectangle(cornerRadius: 9).stroke(selected ? accent : .clear, lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 9).stroke(selected ? (Theme.isCassette ? CassettePalette.marker : accent) : .clear,
+                                                              lineWidth: Theme.isCassette ? 2 : 1))
+            .overlay(alignment: .top) {
+                if Theme.isCassette { Circle().fill(CassettePalette.marker).frame(width: 9, height: 9).offset(y: -3) }
+            }
+            .overlay(alignment: .trailing) {
+                if Theme.isCassette && selected {
+                    Image(systemName: "checkmark").font(.system(size: 20, weight: .heavy))
+                        .foregroundStyle(CassettePalette.marker).padding(.trailing, 10)
+                }
+            }
+            .rotationEffect(.degrees(Theme.isCassette ? (option.label.count % 2 == 0 ? -1.2 : 1.2) : 0))
             .contentShape(RoundedRectangle(cornerRadius: 9))
         }
         .buttonStyle(.plain)

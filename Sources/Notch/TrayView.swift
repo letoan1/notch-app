@@ -61,9 +61,9 @@ private struct DropZone: View {
             .overlay(
                 VStack(spacing: 8) {
                     Image(systemName: "arrow.down.to.line")
-                        .font(.system(size: 22, weight: .semibold))
+                        .font(.ui(22, weight: .semibold))
                     Text(targeted || !wide ? L("Thả vào khay", "Drop here") : L("Kéo file lên notch để cất tạm", "Drag files onto the notch to keep them here"))
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.ui(12, weight: .bold))
                 }
                 .foregroundStyle(.white.opacity(targeted ? 1 : 0.85))
             )
@@ -90,7 +90,7 @@ private struct TrayTile: View {
         VStack(spacing: 8) {
             DocGlyph(url: url)
             Text(url.lastPathComponent)
-                .font(.system(size: 11))
+                .font(.ui(11))
                 .foregroundStyle(.white.opacity(0.8))
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -103,7 +103,7 @@ private struct TrayTile: View {
             if hover.wrappedValue {
                 Button(action: remove) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 14))
+                        .font(.ui(14))
                         .foregroundStyle(.white.opacity(0.9), .black.opacity(0.7))
                 }
                 .buttonStyle(.plain)
@@ -128,7 +128,7 @@ private struct DocGlyph: View {
             DocShape().fill(color)
             DocFold().fill(.white.opacity(0.45))
             Text(label)
-                .font(.system(size: 9, weight: .heavy))
+                .font(.ui(9, weight: .heavy))
                 .foregroundStyle(.white)
                 .padding(.bottom, 8)
         }
@@ -195,7 +195,7 @@ private struct DocFold: Shape {
 }
 
 /// Menu chuột phải của 1 file trong khay: mở, Finder, AirDrop, Chia sẻ (dịch vụ của macOS), gỡ.
-private struct ShareMenu: View {
+struct ShareMenu: View {
     let url: URL
     let remove: () -> Void
 

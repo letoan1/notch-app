@@ -31,7 +31,11 @@ final class NotchModel: ObservableObject {
     static let mirrorBodyHeight: CGFloat = 190
 
     var expandedBodyHeight: CGFloat {
-        tall ? Self.tallBodyHeight : (mirrorMode ? Self.mirrorBodyHeight : Self.normalBodyHeight)
+        if tall { return Self.tallBodyHeight }
+        if mirrorMode { return Self.mirrorBodyHeight }
+        // Cassette: băng + phím cơ cao hơn trình phát thường.
+        if Theme.isCassette && tab == .media { return 214 }
+        return Self.normalBodyHeight
     }
 
     var topRadius: CGFloat { expanded ? 14 : 6 }

@@ -24,12 +24,12 @@ struct PermissionCard: View {
                         .background(Capsule().fill(.white.opacity(0.12)))
                 }
             }
-            .font(.system(size: 12, weight: .semibold))
+            .font(.ui(12, weight: .semibold))
             .lineLimit(1)
 
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(request.tool)
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.ui(10, weight: .bold))
                     .foregroundStyle(claude)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
@@ -37,12 +37,12 @@ struct PermissionCard: View {
                 VStack(alignment: .leading, spacing: 2) {
                     if let detail = request.detail, !detail.isEmpty {
                         Text(detail)
-                            .font(.system(size: 11))
+                            .font(.ui(11))
                             .foregroundStyle(.white.opacity(0.55))
                             .lineLimit(1)
                     }
                     Text(request.summary)
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.ui(11, design: .monospaced))
                         .foregroundStyle(.white.opacity(0.9))
                         .lineLimit(request.detail == nil ? 2 : 1)
                         .truncationMode(.middle)
@@ -76,11 +76,11 @@ struct PillButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundStyle(text)
+            .font(.ui(12, weight: .semibold))
+            .foregroundStyle(Theme.isCassette ? CassettePalette.ink : text)
             .padding(.horizontal, 12)
             .padding(.vertical, 5)
-            .background(Capsule().fill(fill))
+            .background(ThemedBackground(fill: fill))
             .opacity(configuration.isPressed ? 0.7 : 1)
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .contentShape(Capsule())
