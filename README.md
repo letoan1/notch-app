@@ -13,19 +13,15 @@
 <p align="center"><b>Rê chuột lên notch</b> → nhạc, lịch, khay file, gương camera và cả Claude Code hiện ngay ở mép trên màn hình.<br>
 Không đổi Desktop, không mở thêm cửa sổ.</p>
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/card-claude.svg" alt="Duyệt lệnh Claude ngay trên notch"></td>
-    <td width="50%"><img src="docs/card-question.svg" alt="Claude hỏi, trả lời tại chỗ"></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="docs/card-tray.svg" alt="Khay kéo thả file"></td>
-    <td width="50%"><img src="docs/card-glance.svg" alt="Báo pin và sóng nhạc khi thu gọn"></td>
-  </tr>
-  <tr>
-    <td colspan="2"><img src="docs/card-mirror.svg" alt="Soi gương camera và đèn viền trước khi họp"></td>
-  </tr>
-</table>
+<p align="center"><img src="docs/card-claude.svg" alt="Duyệt lệnh Claude ngay trên notch" width="100%"></p>
+
+<p align="center"><img src="docs/card-question.svg" alt="Claude hỏi, trả lời tại chỗ" width="100%"></p>
+
+<p align="center"><img src="docs/card-tray.svg" alt="Khay kéo thả file" width="100%"></p>
+
+<p align="center"><img src="docs/card-glance.svg" alt="Báo pin và sóng nhạc khi thu gọn" width="100%"></p>
+
+<p align="center"><img src="docs/card-mirror.svg" alt="Soi gương camera và đèn viền trước khi họp" width="100%"></p>
 
 App viết bằng SwiftUI + AppKit, build bằng Swift Package Manager, **không cần Xcode** (chỉ cần Command Line Tools).
 
