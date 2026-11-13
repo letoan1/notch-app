@@ -25,6 +25,25 @@ Không đổi Desktop, không mở thêm cửa sổ.</p>
 
 <p align="center"><img src="docs/card-settings.svg" alt="Cài đặt: ngôn ngữ, phím tắt, nhiều màn hình, bật tắt tab" width="100%"></p>
 
+## Giao diện
+
+Đổi trong ⚙️ Cài đặt → **Giao diện**: Mặc định · **Pixel 8-bit** · **Cassette**. Notch đổi ngay, không cần mở lại app.
+
+### Pixel 8-bit
+
+Font pixel VT323 (đủ dấu tiếng Việt), notch bo bậc thang, nút vuông có bóng lệch, thanh tiến trình chia đốt.
+
+<p align="center"><img src="docs/themes/pixel-media.svg" alt="Giao diện Pixel 8-bit: nhạc và lịch" width="100%"></p>
+<p align="center"><img src="docs/themes/pixel-tray.svg" alt="Giao diện Pixel 8-bit: khay file" width="100%"></p>
+
+### Cassette
+
+Trình phát là băng cassette có hai trục quay theo nhạc, lịch là giấy ghi chú, gương camera thành khung ngắm máy quay, Claude xin quyền là phiếu đánh máy đóng dấu.
+
+<p align="center"><img src="docs/themes/theme-cassette.svg" alt="Giao diện Cassette: băng và lịch giấy" width="100%"></p>
+<p align="center"><img src="docs/themes/cassette-mirror.svg" alt="Giao diện Cassette: khung ngắm máy quay" width="100%"></p>
+<p align="center"><img src="docs/themes/cassette-claude.svg" alt="Giao diện Cassette: phiếu xin quyền đóng dấu" width="100%"></p>
+
 App viết bằng SwiftUI + AppKit, build bằng Swift Package Manager, **không cần Xcode** (chỉ cần Command Line Tools).
 
 ## Tính năng
@@ -39,6 +58,7 @@ App viết bằng SwiftUI + AppKit, build bằng Swift Package Manager, **không
 - **Tiếng Việt / English**: theo ngôn ngữ hệ thống hoặc chọn trong Cài đặt.
 - **Phím tắt** mở / đóng notch (mặc định ⌥ Space, không cần quyền Accessibility).
 - **Nhiều màn hình**: hiện notch trên màn hình có notch, màn hình chính, hoặc màn hình đang có con trỏ (màn hình ngoài được vẽ notch giả).
+- **Giao diện**: Mặc định, Pixel 8-bit hoặc Cassette (áp dụng cho mọi tab).
 - **Claude Code**: hiện yêu cầu xin quyền (Cho phép / Từ chối / Luôn cho phép) và câu hỏi của Claude (chọn đáp án hoặc gõ "Khác…") ngay trên notch, qua hook `PermissionRequest`.
 
 ## Build & cài
@@ -69,6 +89,8 @@ Thêm vào `.claude/settings.local.json` của project (hoặc `~/.claude/settin
 `notch-hook` gửi yêu cầu sang app qua Unix socket `~/Library/Application Support/Notch/claude.sock` (quyền 0600). App tắt, hết giờ, hoặc bấm "Trả lời trong VS Code" → hook không trả quyết định và Claude Code hỏi như bình thường.
 
 ## Ghi chú kỹ thuật
+
+- Font pixel [VT323](https://fonts.google.com/specimen/VT323) đóng gói kèm app theo giấy phép SIL Open Font License 1.1 (`Resources/OFL-VT323.txt`).
 
 - SDK macOS 27 biến `@State` / `@Namespace` của SwiftUI thành macro mà plugin chỉ có trong Xcode → code dùng `State(initialValue:)` / `Namespace()` tường minh.
 - Nhạc đọc qua AppleScript trên queue riêng + distributed notification của Spotify/Music (không dùng private framework MediaRemote).
