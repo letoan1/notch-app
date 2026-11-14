@@ -25,6 +25,8 @@ struct QuestionCard: View {
     }
 
     private var question: AskQuestion { questions[min(index.wrappedValue, questions.count - 1)] }
+    /// Pixel: lựa chọn đang trỏ (con trỏ ▶ theo chuột).
+    private var cursor = State<String?>(initialValue: nil)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -56,11 +58,16 @@ struct QuestionCard: View {
                         .background(Capsule().fill(claude.opacity(0.18)))
                         .fixedSize()
                 }
+                if Theme.isPixel {
+                    PixelTyped(text: question.text, font: .ui(13), color: .white, lineLimit: 2)
+                        .id(question.text)
+                } else {
                 Text(question.text)
                     .font(.ui(13, weight: .semibold))
                     .foregroundStyle(.white)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                }
             }
 
             if !request.state.isWaiting {
@@ -87,6 +94,8 @@ struct QuestionCard: View {
                         .foregroundStyle(.white.opacity(0.4))
                 }
                 .transition(.opacity)
+            } else if Theme.isPixel {
+                pixelOptions
             } else {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 6), GridItem(.flexible(), spacing: 6)], spacing: 6) {
                     ForEach(question.options) { option in
@@ -130,6 +139,27 @@ struct QuestionCard: View {
         .padding(.top, 4)
         .padding(.bottom, 14)
         .animation(.easeOut(duration: 0.15), value: index.wrappedValue)
+    }
+
+    /// Pixel: menu nhập vai hai cột, ▶ theo chuột, mô tả của lựa chọn đang trỏ ở dòng dưới.
+    private var pixelOptions: some View {
+        let current = cursor.wrappedValue ?? question.options.first?.label
+        let desc = question.options.first { $0.label == current }?.description ?? ""
+        return VStack(alignment: .leading, spacing: 4) {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10, alignment: .leading), GridItem(.flexible(), spacing: 10, alignment: .leading)],
+                      alignment: .leading, spacing: 3) {
+                ForEach(question.options) { option in
+                    let mark = question.multiSelect ? (picked.wrappedValue.contains(option.label) ? "[x] " : "[ ] ") : ""
+                    PixelChoice(title: mark + option.label, selected: current == option.label,
+                                hover: { if $0 { cursor.wrappedValue = option.label } }) { choose(option.label) }
+                        .help(option.description)
+                }
+            }
+            Text(desc.isEmpty ? " " : desc)
+                .font(.ui(10.5))
+                .foregroundStyle(PixelPalette.border.opacity(0.7))
+                .lineLimit(1)
+        }
     }
 
     private var isLast: Bool { index.wrappedValue >= questions.count - 1 }
@@ -206,24 +236,26 @@ private struct OptionTile: View {
         self.action = action
     }
 
+    private var vg: Bool { Theme.isVanGogh }
+
     var body: some View {
         Button(action: action) {
             HStack(alignment: .top, spacing: 6) {
                 if multi {
                     Image(systemName: selected ? "checkmark.square.fill" : "square")
                         .font(.ui(11))
-                        .foregroundStyle(selected ? accent : .white.opacity(0.4))
+                        .foregroundStyle(vg ? (selected ? VG.ink : VG.cream.opacity(0.6)) : selected ? accent : .white.opacity(0.4))
                         .padding(.top, 1)
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(option.label)
                         .font(Theme.isCassette ? .hand(15) : .ui(12, weight: .semibold))
-                        .foregroundStyle(Theme.isCassette ? CassettePalette.ink : .white)
+                        .foregroundStyle(Theme.isCassette ? CassettePalette.ink : vg ? (selected ? VG.ink : VG.cream) : .white)
                         .lineLimit(1)
                     if !option.description.isEmpty {
                         Text(option.description)
-                            .font(Theme.isCassette ? .hand(12) : .ui(10))
-                            .foregroundStyle(Theme.isCassette ? CassettePalette.faded : .white.opacity(0.55))
+                            .font(Theme.isCassette ? .hand(12) : vg ? .ui(10).italic() : .ui(10))
+                            .foregroundStyle(Theme.isCassette ? CassettePalette.faded : vg ? (selected ? VG.ink.opacity(0.75) : VG.muted) : .white.opacity(0.55))
                             .lineLimit(2)
                             .multilineTextAlignment(.leading)
                     }
@@ -232,13 +264,19 @@ private struct OptionTile: View {
             }
             .padding(8)
             .frame(maxWidth: .infinity, minHeight: 50, alignment: .topLeading)
-            .background(
-                RoundedRectangle(cornerRadius: 9)
-                    .fill(Theme.isCassette ? (selected ? CassettePalette.note : Color(red: 0.98, green: 0.97, blue: 0.93))
-                          : (selected ? accent.opacity(0.25) : .white.opacity(hover.wrappedValue ? 0.13 : 0.07)))
-            )
-            .overlay(RoundedRectangle(cornerRadius: 9).stroke(selected ? (Theme.isCassette ? CassettePalette.marker : accent) : .clear,
-                                                              lineWidth: Theme.isCassette ? 2 : 1))
+            .background {
+                if vg {
+                    RoundedRectangle(cornerRadius: 10).fill(selected ? VG.yellow : VG.navy.opacity(hover.wrappedValue ? 0.98 : 0.88))
+                    if selected { BrushDaubs(color: VG.yellow2, seed: 13).clipShape(RoundedRectangle(cornerRadius: 10)) }
+                } else {
+                    RoundedRectangle(cornerRadius: 9)
+                        .fill(Theme.isCassette ? (selected ? CassettePalette.note : Color(red: 0.98, green: 0.97, blue: 0.93))
+                              : (selected ? accent.opacity(0.25) : .white.opacity(hover.wrappedValue ? 0.13 : 0.07)))
+                }
+            }
+            .overlay(RoundedRectangle(cornerRadius: vg ? 10 : 9)
+                .stroke(vg ? (selected ? VG.ink : VG.cream.opacity(0.4)) : selected ? (Theme.isCassette ? CassettePalette.marker : accent) : .clear,
+                        lineWidth: Theme.isCassette ? 2 : vg ? 1.4 : 1))
             .overlay(alignment: .top) {
                 if Theme.isCassette { Circle().fill(CassettePalette.marker).frame(width: 9, height: 9).offset(y: -3) }
             }

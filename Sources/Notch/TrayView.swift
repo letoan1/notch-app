@@ -421,3 +421,37 @@ struct ThumbnailImage<Placeholder: View>: View {
         .task(id: url) { image.wrappedValue = await FileThumbnails.load(url, size: size) }
     }
 }
+
+/// Hiệu ứng gỡ file theo giao diện. Chạy khi TrayStore đánh dấu file đang gỡ, trước khi file
+/// thật sự rời khay (transition lúc rời ForEach không ổn định trong ScrollView ngang).
+struct TrayRemovalEffect: ViewModifier {
+    @ObservedObject var tray: TrayStore
+    let url: URL
+    private var progress = State<CGFloat>(initialValue: 0)
+
+    init(tray: TrayStore, url: URL) {
+        self.tray = tray
+        self.url = url
+    }
+
+    func body(content: Content) -> some View {
+        let p = progress.wrappedValue
+        let removing = tray.removing.contains(url)
+        Group {
+            if Theme.isPixel {
+                content.modifier(PixelShatter(amount: p))
+            } else if Theme.isCassette {
+                content.modifier(TapeEject(amount: p))
+            } else if Theme.isVanGogh {
+                content.modifier(PaintSmear(amount: p))
+            } else {
+                content
+            }
+        }
+        .allowsHitTesting(!removing)
+        .onChange(of: removing, initial: true) { _, on in
+            guard on, progress.wrappedValue == 0 else { return }
+            withAnimation(.easeOut(duration: TrayStore.removalDuration)) { progress.wrappedValue = 1 }
+        }
+    }
+}

@@ -43,6 +43,8 @@ final class CalendarStore: ObservableObject {
     @Published private(set) var windowEvents: [Item] = []
     /// Các ngày (startOfDay) trong dải 7 ngày có ít nhất 1 sự kiện.
     @Published private(set) var busyDays: Set<Date> = []
+    /// Số sự kiện mỗi ngày trong dải (giao diện Van Gogh: hoa hướng dương to dần).
+    @Published private(set) var dayLoad: [Date: Int] = [:]
     /// Ngày đang xem (startOfDay), mặc định hôm nay.
     @Published var selectedDay = Calendar.current.startOfDay(for: Date())
     /// Lệch bao nhiêu tuần so với tuần chứa hôm nay.
@@ -142,6 +144,7 @@ final class CalendarStore: ObservableObject {
         guard access == .granted, let first = days.first, let last = days.last else {
             windowEvents = []
             busyDays = []
+            dayLoad = [:]
             return
         }
         let cal = Calendar.current
@@ -149,10 +152,14 @@ final class CalendarStore: ObservableObject {
         let events = store.events(matching: store.predicateForEvents(withStart: first, end: windowEnd, calendars: nil))
 
         // Sự kiện nhiều ngày đánh dấu mọi ngày nó phủ.
-        busyDays = Set(days.filter { day in
+        var load: [Date: Int] = [:]
+        for day in days {
             let end = cal.date(byAdding: .day, value: 1, to: day)!
-            return events.contains { $0.startDate < end && $0.endDate > day }
-        })
+            let n = events.filter { $0.startDate < end && $0.endDate > day }.count
+            if n > 0 { load[day] = n }
+        }
+        dayLoad = load
+        busyDays = Set(load.keys)
 
         windowEvents = events
             .sorted { ($0.isAllDay ? 0 : 1, $0.startDate) < ($1.isAllDay ? 0 : 1, $1.startDate) }

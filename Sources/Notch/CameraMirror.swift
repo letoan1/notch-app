@@ -13,7 +13,10 @@ final class CameraMirror: ObservableObject {
     @Published var mirrored: Bool = UserDefaults.standard.object(forKey: "mirrorFlip") as? Bool ?? true {
         didSet { UserDefaults.standard.set(mirrored, forKey: "mirrorFlip") }
     }
-    let session = AVCaptureSession()
+    nonisolated(unsafe) let session = AVCaptureSession()
+    /// Chụp ảnh gốc (đủ độ phân giải, cân sáng như chụp thường), không qua bộ lọc.
+    nonisolated(unsafe) let photoOutput = AVCapturePhotoOutput()
+    private var photoDelegate: PhotoDelegate?
     /// Gợi ý căn khung / ánh sáng từ Vision (≤ 2 khung hình/giây, không lưu gì).
     @Published private(set) var guide: FaceGuide.Hint?
 
@@ -21,6 +24,27 @@ final class CameraMirror: ObservableObject {
     private let analyzer = FaceGuide()
     private var configured = false
     private var wanted = false
+
+    /// Giao diện Van Gogh: vẽ lại hình camera bằng nét cọ (mặc định bật, chỉ giữ trong phiên chạy).
+    let painter = Painterly()
+    @Published var painterly = true {
+        didSet { applyPainterly() }
+    }
+    /// Giao diện Pixel: "Selfie 8-bit" (mặc định tắt, chỉ giữ trong phiên chạy).
+    @Published var pixelSelfie = false {
+        didSet { applyPainterly() }
+    }
+    /// Có bộ lọc trực tiếp đang chạy không (nét cọ Van Gogh / ô pixel).
+    private var liveFilter: Bool { wanted && ((Theme.isVanGogh && painterly) || (Theme.isPixel && pixelSelfie)) }
+    /// Khung 960 px: nét cọ Van Gogh, hoặc đang chụp ảnh tĩnh.
+    private var wantsPainterly: Bool { (painterly && Theme.isVanGogh && wanted) || stillPending }
+    private var stillPending = false
+
+    /// Van Gogh: camera có đang ra hình không (nắp gập, màn rời, app khác giữ camera → báo trong khung).
+    enum FrameState { case starting, live, none }
+    @Published private(set) var frameState: FrameState = .starting
+    private var frameTimer: Timer?
+    private var startedAt = Date()
 
     static func currentAccess() -> Access {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
@@ -43,6 +67,7 @@ final class CameraMirror: ObservableObject {
     }
 
     init() {
+        analyzer.painter = painter
         analyzer.onHint = { [weak self] hint in
             DispatchQueue.main.async {
                 MainActor.assumeIsolated {
@@ -58,11 +83,15 @@ final class CameraMirror: ObservableObject {
         analyzer.reset()
         access = Self.currentAccess()
         guard access == .granted else { return }
+        if Theme.isVanGogh || Theme.isPixel || Theme.isCassette { watchFrames() }
+        painter.filter = Theme.isPixel ? { PixelCam.pixel8($0) } : { OilPaint.paint($0) }
         let session = self.session
         let needsConfig = !configured
         configured = true
+        let big = wantsPainterly
+        painter.enabled = liveFilter
         // startRunning chặn ~0.5s: chạy trên queue riêng.
-        queue.async {
+        queue.async { [weak self] in
             if needsConfig {
                 session.beginConfiguration()
                 // 1080p nếu camera hỗ trợ (FaceTime HD của MacBook có), .high trên Mac thường chỉ ra 720p.
@@ -78,27 +107,149 @@ final class CameraMirror: ObservableObject {
                 // Ảnh nhỏ cho Vision; khung hình chỉ nằm trong RAM rồi bỏ.
                 let output = AVCaptureVideoDataOutput()
                 output.alwaysDiscardsLateVideoFrames = true
-                output.videoSettings = [
-                    kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-                    kCVPixelBufferWidthKey as String: 320,
-                    kCVPixelBufferHeightKey as String: 180,
-                ]
-                output.setSampleBufferDelegate(self.analyzer, queue: self.analyzer.queue)
+                output.videoSettings = Self.frameSettings(big: big)
+                output.setSampleBufferDelegate(self?.analyzer, queue: self?.analyzer.queue)
                 if session.canAddOutput(output) { session.addOutput(output) }
+                if let photo = self?.photoOutput, !session.outputs.contains(photo), session.canAddOutput(photo) {
+                    session.addOutput(photo)
+                }
                 session.commitConfiguration()
+            } else if let output = self?.outputOnQueue {
+                Self.resize(output, big: big, in: session)
             }
             if !session.isRunning { session.startRunning() }
         }
     }
 
+    /// Khung nhỏ cho Vision; Van Gogh "Nét cọ" cần khung 960 px để vẽ lại.
+    nonisolated private static func frameSettings(big: Bool) -> [String: Any] {
+        [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+         kCVPixelBufferWidthKey as String: big ? 960 : 320,
+         kCVPixelBufferHeightKey as String: big ? 540 : 180]
+    }
+
+    nonisolated private static func resize(_ output: AVCaptureVideoDataOutput, big: Bool, in session: AVCaptureSession) {
+        let want = big ? 960 : 320
+        guard (output.videoSettings[kCVPixelBufferWidthKey as String] as? Int) != want else { return }
+        session.beginConfiguration()
+        output.videoSettings = frameSettings(big: big)
+        session.commitConfiguration()
+    }
+
+    /// Đọc từ queue camera (output chỉ gán một lần sau khi cấu hình).
+    nonisolated private var outputOnQueue: AVCaptureVideoDataOutput? {
+        session.outputs.compactMap { $0 as? AVCaptureVideoDataOutput }.first
+    }
+
+    private func applyPainterly() {
+        let big = wantsPainterly
+        painter.enabled = liveFilter
+        guard configured else { return }
+        let session = self.session
+        queue.async { [weak self] in
+            guard let output = self?.outputOnQueue else { return }
+            Self.resize(output, big: big, in: session)
+        }
+    }
+
+    /// Kiểm tra 2 lần/giây, chỉ khi tab gương đang mở.
+    private func watchFrames() {
+        startedAt = Date()
+        if frameState != .starting { frameState = .starting }
+        frameTimer?.invalidate()
+        let t = Timer(timeInterval: 0.5, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.checkFrames() }
+        }
+        t.tolerance = 0.2
+        RunLoop.main.add(t, forMode: .common)
+        frameTimer = t
+    }
+
+    private func checkFrames() {
+        let age = CACurrentMediaTime() - analyzer.lastFrame
+        let state: FrameState = age < 1.5 ? .live : Date().timeIntervalSince(startedAt) < 3 ? .starting : .none
+        if state != frameState { frameState = state }
+    }
+
     func stop() {
         wanted = false
         guide = nil
+        frameTimer?.invalidate()
+        frameTimer = nil
+        painter.enabled = false
         let session = self.session
         queue.async {
             if session.isRunning { session.stopRunning() }
         }
     }
+
+    /// Chụp một khung hình gốc ở 960 px (Polaroid Cassette). Không có hình sau 1,5 s thì trả nil.
+    /// Ảnh gốc từ camera (AVCapturePhotoOutput). nil nếu camera chưa chạy hoặc lỗi.
+    func capturePhoto(_ done: @escaping (CGImage?) -> Void) {
+        guard wanted, access == .granted, session.outputs.contains(photoOutput),
+              photoOutput.connection(with: .video)?.isActive == true else { done(nil); return }
+        let delegate = PhotoDelegate { [weak self] cg in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated {
+                    self?.photoDelegate = nil
+                    done(cg)
+                }
+            }
+        }
+        photoDelegate = delegate
+        let output = photoOutput
+        queue.async { output.capturePhoto(with: AVCapturePhotoSettings(), delegate: delegate) }
+    }
+
+    func snapshot(_ done: @escaping (CGImage?) -> Void) {
+        guard wanted, access == .granted else { done(nil); return }
+        stillPending = true
+        applyPainterly()
+        let started = Date()
+        var previous: Double?
+        var finished = false
+        let finish: (CGImage?) -> Void = { [weak self] cg in
+            guard !finished else { return }
+            finished = true
+            self?.stillPending = false
+            self?.applyPainterly()
+            done(cg)
+        }
+        // Đổi cỡ output làm camera cấu hình lại: các khung đầu đen rồi sáng dần (~1 s).
+        // Lấy liên tục tới khi khung không đen và độ sáng đã ổn định, tối đa 2,5 s.
+        func attempt() {
+            painter.grabStill { [weak self] cg in
+                MainActor.assumeIsolated {
+                    guard self != nil, !finished else { return }
+                    let elapsed = Date().timeIntervalSince(started)
+                    let luma = cg.map(Self.meanLuma) ?? 0
+                    let settled = luma > 0.03 && (previous.map { abs(luma - $0) <= max(0.01, $0 * 0.06) } ?? false)
+                    if (settled && elapsed > 0.5) || elapsed > 2.5 {
+                        finish(luma > 0.01 ? cg : nil)
+                        return
+                    }
+                    previous = luma
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { attempt() }
+                }
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { attempt() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.2) { [weak self] in
+            _ = self?.painter.cancelStill()
+            finish(nil)
+        }
+    }
+
+    /// Độ sáng trung bình 0…1 của một khung (thu nhỏ trước cho rẻ).
+    nonisolated static func meanLuma(_ cg: CGImage) -> Double {
+        let ci = CIImage(cgImage: cg)
+        let avg = ci.applyingFilter("CIAreaAverage", parameters: [kCIInputExtentKey: CIVector(cgRect: ci.extent)])
+        var px = [UInt8](repeating: 0, count: 4)
+        OilPaint.context.render(avg, toBitmap: &px, rowBytes: 4, bounds: CGRect(x: 0, y: 0, width: 1, height: 1),
+                                format: .RGBA8, colorSpace: CGColorSpace(name: CGColorSpace.sRGB))
+        return (0.299 * Double(px[0]) + 0.587 * Double(px[1]) + 0.114 * Double(px[2])) / 255
+    }
+
 
     func openPrivacySettings() {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Camera") {
@@ -194,6 +345,12 @@ final class FaceGuide: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @
 
     let queue = DispatchQueue(label: "notch.camera.vision", qos: .utility)
     var onHint: ((Hint?) -> Void)?
+    var painter: Painterly?
+
+    private let frameLock = NSLock()
+    private var _lastFrame: CFTimeInterval = 0
+    /// Thời điểm nhận khung hình gần nhất (đọc từ main).
+    var lastFrame: CFTimeInterval { frameLock.withLock { _lastFrame } }
 
     // Chỉ dùng trên `queue`.
     private var lastSample: CFTimeInterval = 0
@@ -212,6 +369,8 @@ final class FaceGuide: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @
 
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         let now = CACurrentMediaTime()
+        frameLock.withLock { _lastFrame = now }
+        if let painter, let pixels = CMSampleBufferGetImageBuffer(sampleBuffer) { painter.consume(pixels) }
         guard now - lastSample >= 0.5, let pixels = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         lastSample = now
 
@@ -274,5 +433,17 @@ final class FaceGuide: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate, @
             }
         }
         return n > 0 ? sum / Double(n) / 255 : 1
+    }
+}
+
+final class PhotoDelegate: NSObject, AVCapturePhotoCaptureDelegate, @unchecked Sendable {
+    private let done: (CGImage?) -> Void
+    init(_ done: @escaping (CGImage?) -> Void) { self.done = done }
+
+    func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
+        guard error == nil, let data = photo.fileDataRepresentation(),
+              let src = CGImageSourceCreateWithData(data as CFData, nil),
+              let cg = CGImageSourceCreateImageAtIndex(src, 0, nil) else { done(nil); return }
+        done(cg)
     }
 }

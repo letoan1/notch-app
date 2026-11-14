@@ -3,7 +3,24 @@ import SwiftUI
 
 @MainActor
 final class NotchModel: ObservableObject {
-    enum Tab { case media, tray, mirror }
+    enum Tab: String, CaseIterable {
+        case media, tray, mirror
+
+        var title: String {
+            switch self {
+            case .media: return L("Nhạc và lịch", "Music and calendar")
+            case .tray: return L("Khay file", "File tray")
+            case .mirror: return L("Gương camera", "Camera mirror")
+            }
+        }
+        var symbol: String {
+            switch self {
+            case .media: return "music.note"
+            case .tray: return "tray.full.fill"
+            case .mirror: return "camera.fill"
+            }
+        }
+    }
 
     @Published var expanded = false
     @Published var tab: Tab = .media
@@ -54,8 +71,6 @@ final class NotchModel: ObservableObject {
     var expandedBodyHeight: CGFloat {
         if tall { return Self.tallBodyHeight }
         if mirrorMode { return Self.mirrorBodyHeight }
-        // Cassette: băng + phím cơ cao hơn trình phát thường.
-        if Theme.isCassette && tab == .media { return 214 }
         return Self.normalBodyHeight
     }
 
@@ -89,11 +104,12 @@ final class NotchModel: ObservableObject {
     }
 
     /// Kích thước khung shape (đã gồm 2 "tai" ở mép trên).
-    func shapeSize(playing: Bool) -> CGSize {
+    /// `wing`: bề rộng mỗi cánh lúc thu gọn (WingLayout.width), 0 = không có cánh.
+    func shapeSize(wing: CGFloat) -> CGSize {
         if expanded {
             return CGSize(width: Self.expandedWidth * Self.scale, height: notchSize.height + expandedBodyHeight * Self.scale)
         }
-        let wings = minimal ? 0 : peek.map { $0.wing * 2 } ?? (playing ? notchSize.height * 2 : 0)
+        let wings = minimal ? 0 : peek.map { $0.wing * 2 } ?? wing * 2
         return CGSize(width: notchSize.width + topRadius * 2 + wings + petWing, height: notchSize.height)
     }
 }

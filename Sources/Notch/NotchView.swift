@@ -15,7 +15,9 @@ struct NotchRootView: View {
     private var ns = Namespace()
 
     var body: some View {
-        let size = model.shapeSize(playing: media.hasTrack)
+        let wings = WingLayout.resolve(settings: settings, hasTrack: media.hasTrack, calendar: calendar,
+                                       battery: system.batteryPercent, height: model.notchSize.height)
+        let size = model.shapeSize(wing: wings.width)
         let shape = NotchShape(topRadius: model.topRadius, bottomRadius: model.bottomRadius,
                                pixel: Theme.isPixel && (model.expanded || model.pill), pill: model.pill)
         let notch = model.notchSize
@@ -24,6 +26,14 @@ struct NotchRootView: View {
         // thay vì layout lại chữ ở mỗi frame animation.
         ZStack(alignment: .top) {
             shape.fill(Theme.isCassette ? CassettePalette.background : Color.black)
+            if Theme.isVanGogh && model.expanded {
+                // Cố định ở kích thước cuối: khung lớn dần chỉ "lộ" tranh ra, không co giãn ảnh mỗi khung hình.
+                VGPanelBackground()
+                    .frame(width: NotchModel.expandedWidth * NotchModel.scale,
+                           height: notch.height + model.expandedBodyHeight * NotchModel.scale)
+                    .clipped()
+                    .transition(.opacity.animation(.easeOut(duration: 0.2)))
+            }
             if model.expanded {
                 ExpandedView(model: model, media: media, permissions: permissions, tray: tray,
                              calendar: calendar, camera: camera, settings: settings,
@@ -48,9 +58,9 @@ struct NotchRootView: View {
                 .frame(width: notch.width + peek.wing * 2, height: notch.height)
                 .offset(x: -model.petWing / 2)
                 .transition(.notchContent)
-            } else if media.hasTrack {
-                CollapsedWings(media: media, height: notch.height, ns: ns.wrappedValue)
-                    .frame(width: notch.width + notch.height * 2, height: notch.height)
+            } else if wings.width > 0 {
+                CollapsedWings(media: media, layout: wings, height: notch.height, ns: ns.wrappedValue)
+                    .frame(width: notch.width + wings.width * 2, height: notch.height)
                     .offset(x: -model.petWing / 2)
                     .transition(.notchContent)
             }
@@ -64,8 +74,19 @@ struct NotchRootView: View {
         }
         .frame(width: size.width, height: size.height, alignment: .top)
         .clipShape(shape)
-        .overlay(shape.stroke(Theme.isPixel ? PixelPalette.border.opacity(model.expanded ? 1 : 0) : Color.white.opacity(model.expanded ? 0.08 : 0),
-                              lineWidth: Theme.isPixel ? 3 : 1))
+        // Van Gogh thu gọn: viền mảnh cobalt → vàng như một vệt sơn quanh notch.
+        .overlay {
+            if Theme.isVanGogh, !model.expanded, !model.minimal {
+                shape.stroke(LinearGradient(colors: [VG.cobalt, VG.yellow, VG.cobalt.opacity(0.9), VG.yellow, VG.cobalt],
+                                            startPoint: .leading, endPoint: .trailing), lineWidth: 1.6)
+                    .opacity(0.9)
+                    .transition(.opacity)
+            }
+        }
+        .overlay(shape.stroke(Theme.isPixel ? PixelPalette.border.opacity(model.expanded ? 1 : 0)
+                              : Theme.isVanGogh ? VG.ink.opacity(model.expanded ? 1 : 0)
+                              : Color.white.opacity(model.expanded ? 0.08 : 0),
+                              lineWidth: Theme.isPixel ? 3 : Theme.isVanGogh ? 2.5 : 1))
         // Bóng đổ chỉ tính trên khung (không trên cả nội dung) → co / giãn không phải dựng lại bóng của
         // ảnh bìa, lịch, chữ ở mỗi khung hình.
         .background {
@@ -77,11 +98,27 @@ struct NotchRootView: View {
         // Quầng sáng màu ảnh bìa: chỉ khi thu gọn, hiện dần sau khi co xong (không làm nhoè khung đang co).
         .background {
             if settings.ambientGlow, media.isPlaying, media.artwork != nil, !model.expanded, !model.minimal, !system.lowPower {
-                shape.fill(media.accent)
+                // Van Gogh: quầng xanh cobalt pha vàng của tranh thay cho màu ảnh bìa.
+                shape.fill(Theme.isVanGogh
+                           ? AnyShapeStyle(LinearGradient(colors: [VG.cobalt, VG.yellow, VG.cobalt], startPoint: .leading, endPoint: .trailing))
+                           : AnyShapeStyle(media.accent))
                     .blur(radius: 9)
                     .opacity(0.7)
                     .transition(.asymmetric(insertion: .opacity.animation(.easeIn(duration: 0.4).delay(0.35)),
                                             removal: .opacity.animation(.easeOut(duration: 0.08))))
+            }
+        }
+        // Van Gogh: vệt sáng vàng ấm dưới notch thu gọn.
+        .background(alignment: .bottom) {
+            if Theme.isVanGogh, !model.expanded, !model.minimal, !system.lowPower {
+                Capsule()
+                    .fill(LinearGradient(colors: [VG.yellow.opacity(0), VG.yellow, VG.yellow.opacity(0)],
+                                         startPoint: .leading, endPoint: .trailing))
+                    .frame(width: max(size.width - model.bottomRadius * 2, 20), height: 3)
+                    .blur(radius: 2)
+                    .opacity(0.85)
+                    .offset(y: 2.5)
+                    .transition(.opacity.animation(.easeIn(duration: 0.4).delay(0.3)))
             }
         }
         .animation(.easeInOut(duration: 0.6), value: media.accent)
@@ -96,7 +133,7 @@ struct NotchRootView: View {
         .animation(spring, value: model.tall)
         .animation(spring, value: model.mirrorMode)
         .animation(spring, value: model.peek)
-        .animation(spring, value: media.hasTrack)
+        .animation(spring, value: wings)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .environment(\.locale, settings.locale)
         .textCase(Theme.isPixel ? .uppercase : nil)
@@ -125,46 +162,6 @@ extension AnyTransition {
 }
 
 // MARK: - Collapsed
-
-struct CollapsedWings: View {
-    @ObservedObject var media: NowPlaying
-    let height: CGFloat
-    let ns: Namespace.ID
-
-    var body: some View {
-        HStack(spacing: 0) {
-            Group {
-                if Theme.isCassette {
-                    MiniTape(band: CassettePalette.band, name: "")
-                        .frame(width: height - 8, height: (height - 8) * 0.66)
-                } else {
-                    Artwork(image: media.artwork, corner: 6)
-                        .frame(width: height - 12, height: height - 12)
-                        .matchedGeometryEffect(id: "artwork", in: ns)
-                }
-            }
-            .frame(width: height, height: height)
-            Spacer(minLength: 0)
-            Group {
-                if Theme.isCassette {
-                    HStack(spacing: 3) {
-                        MiniReel(spinning: media.isPlaying).frame(width: 13, height: 13)
-                        MiniReel(spinning: media.isPlaying).frame(width: 13, height: 13)
-                    }
-                } else if media.isPlaying {
-                    EqualizerBars(active: true, color: media.accent)
-                } else {
-                    // Tạm dừng: nốt nhạc đứng yên thay cho sóng.
-                    Image(systemName: "music.note")
-                        .font(.ui(9, weight: .semibold))
-                        .foregroundStyle(media.accent.opacity(0.85))
-                }
-            }
-            .transition(.opacity)
-            .frame(width: height, height: height)
-        }
-    }
-}
 
 struct ChargeWings: View {
     let peek: NotchModel.ChargePeek
@@ -307,26 +304,28 @@ struct ExpandedView: View {
     let ns: Namespace.ID
     /// Hiện lần lượt: hàng tab trước, nội dung sau (chỉ chạy lúc mở).
     var shown = State(initialValue: false)
+    // Hiệu ứng đổi tab chỉ 0,3 s mỗi lần bấm: giữ cả khi tiết kiệm pin.
+    private var tabFX: Bool { (Theme.isPixel || Theme.isCassette || Theme.isVanGogh) && permissions.current == nil }
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
-                let tabs = settings.enabledTabs
-                if tabs.contains(.media) {
-                    TabPill(symbol: settings.showMedia ? "music.note" : "calendar", label: nil,
-                            selected: model.tab == .media) {
-                        model.tab = .media
-                    }
-                }
-                if tabs.contains(.tray) {
-                    TabPill(symbol: "tray.full.fill", label: nil, selected: model.tab == .tray,
-                            badge: tray.files.isEmpty ? nil : tray.files.count) {
-                        model.tab = .tray
-                    }
-                }
-                if tabs.contains(.mirror) {
-                    TabPill(symbol: "camera.fill", label: nil, selected: model.tab == .mirror) {
-                        model.tab = .mirror
+                ForEach(settings.enabledTabs, id: \.self) { tab in
+                    switch tab {
+                    case .media:
+                        TabPill(symbol: settings.showMedia ? "music.note" : "calendar", label: nil,
+                                selected: model.tab == .media) {
+                            model.tab = .media
+                        }
+                    case .tray:
+                        TabPill(symbol: "tray.full.fill", label: nil, selected: model.tab == .tray,
+                                badge: tray.files.isEmpty ? nil : tray.files.count) {
+                            model.tab = .tray
+                        }
+                    case .mirror:
+                        TabPill(symbol: "camera.fill", label: nil, selected: model.tab == .mirror) {
+                            model.tab = .mirror
+                        }
                     }
                 }
                 if permissions.requests.count > 1 {
@@ -357,22 +356,44 @@ struct ExpandedView: View {
             }
             .padding(.horizontal, 18)
             .frame(height: notchHeight)
+            // Van Gogh: quầng tối sau thú cưng + nút ở góc phải (đè lên vầng xoáy sáng của tranh).
+            .background(alignment: .trailing) {
+                if Theme.isVanGogh { VGScrim(strength: 0.75).frame(width: 190, height: notchHeight * 2.2).offset(x: 30) }
+            }
             .opacity(shown.wrappedValue ? 1 : 0)
             .offset(y: shown.wrappedValue ? 0 : -5)
             .animation(.spring(response: 0.36, dampingFraction: 0.85).delay(0.05), value: shown.wrappedValue)
 
+            // Pixel / Cassette / Van Gogh: đổi tab có hiệu ứng riêng (ô vuông tan, tua băng, quét cọ).
+            ZStack(alignment: .top) {
             Group {
             if let request = permissions.current, let questions = request.questions, !questions.isEmpty {
                 QuestionCard(request: request, questions: questions,
                              answer: { permissions.answer(request, $0) },
                              dismiss: { permissions.dismiss(request) })
-                    .background { if Theme.isCassette { Corkboard().padding(.horizontal, 10).padding(.bottom, 6) } }
+                    .background {
+                        if Theme.isCassette { Corkboard().padding(.horizontal, 10).padding(.bottom, 6) }
+                        if Theme.isPixel { PixelDialogFrame().padding(.horizontal, 10).padding(.bottom, 6) }
+                        if Theme.isVanGogh {
+                            RoundedRectangle(cornerRadius: 14).fill(VG.night.opacity(0.72))
+                                .overlay(RoundedRectangle(cornerRadius: 14).stroke(VG.yellow.opacity(0.5), lineWidth: 1.2))
+                                .padding(.horizontal, 10).padding(.bottom, 6)
+                        }
+                    }
                     .id(request.id)
                     .transition(.opacity)
             } else if let request = permissions.current {
                 Group {
                     if Theme.isCassette {
                         CassettePermissionCard(request: request, pending: permissions.requests.count) {
+                            permissions.resolve(request, $0)
+                        }
+                    } else if Theme.isVanGogh {
+                        VGLetterCard(request: request, pending: permissions.requests.count) {
+                            permissions.resolve(request, $0)
+                        }
+                    } else if Theme.isPixel {
+                        PixelDialogCard(request: request, pending: permissions.requests.count) {
                             permissions.resolve(request, $0)
                         }
                     } else {
@@ -386,12 +407,20 @@ struct ExpandedView: View {
             } else if settings.showTray && (model.tab == .tray || model.dropTargeted) {
                 if Theme.isCassette {
                     CassetteTrayView(tray: tray, targeted: model.dropTargeted)
+                } else if Theme.isVanGogh {
+                    VGTrayView(tray: tray, targeted: model.dropTargeted)
+                } else if Theme.isPixel {
+                    PixelTrayView(tray: tray, targeted: model.dropTargeted)
                 } else {
                     TrayView(tray: tray, targeted: model.dropTargeted)
                 }
             } else if settings.showMirror && model.tab == .mirror {
                 if Theme.isCassette {
-                    CassetteMirrorView(camera: camera, calendar: calendar)
+                    InstantCameraMirror(camera: camera, calendar: calendar, tray: tray)
+                } else if Theme.isVanGogh {
+                    VGMirrorView(camera: camera, calendar: calendar, tray: tray)
+                } else if Theme.isPixel {
+                    PixelMirrorView(camera: camera, calendar: calendar, tray: tray)
                 } else {
                     MirrorView(camera: camera, calendar: calendar)
                 }
@@ -406,12 +435,14 @@ struct ExpandedView: View {
                     Group {
                         if Theme.isCassette {
                             CassettePlayerView(media: media)
+                        } else if Theme.isVanGogh, let track = media.track {
+                            VGPlayerView(media: media, track: track)
                         } else if let track = media.track {
                             PlayerView(media: media, track: track, ns: ns)
                         } else {
                             Text(L("Không có nhạc đang phát", "Nothing playing"))
                                 .font(.ui(13))
-                                .foregroundStyle(.white.opacity(0.5))
+                                .foregroundStyle(Theme.isVanGogh ? VG.muted : .white.opacity(0.5))
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                         }
                     }
@@ -419,20 +450,26 @@ struct ExpandedView: View {
                     .frame(maxWidth: settings.showCalendar ? nil : .infinity)
                     }
                     if settings.showMedia && settings.showCalendar {
-                        Rectangle().fill(.white.opacity(0.08))
+                        Rectangle().fill(Theme.isVanGogh ? VG.muted.opacity(0.3) : .white.opacity(0.08))
                             .frame(width: 1)
                             .padding(.bottom, 16)
                     }
                     if settings.showCalendar {
                         if Theme.isCassette {
-                            NoteCalendar(calendar: calendar)
+                            TearOffCalendar(calendar: calendar)
                         } else {
                             CalendarWidget(calendar: calendar)
+                                .background { if Theme.isVanGogh { VGScrim(strength: 0.55).padding(-10) } }
                         }
                     }
                 }
             }
             }
+            .id(tabFX ? AnyHashable(model.tab) : AnyHashable(0))
+            .transition(.themedTab)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .animation(tabFX ? .easeOut(duration: Theme.isPixel ? 0.25 : 0.3) : nil, value: model.tab)
             .opacity(shown.wrappedValue ? 1 : 0)
             .offset(y: shown.wrappedValue ? 0 : 10)
             .animation(.spring(response: 0.42, dampingFraction: 0.82).delay(0.11), value: shown.wrappedValue)
@@ -548,7 +585,9 @@ struct TabPill: View {
                 if let label { Text(label) }
             }
             .font(.ui(11, weight: .semibold))
-            .foregroundStyle(Theme.isCassette ? CassettePalette.ink : .white.opacity(selected ? 0.95 : 0.45))
+            .foregroundStyle(Theme.isCassette ? CassettePalette.ink
+                             : Theme.isVanGogh ? (selected ? VG.ink : VG.cream)
+                             : .white.opacity(selected ? 0.95 : 0.45))
             .padding(.horizontal, 9)
             .padding(.vertical, 4)
             .background(TabBackground(selected: selected))
@@ -556,10 +595,11 @@ struct TabPill: View {
                 if let badge {
                     Text("\(badge)")
                         .font(.ui(8, weight: .bold).monospacedDigit())
-                        .foregroundStyle(.black)
+                        .foregroundStyle(Theme.isVanGogh ? VG.ink : .black)
                         .padding(.horizontal, 3.5)
                         .frame(minWidth: 13, minHeight: 13)
-                        .background(Capsule().fill(.white.opacity(0.9)))
+                        .background(Capsule().fill(Theme.isVanGogh ? VG.yellow : .white.opacity(0.9)))
+                        .overlay(Capsule().stroke(Theme.isVanGogh ? VG.ink : .clear, lineWidth: 1))
                         // Đổi số → bản mới nảy từ to về (file vừa bay vào khay).
                         .id(badge)
                         .transition(.asymmetric(insertion: .scale(scale: 1.7).combined(with: .opacity),
@@ -620,6 +660,26 @@ struct PlayerView: View {
         .padding(.horizontal, 20)
         .padding(.bottom, 12)
         .frame(maxHeight: .infinity)
+        .overlay { if Theme.isPixel { PixelLevelUpBanner() } }
+    }
+}
+
+/// Nhãn "Trực tiếp" cho giao diện Mặc định và Pixel (Van Gogh, Cassette có bản riêng).
+struct LiveBadge: View {
+    var body: some View {
+        HStack(spacing: 6) {
+            if Theme.isPixel {
+                Rectangle().fill(Color(red: 1, green: 0.27, blue: 0.3)).frame(width: 8, height: 8)
+                Text("LIVE").font(.ui(14)).foregroundStyle(Color(red: 1, green: 0.27, blue: 0.3))
+                Text(L("TRỰC TIẾP", "ON AIR")).font(.ui(12)).foregroundStyle(PixelPalette.border.opacity(0.7))
+            } else {
+                Circle().fill(Color(red: 1, green: 0.27, blue: 0.3)).frame(width: 7, height: 7)
+                Text(L("Trực tiếp", "Live")).font(.ui(11, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.75))
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(height: 14)
     }
 }
 
@@ -640,10 +700,21 @@ struct ProgressRow: View {
     // Thanh chạy bằng Core Animation (LiveProgressBar), chữ thời gian chỉ dựng lại khi sang giây mới.
     // Bản TimelineView 10 khung/giây làm cả notch layout lại liên tục: ~10% CPU khi mở lúc đang phát.
     var body: some View {
+        if track.duration <= 0 {
+            // Livestream (YouTube, Twitch…): không có độ dài, thay thanh tiến độ bằng nhãn trực tiếp.
+            if Theme.isVanGogh { VGLiveBadge() } else { LiveBadge() }
+        } else {
+            timeline
+        }
+    }
+
+    private var timeline: some View {
         let dragging = drag.wrappedValue
         let active = hover.wrappedValue || dragging != nil
-        HStack(spacing: 8) {
-            if let dragging {
+        return HStack(spacing: 8) {
+            if Theme.isPixel {
+                PixelLevelTag()
+            } else if let dragging {
                 Text(Self.format(dragging * track.duration))
             } else {
                 TimelineView(SecondTicks(track: track)) { ctx in
@@ -652,7 +723,7 @@ struct ProgressRow: View {
             }
             GeometryReader { geo in
                 bar(dragging: dragging, active: active)
-                    .frame(height: active && !Theme.isPixel ? 7 : 5)
+                    .frame(height: Theme.isVanGogh ? 11 : active && !Theme.isPixel ? 7 : 5)
                     .frame(maxHeight: .infinity)
                     .contentShape(Rectangle())
                     .gesture(DragGesture(minimumDistance: 0)
@@ -666,21 +737,36 @@ struct ProgressRow: View {
             .frame(height: 14)
             .onHover { hover.wrappedValue = $0 && seek != nil }
             .animation(.easeOut(duration: 0.12), value: active)
-            Text(Self.format(track.duration))
+            if Theme.isPixel {
+                Group {
+                    if let dragging {
+                        Text(Self.format(dragging * track.duration) + "/" + Self.format(track.duration))
+                    } else {
+                        TimelineView(SecondTicks(track: track)) { ctx in
+                            Text(Self.format(track.position(at: ctx.date)) + "/" + Self.format(track.duration))
+                        }
+                    }
+                }
+                .fixedSize()
+            } else {
+                Text(Self.format(track.duration))
+            }
         }
         .font(.ui(11, weight: .medium).monospacedDigit())
-        .foregroundStyle(.white.opacity(0.55))
+        .foregroundStyle(Theme.isVanGogh ? VG.muted : .white.opacity(0.55))
     }
 
     @ViewBuilder private func bar(dragging: Double?, active: Bool) -> some View {
-        if Theme.isPixel {
+        if Theme.isVanGogh {
+            BrushProgressBar(track: track, override: dragging)
+        } else if Theme.isPixel {
             // 16 ô: mỗi ô đổi màu vài giây một lần, cập nhật theo giây là đủ.
             if let dragging {
-                PixelSegments(ratio: dragging, accent: PixelPalette.pink)
+                PixelSegments(ratio: dragging, accent: PixelArt.green, count: 20)
             } else {
                 TimelineView(SecondTicks(track: track)) { ctx in
                     PixelSegments(ratio: track.duration > 0 ? track.position(at: ctx.date) / track.duration : 0,
-                                  accent: PixelPalette.pink)
+                                  accent: PixelArt.green, count: 20)
                 }
             }
         } else {
@@ -848,6 +934,10 @@ struct ControlButton: View {
 
     var body: some View {
         Button(action: action) {
+            if Theme.isVanGogh {
+                VGControlFace(symbol: symbol, size: size, hovering: hovering)
+                    .contentShape(Circle())
+            } else {
             Image(systemName: symbol)
                 .font(.system(size: size))
                 .foregroundStyle(Theme.isPixel ? Color.black : .white)
@@ -856,6 +946,7 @@ struct ControlButton: View {
                     ? AnyView(PixelKey(fill: symbol.hasPrefix("pause") || symbol.hasPrefix("play") ? Color(red: 1, green: 0.9, blue: 0.43) : PixelPalette.border))
                     : AnyView(Circle().fill(.white.opacity(hovering ? 0.12 : 0))))
                 .contentShape(Rectangle())
+            }
         }
         .buttonStyle(.plain)
         .onHover { hover.wrappedValue = $0 }
@@ -920,7 +1011,8 @@ final class EqualizerLayerView: NSView {
         [0.7, 0.45, 0.75, 0.95, 0.5, 0.35, 0.7],
     ]
     private static let periods: [Double] = [2.6, 3.1, 2.8, 3.4]
-    private static let barWidth: CGFloat = 2, gap: CGFloat = 1.5, barHeight: CGFloat = 9
+    private static var barWidth: CGFloat { Theme.isVanGogh ? 2.8 : 2 }
+    private static let gap: CGFloat = 1.5, barHeight: CGFloat = 9
     private var bars: [CALayer] = []
 
     override init(frame: NSRect) {
@@ -957,7 +1049,17 @@ final class EqualizerLayerView: NSView {
     func update(color: NSColor, active: Bool) {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        bars.forEach { $0.backgroundColor = color.cgColor }
+        if Theme.isVanGogh {
+            // Vệt cọ vàng dựng đứng thay cho thanh trơn.
+            for (i, bar) in bars.enumerated() {
+                bar.backgroundColor = nil
+                bar.cornerRadius = 0
+                bar.contents = VGArt.verticalStroke(i)
+                bar.contentsGravity = .resize
+            }
+        } else {
+            bars.forEach { $0.contents = nil; $0.backgroundColor = color.cgColor }
+        }
         CATransaction.commit()
         self.active = active
         refresh()
@@ -995,7 +1097,8 @@ final class EqualizerLayerView: NSView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         for (i, bar) in bars.enumerated() where i < levels.count {
-            bar.transform = CATransform3DMakeScale(1, CGFloat(0.22 + 0.78 * levels[i]), 1)
+            let level = Theme.isPixel ? (levels[i] * 4).rounded() / 4 : levels[i]
+            bar.transform = CATransform3DMakeScale(1, CGFloat(0.22 + 0.78 * level), 1)
         }
         CATransaction.commit()
     }
@@ -1007,7 +1110,8 @@ final class EqualizerLayerView: NSView {
             if on {
                 let anim = CAKeyframeAnimation(keyPath: "transform.scale.y")
                 anim.values = Self.levels[i]
-                anim.calculationMode = .cubic
+                // Pixel: cột nhảy theo nấc như đồng hồ âm lượng 8-bit.
+                anim.calculationMode = Theme.isPixel ? .discrete : .cubic
                 anim.duration = Self.periods[i]
                 anim.timeOffset = Self.periods[i] * Double(i) / 4
                 anim.repeatCount = .infinity

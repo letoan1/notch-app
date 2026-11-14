@@ -18,6 +18,8 @@ cp Info.plist "$APP/Contents/Info.plist"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 # Font pixel VT323 (SIL OFL 1.1) cho giao diện Pixel 8-bit.
 cp Resources/VT323-Regular.ttf Resources/OFL-VT323.txt "$APP/Contents/Resources/"
+# Giao diện Van Gogh: nền tranh + hoạ sĩ chibi (ảnh tạo bằng AI).
+cp Resources/VanGogh/vangogh-panel.jpg Resources/VanGogh/vangogh-painter.png "$APP/Contents/Resources/"
 # Hook cho Claude Code: 1 bản trong bundle (/Applications/Roost.app/Contents/MacOS/roost-hook) và 1 bản ở build/.
 # build/notch-hook: cùng binary (nối socket mới), giữ tạm cho settings Claude cũ còn trỏ tới đường dẫn này.
 cp .build/release/notch-hook "$APP/Contents/MacOS/roost-hook"

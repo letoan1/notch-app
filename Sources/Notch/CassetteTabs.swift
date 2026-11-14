@@ -2,12 +2,14 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Giao diện Cassette cho các tab còn lại: kệ băng (khay), khung ngắm máy quay (gương),
-/// phiếu đánh máy + con dấu (Claude xin quyền), bảng ghim (Claude hỏi).
+/// Giao diện Cassette cho các tab còn lại: kệ băng + đĩa mềm (khay), phiếu telex + con dấu
+/// (Claude xin quyền), bảng ghim (Claude hỏi). Gương và lịch ở CassetteExtras.swift.
 
 extension Font {
+    /// Chữ trên giấy: đánh máy (Cassette) hoặc chữ có chân (thư Van Gogh).
     static func typewriter(_ size: CGFloat, bold: Bool = false) -> Font {
-        .custom(bold ? "AmericanTypewriter-Bold" : "American Typewriter", size: size)
+        if Theme.isVanGogh { return .system(size: size, weight: bold ? .semibold : .regular, design: .serif) }
+        return .custom(bold ? "AmericanTypewriter-Bold" : "American Typewriter", size: size)
     }
 }
 
@@ -102,18 +104,26 @@ struct CassetteTrayView: View {
                             ForEach(tray.visibleFiles, id: \.self) { url in
                                 MiniTapeTile(url: url, tray: tray, selected: tray.selection.contains(url),
                                              remove: { tray.remove(url) }, onMenu: { menu.wrappedValue = .init(url: url, point: $0) })
-                                    .transition(.scale(scale: 0.3).combined(with: .opacity))
+                                    .modifier(CassetteSlideIn(url: url, tray: tray))
+                                    .modifier(TrayRemovalEffect(tray: tray, url: url))
                             }
                         }
                         .padding(.horizontal, 2)
                         .padding(.top, 6)
+                        .animation(.easeOut(duration: 0.2), value: tray.visibleFiles)
                     }
                     .background(Color.black.opacity(0.001).onTapGesture { tray.selection = [] })
                     Rectangle().fill(Color(red: 0.42, green: 0.29, blue: 0.18)).frame(height: 8)
                     Rectangle().fill(Color(red: 0.29, green: 0.2, blue: 0.13)).frame(height: 4)
                 }
             }
-            TapeSlot(targeted: targeted, wide: tray.files.isEmpty)
+            Group {
+                if tray.files.isEmpty {
+                    EmptyCaseZone(targeted: targeted)
+                } else {
+                    TapeSlot(targeted: targeted, wide: false)
+                }
+            }
                 .frame(width: tray.files.isEmpty ? nil : 170)
                 .trayDropMenu(tray: tray) { menu.wrappedValue = .init(url: nil, point: $0) }
         }
@@ -143,12 +153,20 @@ private struct MiniTapeTile: View {
         self.onMenu = onMenu
     }
 
+    private var type: UTType? { UTType(filenameExtension: url.pathExtension) }
+    private var isMovie: Bool { type?.conforms(to: .movie) == true }
+    /// Nhạc, video: băng cassette.
+    private var isMedia: Bool { type.map { $0.conforms(to: .audio) || $0.conforms(to: .movie) } ?? false }
+
     var body: some View {
         Group {
-            if FileThumbnails.isVisual(url) {
+            if FileThumbnails.isVisual(url) && !isMovie {
                 Polaroid(url: url)
-            } else {
+            } else if isMedia {
                 MiniTape(band: fileTint(url), name: url.lastPathComponent.precomposedStringWithCanonicalMapping)
+            } else {
+                // Tài liệu, mã nguồn, file nén…: đĩa mềm dán nhãn viết tay.
+                FloppyDisk(url: url)
             }
         }
             .frame(width: 112, height: 76)
@@ -232,167 +250,6 @@ private struct TapeSlot: View {
     }
 }
 
-// MARK: - Gương → khung ngắm máy quay
-
-struct CassetteMirrorView: View {
-    @ObservedObject var camera: CameraMirror
-    @ObservedObject var calendar: CalendarStore
-    @ObservedObject var edge = EdgeLight.shared
-    private var openedAt = State(initialValue: Date())
-
-    init(camera: CameraMirror, calendar: CalendarStore) {
-        self.camera = camera
-        self.calendar = calendar
-    }
-
-    var body: some View {
-        HStack(spacing: 16) {
-            viewfinder.frame(width: 300)
-            VStack(alignment: .leading, spacing: 10) {
-                Text(L("Sẵn sàng họp?", "Ready for the call?")).font(.hand(20)).foregroundStyle(CassettePalette.key)
-                meetingNote
-                Spacer(minLength: 0)
-                HStack(spacing: 8) {
-                    KeyButton(title: camera.mirrored ? L("⇄ Lật: gương", "⇄ Flip: mirror") : L("⇄ Lật: thật", "⇄ Flip: true"),
-                              pressed: false, lit: false) { camera.mirrored.toggle() }
-                    KeyButton(title: edge.level.title, pressed: edge.isOn, lit: edge.isOn) { edge.cycle() }
-                }
-            }
-            .padding(.vertical, 4)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.horizontal, 14)
-        .padding(.bottom, 12)
-        .onAppear {
-            openedAt.wrappedValue = Date()
-            camera.start()
-        }
-        .onDisappear { camera.stop() }
-    }
-
-    private var viewfinder: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 10).fill(Color(red: 0.14, green: 0.12, blue: 0.11))
-            Group {
-                switch camera.access {
-                case .granted:
-                    CameraPreview(session: camera.session, cornerRadius: 6, mirrored: camera.mirrored)
-                case .notDetermined:
-                    placeholder(L("Bấm để bật máy quay", "Click to turn on the camera"), action: camera.requestAccess)
-                case .denied:
-                    placeholder(L("Mở Cài đặt để cấp quyền camera", "Open Settings to allow camera access"),
-                                action: camera.openPrivacySettings)
-                }
-            }
-            .padding(6)
-            // Lớp chữ máy quay: REC nhấp nháy, mã thời gian từ lúc mở tab, ngày kiểu VHS.
-            TimelineView(.periodic(from: .now, by: 0.5)) { ctx in
-                let elapsed = Int(ctx.date.timeIntervalSince(openedAt.wrappedValue))
-                let blinkOn = Int(ctx.date.timeIntervalSinceReferenceDate * 2) % 2 == 0
-                ZStack {
-                    ViewfinderCorners().stroke(Color.white.opacity(0.85), lineWidth: 2.2).padding(16)
-                    VStack {
-                        HStack {
-                            HStack(spacing: 5) {
-                                Circle().fill(CassettePalette.marker).frame(width: 10, height: 10)
-                                Text("REC").font(.typewriter(13, bold: true)).foregroundStyle(.white)
-                            }
-                            .opacity(blinkOn ? 1 : 0)
-                            Spacer()
-                            Text(String(format: "%02d:%02d:%02d", elapsed / 3600, elapsed / 60 % 60, elapsed % 60))
-                                .font(.typewriter(13)).foregroundStyle(.white).monospacedDigit()
-                        }
-                        Spacer()
-                        HStack {
-                            Text(Self.vhsDate).font(.typewriter(13, bold: true))
-                                .foregroundStyle(Color(red: 1.0, green: 0.7, blue: 0.28))
-                            Spacer()
-                            Image(systemName: "battery.100").font(.system(size: 14)).foregroundStyle(.white)
-                        }
-                    }
-                    .padding(.horizontal, 26)
-                    .padding(.vertical, 22)
-                }
-            }
-            .allowsHitTesting(false)
-            if camera.access == .granted {
-                // Trên dòng ngày VHS / pin ở đáy khung ngắm.
-                MirrorGuideOverlay(hint: camera.guide, bottomInset: 44).padding(6)
-            }
-        }
-    }
-
-    private static var vhsDate: String {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US")
-        f.dateFormat = "MMM d yyyy"
-        return f.string(from: Date()).uppercased()
-    }
-
-    private func placeholder(_ text: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            RoundedRectangle(cornerRadius: 6).fill(Color(red: 0.23, green: 0.2, blue: 0.17))
-                .overlay(
-                    VStack(spacing: 8) {
-                        Image(systemName: "video.fill").font(.system(size: 22))
-                        Text(text).font(.hand(14)).multilineTextAlignment(.center)
-                    }
-                    .foregroundStyle(CassettePalette.key)
-                )
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    @ViewBuilder
-    private var meetingNote: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            if let next = calendar.nextEvent {
-                HStack(spacing: 6) {
-                    Text("• \(Self.hm(next.start)) \(next.title)").font(.hand(14)).lineLimit(1)
-                    Spacer(minLength: 2)
-                    if let meeting = next.meeting { JoinButton(meeting: meeting, prominent: true) }
-                }
-                Text(Self.untilText(next)).font(.hand(12)).foregroundStyle(CassettePalette.faded)
-            } else {
-                Text(calendar.access == .granted ? L("Hôm nay hết họp rồi ✌︎", "No more meetings today ✌︎")
-                                                 : L("Soi lại trước khi lên hình", "Check yourself before the call"))
-                    .font(.hand(14))
-            }
-        }
-        .foregroundStyle(CassettePalette.ink)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Rectangle().fill(CassettePalette.note).shadow(color: .black.opacity(0.3), radius: 3, x: 2, y: 3))
-        .rotationEffect(.degrees(-2))
-    }
-
-    private static func hm(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "H:mm"
-        return f.string(from: date)
-    }
-
-    private static func untilText(_ item: CalendarStore.Item) -> String {
-        let minutes = Int(item.start.timeIntervalSinceNow / 60)
-        if minutes <= 0 { return L("đang diễn ra", "happening now") }
-        return L("sau \(minutes) phút", "in \(minutes) min")
-    }
-}
-
-private struct ViewfinderCorners: Shape {
-    func path(in r: CGRect) -> Path {
-        let l: CGFloat = 18
-        var p = Path()
-        p.move(to: CGPoint(x: r.minX, y: r.minY + l)); p.addLine(to: CGPoint(x: r.minX, y: r.minY)); p.addLine(to: CGPoint(x: r.minX + l, y: r.minY))
-        p.move(to: CGPoint(x: r.maxX - l, y: r.minY)); p.addLine(to: CGPoint(x: r.maxX, y: r.minY)); p.addLine(to: CGPoint(x: r.maxX, y: r.minY + l))
-        p.move(to: CGPoint(x: r.minX, y: r.maxY - l)); p.addLine(to: CGPoint(x: r.minX, y: r.maxY)); p.addLine(to: CGPoint(x: r.minX + l, y: r.maxY))
-        p.move(to: CGPoint(x: r.maxX - l, y: r.maxY)); p.addLine(to: CGPoint(x: r.maxX, y: r.maxY)); p.addLine(to: CGPoint(x: r.maxX, y: r.maxY - l))
-        return p
-    }
-}
-
 /// Phím cơ có chữ (Lật / Đèn).
 struct KeyButton: View {
     let title: String
@@ -421,44 +278,59 @@ struct KeyButton: View {
     }
 }
 
-// MARK: - Claude xin quyền → phiếu đánh máy + con dấu
+// MARK: - Claude xin quyền → phiếu telex + con dấu
 
 struct CassettePermissionCard: View {
     let request: PermissionRequest
     let pending: Int
     let decide: (PermissionDecision) -> Void
+    /// Số dòng đã in ra (in một lần, từng dòng).
+    private var printed = State(initialValue: 0)
+    /// Dấu vừa đóng khi bấm (chữ, màu): hiện ngay, quyết định gửi đi sau ~0,3 s.
+    private var stamped = State<(text: String, color: Color)?>(initialValue: nil)
+
+    init(request: PermissionRequest, pending: Int, decide: @escaping (PermissionDecision) -> Void) {
+        self.request = request
+        self.pending = pending
+        self.decide = decide
+    }
 
     private var waiting: Bool { request.state.isWaiting }
 
     private var slipTitle: String {
         switch request.kind {
-        case .plan: return L("PHIẾU DUYỆT KẾ HOẠCH", "PLAN APPROVAL SLIP")
-        case .question: return L("PHIẾU CÂU HỎI", "QUESTION SLIP")
-        case .tool: return L("PHIẾU XIN QUYỀN", "PERMISSION SLIP")
+        case .plan: return L("TELEX · DUYỆT KẾ HOẠCH", "TELEX · PLAN APPROVAL")
+        case .question: return L("TELEX · CÂU HỎI", "TELEX · QUESTION")
+        case .tool: return L("TELEX · XIN QUYỀN", "TELEX · PERMISSION")
         }
     }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            LinedPaper()
+            TelexPaper()
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 8) {
                     Text(slipTitle)
-                        .font(.typewriter(14, bold: true))
+                        .font(.typewriter(13, bold: true))
                         .fixedSize()
                     OriginRow(request: request, paper: true, size: 11)
                     Spacer(minLength: 4)
                     CountdownBadge(request: request, paper: true)
                 }
                 .lineLimit(1)
+                .modifier(PrintLine(shown: printed.wrappedValue > 0))
                 field(request.kind == .plan ? L("Kế hoạch", "Plan") : request.tool, request.summary)
                     .help(request.detail ?? request.summary)
-                if let scope = request.allowScope, waiting {
-                    field(L("Luôn duyệt", "Always"), scope.what + ", " + scope.whereText)
-                        .help(request.alwaysHelp)
-                } else if let detail = request.detail, !detail.isEmpty {
-                    field(request.kind == .plan ? L("Tiếp theo", "Then") : L("Mục đích", "Purpose"), detail)
+                    .modifier(PrintLine(shown: printed.wrappedValue > 1))
+                Group {
+                    if let scope = request.allowScope, waiting {
+                        field(L("Luôn duyệt", "Always"), scope.what + ", " + scope.whereText)
+                            .help(request.alwaysHelp)
+                    } else if let detail = request.detail, !detail.isEmpty {
+                        field(request.kind == .plan ? L("Tiếp theo", "Then") : L("Mục đích", "Purpose"), detail)
+                    }
                 }
+                .modifier(PrintLine(shown: printed.wrappedValue > 2))
                 Spacer(minLength: 0)
                 HStack(spacing: 16) {
                     if request.host != nil {
@@ -472,33 +344,64 @@ struct CassettePermissionCard: View {
                         .help(L("Đưa app đang chạy phiên này lên trước", "Bring the app running this session to the front"))
                     }
                     Spacer()
-                    if waiting {
-                        StampButton(text: request.kind == .plan ? L("CHƯA", "NOT YET") : L("BÁC", "DENY"),
-                                    color: Color(red: 0.48, green: 0.48, blue: 0.48), tilt: -6) { decide(.deny) }
-                        if request.canAlwaysAllow {
-                            StampButton(text: L("LUÔN DUYỆT", "ALWAYS"), color: Color(red: 0.18, green: 0.44, blue: 0.82), tilt: 4) { decide(.allowAlways) }
-                                .help(request.alwaysHelp)
+                    if waiting && stamped.wrappedValue == nil {
+                        StampButton(text: request.kind == .plan ? L("CHƯA", "NOT YET") : L("TỪ CHỐI", "DENY"),
+                                    color: Color(red: 0.48, green: 0.48, blue: 0.48), tilt: -6) {
+                            stamp(request.kind == .plan ? L("CHƯA", "NOT YET") : L("TỪ CHỐI", "DENIED"),
+                                  Color(red: 0.36, green: 0.36, blue: 0.36), .deny)
                         }
-                        StampButton(text: L("DUYỆT", "APPROVE"), color: CassettePalette.marker, tilt: -7) { decide(.allow) }
+                        if request.canAlwaysAllow {
+                            StampButton(text: L("LUÔN DUYỆT", "ALWAYS"), color: Color(red: 0.18, green: 0.44, blue: 0.82), tilt: 4) {
+                                stamp(L("LUÔN DUYỆT", "ALWAYS OK"), Color(red: 0.18, green: 0.44, blue: 0.82), .allowAlways)
+                            }
+                            .help(request.alwaysHelp)
+                        }
+                        StampButton(text: L("DUYỆT", "APPROVE"), color: CassettePalette.marker, tilt: -7) {
+                            stamp(L("DUYỆT", "APPROVED"), CassettePalette.marker, .allow)
+                        }
                     }
                 }
+                .modifier(PrintLine(shown: printed.wrappedValue > 3))
             }
             .foregroundStyle(CassettePalette.ink)
-            .padding(.leading, 42)
-            .padding(.trailing, 18)
-            .padding(.vertical, 10)
-            Paperclip().stroke(Color(white: 0.6), style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
-                .frame(width: 16, height: 40)
-                .offset(x: 16, y: -10)
+            .padding(.leading, 32)
+            .padding(.trailing, 32)
+            .padding(.vertical, 9)
+            // Giấy được kéo lên theo từng dòng in.
+            .offset(y: CGFloat(max(0, 4 - printed.wrappedValue)) * 3)
         }
         .overlay {
-            if !waiting { ResultStamp(state: request.state).transition(.scale(scale: 1.4).combined(with: .opacity)) }
+            if let s = stamped.wrappedValue {
+                RubberStamp(text: s.text, color: s.color)
+            } else if !waiting {
+                ResultStamp(state: request.state).transition(.scale(scale: 1.4).combined(with: .opacity))
+            }
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.6), value: waiting)
-        .rotationEffect(.degrees(-0.8))
+        .rotationEffect(.degrees(-0.6))
         .padding(.horizontal, 18)
         .padding(.top, 4)
         .padding(.bottom, 12)
+        .onAppear(perform: startPrinting)
+    }
+
+    private func startPrinting() {
+        guard printed.wrappedValue == 0 else { return }
+        if SystemMonitor.shared.lowPower || !waiting { printed.wrappedValue = 4; return }
+        for k in 1...4 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1 * Double(k)) {
+                withAnimation(.easeOut(duration: 0.08)) { printed.wrappedValue = max(printed.wrappedValue, k) }
+            }
+        }
+    }
+
+    /// Đóng dấu ngay, gửi quyết định sau 0,3 s (dấu kịp hiện, hook không phải chờ lâu).
+    private func stamp(_ text: String, _ color: Color, _ decision: PermissionDecision) {
+        guard stamped.wrappedValue == nil else { return }
+        stamped.wrappedValue = (text, color)
+        printed.wrappedValue = 4
+        Haptics.tap(.levelChange)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { decide(decision) }
     }
 
     private func field(_ label: String, _ value: String) -> some View {
@@ -506,6 +409,21 @@ struct CassettePermissionCard: View {
             Text(label + ":").font(.typewriter(12)).lineLimit(1).frame(width: 82, alignment: .leading)
             Text(value).font(.typewriter(13)).lineLimit(1).truncationMode(.middle)
         }
+    }
+}
+
+/// Dòng telex: chưa in thì ẩn, in ra thì hiện từ trái sang (che bằng mặt nạ).
+private struct PrintLine: ViewModifier {
+    let shown: Bool
+    func body(content: Content) -> some View {
+        content
+            .mask(alignment: .leading) {
+                // Nới mặt nạ ra ngoài: con dấu nghiêng tràn khỏi khung dòng, không được cắt.
+                Rectangle().frame(maxWidth: shown ? .infinity : 0)
+                    .padding(.vertical, -14)
+                    .padding(.horizontal, shown ? -14 : 0)
+            }
+            .opacity(shown ? 1 : 0)
     }
 }
 
@@ -545,36 +463,6 @@ private struct ResultStamp: View {
         .overlay(RoundedRectangle(cornerRadius: 6).stroke(color, lineWidth: 3))
         .rotationEffect(.degrees(-9))
         .opacity(0.88)
-    }
-}
-
-private struct LinedPaper: View {
-    var body: some View {
-        Canvas { ctx, size in
-            ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Color(red: 0.96, green: 0.93, blue: 0.84)))
-            var y: CGFloat = 30
-            while y < size.height {
-                ctx.stroke(Path { $0.move(to: CGPoint(x: 0, y: y)); $0.addLine(to: CGPoint(x: size.width, y: y)) },
-                           with: .color(Color(red: 0.61, green: 0.76, blue: 0.9).opacity(0.6)), lineWidth: 1)
-                y += 20
-            }
-            ctx.stroke(Path { $0.move(to: CGPoint(x: 32, y: 0)); $0.addLine(to: CGPoint(x: 32, y: size.height)) },
-                       with: .color(CassettePalette.marker.opacity(0.7)), lineWidth: 1.4)
-        }
-        .shadow(color: .black.opacity(0.3), radius: 5, x: 3, y: 4)
-    }
-}
-
-private struct Paperclip: Shape {
-    func path(in r: CGRect) -> Path {
-        var p = Path()
-        p.move(to: CGPoint(x: r.minX + 2, y: r.minY + 8))
-        p.addLine(to: CGPoint(x: r.minX + 2, y: r.maxY - 6))
-        p.addArc(center: CGPoint(x: r.midX, y: r.maxY - 6), radius: r.width / 2 - 2, startAngle: .degrees(180), endAngle: .degrees(0), clockwise: true)
-        p.addLine(to: CGPoint(x: r.maxX - 2, y: r.minY + 5))
-        p.addArc(center: CGPoint(x: r.midX + 1, y: r.minY + 5), radius: r.width / 2 - 3, startAngle: .degrees(0), endAngle: .degrees(180), clockwise: true)
-        p.addLine(to: CGPoint(x: r.minX + 5, y: r.maxY - 12))
-        return p
     }
 }
 

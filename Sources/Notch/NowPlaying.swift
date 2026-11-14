@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 enum Player: String, CaseIterable {
@@ -110,12 +111,34 @@ final class ScriptRunner: @unchecked Sendable {
 /// Adapter hỏng / không có gì → tự quay về AppleScript cho Spotify / Music như trước.
 @MainActor
 final class NowPlaying: ObservableObject {
-    @Published private(set) var track: Track? { didSet { syncSpectrum() } }
-    @Published private(set) var artwork: NSImage? {
-        didSet { accent = artwork.flatMap { $0.accentColor() }.map(Color.init(nsColor:)) ?? .white }
+    @Published private(set) var track: Track? {
+        didSet {
+            syncSpectrum()
+            ArcadeStats.shared.trackChanged(from: oldValue, to: track)
+        }
     }
-    /// Màu nhấn lấy từ ảnh bìa (thanh progress, sóng nhạc).
-    @Published private(set) var accent: Color = .white
+    @Published private(set) var artwork: NSImage? {
+        didSet {
+            artworkAccent = artwork.flatMap { $0.accentColor() }.map(Color.init(nsColor:)) ?? .white
+            applyAccent()
+        }
+    }
+    /// Màu nhấn (thanh progress, sóng nhạc, quầng sáng): theo ảnh bìa, hoặc màu cố định trong Cài đặt.
+    @Published private(set) var accent: Color = SettingsStore.shared.fixedAccent ?? .white
+    private var artworkAccent: Color = .white
+    private var accentSink: AnyCancellable?
+
+    init() {
+        accentSink = SettingsStore.shared.objectWillChange.sink { [weak self] _ in
+            // objectWillChange chạy trước khi giá trị đổi: đọc lại ở nhịp sau.
+            DispatchQueue.main.async { MainActor.assumeIsolated { self?.applyAccent() } }
+        }
+    }
+
+    private func applyAccent() {
+        let next = SettingsStore.shared.fixedAccent ?? artworkAccent
+        if next != accent { accent = next }
+    }
 
     var isPlaying: Bool { track?.isPlaying == true }
     /// Có bài (đang phát hoặc tạm dừng): giữ 2 cánh notch.

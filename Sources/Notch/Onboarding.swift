@@ -158,7 +158,7 @@ private struct OnboardingView: View {
                     ForEach(Theme.allCases) { theme in
                         Button { settings.theme = theme } label: {
                             VStack(spacing: 4) {
-                                Text(theme == .standard ? "🦊" : theme == .pixel ? "🦖" : "📼").font(.system(size: 26))
+                                Text(theme == .standard ? "🦊" : theme == .pixel ? "🦖" : theme == .cassette ? "📼" : "🎨").font(.system(size: 26))
                                 Text(theme.title).font(.callout)
                             }
                             .frame(maxWidth: .infinity)

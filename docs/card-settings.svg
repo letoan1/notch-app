@@ -89,8 +89,8 @@
 
     <!-- Bên phải -->
     <text x="700" y="104" font-size="32" font-weight="800" fill="#fff">Tuỳ biến theo cách bạn dùng</text>
-    <text x="700" y="138" font-size="15" fill="#fff" opacity=".6">Tiếng Việt / English · phím tắt · nhiều màn hình</text>
-    <text x="700" y="160" font-size="15" fill="#fff" opacity=".6">bật tắt từng tab · tự dọn khay sau 1 / 7 / 30 ngày</text>
+    <text x="700" y="138" font-size="15" fill="#fff" opacity=".6">Đổi ngôn ngữ, phím tắt, màn hình hiện notch,</text>
+    <text x="700" y="160" font-size="15" fill="#fff" opacity=".6">bật tắt từng tab và hạn tự dọn khay.</text>
 
     <!-- Phím ⌥ Space -->
     <g class="press">

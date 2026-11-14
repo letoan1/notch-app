@@ -106,6 +106,47 @@ final class SettingsStore: ObservableObject {
         }
     }
 
+    /// Nội dung một bên cánh notch lúc thu gọn. Tự động = ảnh bìa bên trái, sóng nhạc bên phải.
+    enum WingItem: String, CaseIterable, Identifiable {
+        case auto, artwork, equalizer, meeting, battery, clock, none
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .auto: return L("Tự động", "Automatic")
+            case .artwork: return L("Ảnh bìa", "Album art")
+            case .equalizer: return L("Sóng nhạc", "Music bars")
+            case .meeting: return L("Cuộc họp kế tiếp", "Next meeting")
+            case .battery: return L("Pin", "Battery")
+            case .clock: return L("Giờ", "Time")
+            case .none: return L("Trống", "Nothing")
+            }
+        }
+    }
+
+    enum AccentMode: String, CaseIterable, Identifiable {
+        case artwork, fixed
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .artwork: return L("Theo ảnh bìa", "From album art")
+            case .fixed: return L("Cố định", "Fixed")
+            }
+        }
+    }
+
+    /// Tab hiện ra khi mở notch.
+    enum OpenTab: String, CaseIterable, Identifiable {
+        case last, media, tray, mirror
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .last: return L("Tab dùng lần trước", "Last used tab")
+            case .media, .tray, .mirror: return NotchModel.Tab(rawValue: rawValue)!.title
+            }
+        }
+        var tab: NotchModel.Tab? { NotchModel.Tab(rawValue: rawValue) }
+    }
+
     @Published var language: Language { didSet { save(language.rawValue, "language") } }
     @Published var theme: Theme { didSet { save(theme.rawValue, "theme") } }
     @Published var openMode: OpenMode { didSet { save(openMode.rawValue, "openMode") } }
@@ -132,6 +173,14 @@ final class SettingsStore: ObservableObject {
     @Published var powerSaver: Bool { didSet { save(powerSaver, "powerSaver") } }
     /// Lớp 1 của mở khoá bằng khuôn mặt: chỉ là hiệu ứng, chạy cả khi tính năng tắt.
     @Published var unlockEffect: Bool { didSet { save(unlockEffect, "unlockEffect") } }
+    @Published var leftWing: WingItem { didSet { save(leftWing.rawValue, "wing.left") } }
+    @Published var rightWing: WingItem { didSet { save(rightWing.rawValue, "wing.right") } }
+    @Published var accentMode: AccentMode { didSet { save(accentMode.rawValue, "accentMode") } }
+    /// Màu nhấn cố định, dạng "#RRGGBB".
+    @Published var accentHex: String { didSet { save(accentHex, "accentHex") } }
+    /// Thứ tự tab trên hàng tab (gồm cả tab đang tắt).
+    @Published var tabOrder: [NotchModel.Tab] { didSet { save(tabOrder.map(\.rawValue), "tabOrder") } }
+    @Published var openTab: OpenTab { didSet { save(openTab.rawValue, "openTab") } }
 
     private init() {
         let d = UserDefaults.standard
@@ -156,16 +205,38 @@ final class SettingsStore: ObservableObject {
         autoMinimal = d.object(forKey: "autoMinimal") as? Bool ?? true
         powerSaver = d.object(forKey: "powerSaver") as? Bool ?? true
         unlockEffect = d.object(forKey: "unlockEffect") as? Bool ?? true
+        leftWing = WingItem(rawValue: d.string(forKey: "wing.left") ?? "") ?? .auto
+        rightWing = WingItem(rawValue: d.string(forKey: "wing.right") ?? "") ?? .auto
+        accentMode = AccentMode(rawValue: d.string(forKey: "accentMode") ?? "") ?? .artwork
+        accentHex = d.string(forKey: "accentHex") ?? "#FF8A3D"
+        var order = (d.stringArray(forKey: "tabOrder") ?? []).compactMap(NotchModel.Tab.init(rawValue:))
+        order = order.enumerated().filter { order.firstIndex(of: $0.element) == $0.offset }.map(\.element)
+        order += NotchModel.Tab.allCases.filter { !order.contains($0) }
+        tabOrder = order
+        openTab = OpenTab(rawValue: d.string(forKey: "openTab") ?? "") ?? .last
+    }
+
+    /// Màu nhấn cố định (nil = lấy theo ảnh bìa).
+    var fixedAccent: Color? {
+        accentMode == .fixed ? Color(hex: accentHex) : nil
+    }
+
+    func isEnabled(_ tab: NotchModel.Tab) -> Bool {
+        switch tab {
+        case .media: return showMedia || showCalendar
+        case .tray: return showTray
+        case .mirror: return showMirror
+        }
+    }
+
+    func moveTab(at index: Int, by delta: Int) {
+        let target = index + delta
+        guard tabOrder.indices.contains(index), tabOrder.indices.contains(target) else { return }
+        tabOrder.swapAt(index, target)
     }
 
     /// Các tab đang bật, theo thứ tự hiển thị.
-    var enabledTabs: [NotchModel.Tab] {
-        var tabs: [NotchModel.Tab] = []
-        if showMedia || showCalendar { tabs.append(.media) }
-        if showTray { tabs.append(.tray) }
-        if showMirror { tabs.append(.mirror) }
-        return tabs
-    }
+    var enabledTabs: [NotchModel.Tab] { tabOrder.filter(isEnabled) }
 
     var isVietnamese: Bool { Lang.isVietnamese }
     var locale: Locale { Lang.locale }
@@ -191,4 +262,20 @@ enum Lang {
 /// Chuỗi theo ngôn ngữ đang chọn: L("Tiếng Việt", "English").
 func L(_ vi: String, _ en: String) -> String {
     Lang.isVietnamese ? vi : en
+}
+
+extension Color {
+    /// "#RRGGBB" → Color (sRGB). Sai định dạng → nil.
+    init?(hex: String) {
+        let h = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard h.count == 6, let v = UInt32(h, radix: 16) else { return nil }
+        self.init(.sRGB, red: Double((v >> 16) & 0xFF) / 255, green: Double((v >> 8) & 0xFF) / 255,
+                  blue: Double(v & 0xFF) / 255)
+    }
+
+    var hexString: String {
+        let c = NSColor(self).usingColorSpace(.sRGB) ?? .white
+        return String(format: "#%02X%02X%02X", Int(round(c.redComponent * 255)),
+                      Int(round(c.greenComponent * 255)), Int(round(c.blueComponent * 255)))
+    }
 }

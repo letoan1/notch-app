@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mở Roost lần đầu</title>
+<style>
+  :root { --bg: #f7f5f0; --card: #ffffff; --ink: #1d1d22; --muted: #5d5d66; --line: #e4e0d6; --accent: #e8792b; --code: #f1eee6; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #15151b; --card: #1e1e26; --ink: #ecebe6; --muted: #a3a2ad; --line: #2e2e38; --accent: #ff9a4d; --code: #26262f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; }
+  main { max-width: 720px; margin: 0 auto; padding: 40px 20px 60px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+  .dot { width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(160deg, #26307a, #0d1238); display: grid; place-items: center; font-size: 24px; }
+  h1 { font-size: 28px; margin: 0; }
+  .lead { color: var(--muted); margin: 6px 0 28px; }
+  section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; margin-bottom: 16px; }
+  h2 { font-size: 18px; margin: 0 0 10px; }
+  ol { margin: 0; padding-left: 22px; }
+  li { margin: 6px 0; }
+  b { color: var(--ink); }
+  .tag { display: inline-block; font-size: 12px; font-weight: 600; color: var(--accent); border: 1px solid var(--accent); border-radius: 999px; padding: 1px 9px; margin-left: 6px; vertical-align: 2px; }
+  pre { background: var(--code); border-radius: 10px; padding: 12px 14px; overflow-x: auto; font: 14px/1.5 ui-monospace, Menlo, monospace; margin: 10px 0 0; }
+  .note { color: var(--muted); font-size: 14px; margin-top: 10px; }
+  .en { color: var(--muted); font-size: 14px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <header><div class="dot">🐦</div><h1>Mở Roost lần đầu</h1></header>
+  <p class="lead">Roost là app mã nguồn mở, chưa được ký bằng chứng chỉ trả phí của Apple. Lần đầu mở, macOS sẽ chặn với thông báo "Apple could not verify Roost is free of malware". Làm theo một trong hai cách dưới đây, chỉ cần làm một lần.</p>
+
+  <section>
+    <h2>Bước 0. Cài app</h2>
+    <ol><li>Kéo <b>Roost</b> vào thư mục <b>Applications</b> trong cửa sổ này.</li></ol>
+  </section>
+
+  <section>
+    <h2>Cách 1. System Settings <span class="tag">macOS 15 trở lên</span></h2>
+    <ol>
+      <li>Mở Roost trong Applications. Khi hộp thoại cảnh báo hiện ra, bấm <b>Done</b> (đừng bấm "Move to Trash").</li>
+      <li>Mở <b>System Settings → Privacy &amp; Security</b>.</li>
+      <li>Kéo xuống mục <b>Security</b>, tìm dòng "Roost was blocked to protect your Mac" và bấm <b>Open Anyway</b>.</li>
+      <li>Nhập mật khẩu máy rồi bấm <b>Open Anyway</b> thêm một lần.</li>
+    </ol>
+    <p class="note">Trên macOS 14: chuột phải vào Roost trong Applications, chọn <b>Open</b>, rồi bấm <b>Open</b>.</p>
+  </section>
+
+  <section>
+    <h2>Cách 2. Một lệnh Terminal</h2>
+    <p>Mở Terminal, dán lệnh sau rồi nhấn Enter. Sau đó mở Roost như mọi app khác.</p>
+    <pre>xattr -dr com.apple.quarantine /Applications/Roost.app</pre>
+  </section>
+
+  <section>
+    <h2>Sau khi mở</h2>
+    <p>Notch sẽ hiện ở mép trên màn hình. Màn hình chào hướng dẫn cấp quyền (Lịch, Camera...) và nối với Claude Code nếu bạn muốn. Quyền nào bạn từ chối thì chỉ tính năng đó tắt.</p>
+    <p class="note">Hướng dẫn đầy đủ, cách cập nhật và gỡ cài đặt: <a href="https://github.com/letoan1/notch-app/blob/main/docs/INSTALL.md">docs/INSTALL.md</a></p>
+  </section>
+
+  <section class="en">
+    <h2>English</h2>
+    <p>Roost is open source and not signed with a paid Apple Developer ID, so macOS blocks the first launch. Drag Roost to Applications, open it once and click <b>Done</b>, then go to <b>System Settings → Privacy &amp; Security → Open Anyway</b>. Or run <code>xattr -dr com.apple.quarantine /Applications/Roost.app</code> in Terminal. You only need to do this once.</p>
+  </section>
+</main>
+</body>
+</html>

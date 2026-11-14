@@ -37,7 +37,7 @@ text { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe 
 <text x="640" y="236" font-size="50" font-weight="800" fill="#fff" text-anchor="middle" letter-spacing="-1">Tai thỏ MacBook, <tspan fill="url(#hl)" font-style="italic">làm được nhiều hơn.</tspan></text>
 <text x="640" y="280" font-size="21" fill="#fff" opacity=".7" text-anchor="middle">Nhạc, lịch, khay file và Claude Code ngay ở mép trên màn hình.</text>
 <rect x="520" y="310" width="240" height="40" rx="20" fill="#140b26" stroke="url(#btn)" stroke-width="1.6"/>
-<text x="640" y="336" font-size="15" font-weight="600" fill="#fff" text-anchor="middle" opacity=".9">Mã nguồn mở · macOS 14+</text>
+<text x="640" y="336" font-size="15" font-weight="600" fill="#fff" text-anchor="middle" opacity=".9">Mã nguồn mở, cho macOS 14+</text>
 <path d="M120 900 L120 446 Q120 386 180 382 L1100 382 Q1160 386 1160 446 L1160 900 Z" fill="#1c1630" stroke="#3b3256" stroke-width="2"/>
 <clipPath id="scr2"><path d="M150 450 Q150 410 190 406 L1090 406 Q1130 410 1130 450 L1130 900 L150 900 Z"/></clipPath>
 <g clip-path="url(#scr2)"><rect x="150" y="406" width="980" height="500" fill="url(#scr)"/>

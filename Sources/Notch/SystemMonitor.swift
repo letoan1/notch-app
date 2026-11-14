@@ -10,6 +10,9 @@ final class SystemMonitor: ObservableObject {
 
     @Published private(set) var fullscreenDisplays: Set<CGDirectDisplayID> = []
     @Published private(set) var lowPower = false
+    /// % pin (nil = máy không có pin). Chỉ đổi khi mức pin hay trạng thái sạc đổi.
+    @Published private(set) var batteryPercent: Int?
+    @Published private(set) var batteryCharging = false
 
     private let settings = SettingsStore.shared
     private var battery: BatteryMonitor.Status?
@@ -48,6 +51,9 @@ final class SystemMonitor: ObservableObject {
     }
 
     private func updatePower() {
+        if batteryPercent != battery?.percent { batteryPercent = battery?.percent }
+        let charging = battery?.onAC ?? false
+        if batteryCharging != charging { batteryCharging = charging }
         let lowBattery = battery.map { !$0.onAC && $0.percent <= 20 } ?? false
         let value = settings.powerSaver && (ProcessInfo.processInfo.isLowPowerModeEnabled || lowBattery)
         if value != lowPower { lowPower = value }

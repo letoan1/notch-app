@@ -134,6 +134,20 @@ private struct GeneralPane: View {
                 .pickerStyle(.segmented)
             }
             Section {
+                Picker(L("Màu nhấn", "Accent color"), selection: $settings.accentMode) {
+                    ForEach(SettingsStore.AccentMode.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                if settings.accentMode == .fixed {
+                    ColorPicker(L("Màu", "Color"), selection: Binding(
+                        get: { Color(hex: settings.accentHex) ?? .orange },
+                        set: { settings.accentHex = $0.hexString }), supportsOpacity: false)
+                }
+            } footer: {
+                Text(L("Màu của thanh tiến độ, sóng nhạc và quầng sáng. Chọn theo ảnh bìa thì màu đổi theo từng bài.", "Used for the progress bar, the music bars and the glow. From album art changes it with every song."))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            Section {
                 Toggle(L("Thú cưng trên notch", "Notch pet"), isOn: $settings.showPet)
                 Toggle(L("Quầng sáng theo ảnh bìa", "Album-art glow"), isOn: $settings.ambientGlow)
                 Toggle(L("Rung nhẹ trên trackpad", "Trackpad haptics"), isOn: $settings.haptics)
@@ -170,6 +184,19 @@ private struct NotchPane: View {
                 Picker(L("Phím tắt mở / đóng", "Toggle shortcut"), selection: $settings.hotkey) {
                     ForEach(SettingsStore.Hotkey.allCases) { Text($0.title).tag($0) }
                 }
+            }
+            Section {
+                Picker(L("Bên trái", "Left side"), selection: $settings.leftWing) {
+                    ForEach(SettingsStore.WingItem.allCases) { Text($0.title).tag($0) }
+                }
+                Picker(L("Bên phải", "Right side"), selection: $settings.rightWing) {
+                    ForEach(SettingsStore.WingItem.allCases) { Text($0.title).tag($0) }
+                }
+            } header: {
+                Text(L("Hai bên notch khi thu gọn", "Beside the closed notch"))
+            } footer: {
+                Text(L("Tự động: ảnh bìa bên trái, sóng nhạc bên phải, chỉ khi có nhạc. Giờ, pin và cuộc họp hiện cả khi không phát nhạc. Cuộc họp chỉ hiện khi còn dưới 2 giờ nữa là bắt đầu. Thông báo nhanh (cắm sạc, tai nghe, ảnh chụp) vẫn hiện đè lên.", "Automatic: album art on the left, music bars on the right, only while music is playing. Time, battery and meetings show even without music. A meeting shows once it starts within 2 hours. Quick alerts (charging, headphones, screenshots) still take over."))
+                    .font(.caption).foregroundStyle(.secondary)
             }
             Section {
                 Picker(L("Hiện trên", "Show on"), selection: $settings.displayMode) {
@@ -210,6 +237,34 @@ private struct TabsPane: View {
                 Toggle(L("Lịch", "Calendar"), isOn: $settings.showCalendar)
                 Toggle(L("Khay file", "File tray"), isOn: $settings.showTray)
                 Toggle(L("Gương camera", "Camera mirror"), isOn: $settings.showMirror)
+            }
+            Section {
+                ForEach(Array(settings.tabOrder.enumerated()), id: \.element) { index, tab in
+                    HStack(spacing: 8) {
+                        Image(systemName: tab.symbol).frame(width: 18).foregroundStyle(.secondary)
+                        Text(tab.title)
+                        if !settings.isEnabled(tab) {
+                            Text(L("đang tắt", "off")).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button { settings.moveTab(at: index, by: -1) } label: { Image(systemName: "chevron.up") }
+                            .disabled(index == 0)
+                            .help(L("Lên trước", "Move left"))
+                        Button { settings.moveTab(at: index, by: 1) } label: { Image(systemName: "chevron.down") }
+                            .disabled(index == settings.tabOrder.count - 1)
+                            .help(L("Ra sau", "Move right"))
+                    }
+                    .buttonStyle(.borderless)
+                    .opacity(settings.isEnabled(tab) ? 1 : 0.55)
+                }
+                Picker(L("Khi mở notch, hiện", "When the notch opens, show"), selection: $settings.openTab) {
+                    ForEach(SettingsStore.OpenTab.allCases) { Text($0.title).tag($0) }
+                }
+            } header: {
+                Text(L("Thứ tự tab", "Tab order"))
+            } footer: {
+                Text(L("Tab trên cùng đứng đầu hàng tab. Kéo file vào notch vẫn luôn mở khay, và thẻ của Claude vẫn hiện trước mọi tab.", "The top tab comes first in the tab bar. Dragging a file onto the notch still opens the tray, and Claude cards still show before any tab."))
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
     }

@@ -128,15 +128,45 @@ final class TrayStore: ObservableObject {
         }
     }
 
+    /// File vừa thêm chưa được hiện ra lần nào (giao diện Van Gogh vẽ chúng hiện dần khi khay mở).
+    private(set) var fresh: Set<URL> = []
+
+    func takeFresh(_ url: URL) -> Bool { fresh.remove(url) != nil }
+
     func add(_ url: URL) {
         let url = url.standardizedFileURL
         guard !files.contains(url), let item = Self.makeItem(url, addedAt: Date()) else { return }
         items.append(item)
+        fresh.insert(url)
         files.append(url)
         save()
     }
 
-    func remove(_ url: URL) {
+    /// File đang chạy hiệu ứng gỡ (giao diện Pixel / Cassette / Van Gogh): vẫn còn trong `files`
+    /// cho tới khi hiệu ứng chạy xong, rồi mới gỡ thật.
+    @Published private(set) var removing: Set<URL> = []
+
+    static let removalDuration: TimeInterval = 0.42
+    private static var animatesRemoval: Bool { Theme.isPixel || Theme.isCassette || Theme.isVanGogh }
+
+    func remove(_ url: URL) { remove([url]) }
+
+    func remove(_ urls: [URL]) {
+        let targets = urls.filter { files.contains($0) && !removing.contains($0) }
+        guard !targets.isEmpty else { return }
+        guard Self.animatesRemoval else { targets.forEach(removeNow); return }
+        removing.formUnion(targets)
+        selection.subtract(targets)
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.removalDuration + 0.05) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.removing.subtract(targets)
+                targets.forEach(self.removeNow)
+            }
+        }
+    }
+
+    private func removeNow(_ url: URL) {
         guard let index = files.firstIndex(of: url) else { return }
         files.remove(at: index)
         items.remove(at: index)
@@ -144,6 +174,7 @@ final class TrayStore: ObservableObject {
     }
 
     func clear() {
+        if Self.animatesRemoval { remove(files); return }
         items.removeAll()
         files.removeAll()
         save()
@@ -158,8 +189,18 @@ final class TrayStore: ObservableObject {
         let now = Date()
         var keptItems: [Item] = []
         var keptURLs: [URL] = []
-        for var item in items {
-            if maxDays > 0, now.timeIntervalSince(item.addedAt) > Double(maxDays) * 86_400 { continue }
+        // File bị gỡ (hết hạn / vào Thùng rác / mất hẳn): giữ tạm chỗ cũ để chạy hiệu ứng gỡ.
+        var dropped: [URL] = []
+        let animated = Self.animatesRemoval && items.count == files.count
+        for (i, original) in items.enumerated() {
+            var item = original
+            func drop() {
+                guard animated, !keptURLs.contains(files[i]) else { return }
+                keptItems.append(original)
+                keptURLs.append(files[i])
+                dropped.append(files[i])
+            }
+            if maxDays > 0, now.timeIntervalSince(item.addedAt) > Double(maxDays) * 86_400 { drop(); continue }
             switch Self.resolve(&item) {
             case .ok(let url):
                 missing[item.path] = nil
@@ -167,12 +208,12 @@ final class TrayStore: ObservableObject {
                 keptItems.append(item)
                 keptURLs.append(url)
             case .trashed:
-                continue
+                drop()
             case .missing:
                 // Lỗi có thể chỉ thoáng qua (ổ ngoài chưa gắn, iCloud đang tải, file đang ghi):
                 // chỉ gỡ khi vẫn không thấy sau ít nhất 10 phút.
                 if let first = missing[item.path] {
-                    if now.timeIntervalSince(first) >= 600 { missing[item.path] = nil; continue }
+                    if now.timeIntervalSince(first) >= 600 { missing[item.path] = nil; drop(); continue }
                 } else {
                     missing[item.path] = now
                 }
@@ -185,6 +226,7 @@ final class TrayStore: ObservableObject {
         items = keptItems
         if files != keptURLs { files = keptURLs }
         save()
+        if !dropped.isEmpty { remove(dropped) }
     }
 
     // MARK: - Lưu trữ

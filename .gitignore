@@ -9,3 +9,5 @@ build/
 
 # Bản sao lưu settings Claude Code của workspace khác — không công khai
 settings.local.json.bak-*
+.build-x86/
+dist/

@@ -2,9 +2,9 @@ import AppKit
 import CoreImage
 import SwiftUI
 
-/// Giao diện: Mặc định hoặc Pixel 8-bit. Đọc thẳng UserDefaults để gọi được từ mọi nơi.
+/// Giao diện. Đọc thẳng UserDefaults để gọi được từ mọi nơi.
 enum Theme: String, CaseIterable, Identifiable {
-    case standard, pixel, cassette
+    case standard, pixel, cassette, vangogh
 
     var id: String { rawValue }
     var title: String {
@@ -12,12 +12,14 @@ enum Theme: String, CaseIterable, Identifiable {
         case .standard: return L("Mặc định", "Default")
         case .pixel: return "Pixel 8-bit"
         case .cassette: return "Cassette"
+        case .vangogh: return "Van Gogh"
         }
     }
 
     static var current: Theme { Theme(rawValue: UserDefaults.standard.string(forKey: "theme") ?? "") ?? .standard }
     static var isPixel: Bool { current == .pixel }
     static var isCassette: Bool { current == .cassette }
+    static var isVanGogh: Bool { current == .vangogh }
 
     /// Đăng ký font VT323 (OFL, đóng gói trong app) cho process.
     static func registerFonts() {
@@ -37,7 +39,13 @@ enum PixelPalette {
 extension Font {
     /// Font giao diện: SF ở theme mặc định, VT323 (pixel, đủ dấu tiếng Việt) ở theme Pixel.
     static func ui(_ size: CGFloat, weight: Font.Weight = .regular, design: Font.Design = .default) -> Font {
-        Theme.isPixel ? .custom("VT323", size: size * 1.4) : .system(size: size, weight: weight, design: design)
+        switch Theme.current {
+        case .pixel: return .custom("VT323", size: size * 1.4)
+        case .vangogh where design != .monospaced:
+            // New York (serif hệ thống): dấu tiếng Việt gọn, không nặng như Baskerville đậm.
+            return .system(size: size, weight: VG.weight(weight), design: .serif)
+        default: return .system(size: size, weight: weight, design: design)
+        }
     }
 }
 
@@ -55,6 +63,8 @@ struct ThemedBackground: View {
                 Rectangle().fill(fill)
                 Rectangle().strokeBorder(PixelPalette.border.opacity(0.9), lineWidth: 2)
             }
+        } else if Theme.isVanGogh {
+            Capsule().fill(fill).overlay(Capsule().stroke(VG.cream.opacity(0.35), lineWidth: 1))
         } else {
             Capsule().fill(fill)
         }
@@ -86,6 +96,8 @@ struct TabBackground: View {
             Rectangle()
                 .fill(selected ? PixelPalette.pink : .clear)
                 .overlay(Rectangle().strokeBorder(selected ? PixelPalette.pink : PixelPalette.dim, lineWidth: 2))
+        } else if Theme.isVanGogh {
+            if selected { VGSwash() }
         } else {
             Capsule().fill(.white.opacity(selected ? 0.14 : 0))
         }
@@ -154,6 +166,8 @@ struct ThemedIcon: View {
     var body: some View {
         if Theme.isPixel, let rows = Self.pixelRows[symbol] {
             PixelShape(rows: rows).fill(ForegroundStyle()).frame(width: 15, height: 15)
+        } else if Theme.isVanGogh, let kind = VGIcon.kind(for: symbol) {
+            VGIcon(kind: kind)
         } else {
             Image(systemName: symbol)
         }
@@ -219,19 +233,19 @@ struct ThemedMenu: View {
     static func height(_ items: [Item]) -> CGFloat {
         let rows = CGFloat(items.filter { $0.action != nil }.count)
         let seps = CGFloat(items.count) - rows
-        return Theme.isCassette ? rows * 23 + seps * 9 + 14 : rows * 23 + seps * 9 + 8
+        return Theme.isCassette ? rows * 23 + seps * 9 + 14 : rows * 23 + seps * 9 + (Theme.isVanGogh ? 10 : 8)
     }
 
     var body: some View {
-        let cassette = Theme.isCassette
+        let cassette = Theme.isCassette, vg = Theme.isVanGogh
         VStack(alignment: .leading, spacing: 0) {
             ForEach(items) { item in
                 if let action = item.action {
                     let on = hovered.wrappedValue == item.id
                     Text(item.title)
-                        .font(cassette ? .hand(15) : .ui(12))
+                        .font(cassette ? .hand(15) : .ui(12, weight: vg && on ? .bold : .regular))
                         .lineLimit(1)
-                        .foregroundStyle(cassette ? CassettePalette.ink : (on ? .white : PixelPalette.border))
+                        .foregroundStyle(cassette ? CassettePalette.ink : vg ? (on ? VG.ink : VG.cream) : (on ? .white : PixelPalette.border))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 8).padding(.vertical, cassette ? 2 : 3)
                         .frame(height: 23)
@@ -241,6 +255,9 @@ struct ThemedMenu: View {
                                     // vệt bút dạ quang
                                     RoundedRectangle(cornerRadius: 3).fill(CassettePalette.band.opacity(0.55))
                                         .padding(.vertical, 2).rotationEffect(.degrees(-0.8))
+                                } else if vg {
+                                    RoundedRectangle(cornerRadius: 7).fill(VG.yellow)
+                                        .overlay(BrushDaubs(color: VG.yellow2, seed: 3).clipShape(RoundedRectangle(cornerRadius: 7)))
                                 } else {
                                     Color(red: 0.18, green: 0.48, blue: 1)
                                 }
@@ -252,20 +269,26 @@ struct ThemedMenu: View {
                 } else if cassette {
                     Line().stroke(CassettePalette.ink.opacity(0.35), style: StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
                         .frame(height: 1).padding(.vertical, 4).padding(.horizontal, 6)
+                } else if vg {
+                    Rectangle().fill(VG.cream.opacity(0.22)).frame(height: 1).padding(.vertical, 4).padding(.horizontal, 8)
                 } else {
                     Rectangle().fill(PixelPalette.shadow).frame(height: 3).padding(.vertical, 3).padding(.horizontal, 4)
                 }
             }
         }
-        .padding(cassette ? 7 : 4)
+        .padding(cassette ? 7 : vg ? 5 : 4)
         .frame(width: Self.width)
         .background { chrome(cassette) }
-        .textCase(cassette ? nil : .uppercase)
+        .textCase(cassette || vg ? nil : .uppercase)
         .rotationEffect(.degrees(cassette ? -1 : 0))
     }
 
     @ViewBuilder private func chrome(_ cassette: Bool) -> some View {
-        if cassette {
+        if Theme.isVanGogh {
+            RoundedRectangle(cornerRadius: 11).fill(VG.night.opacity(0.97))
+                .overlay(RoundedRectangle(cornerRadius: 11).stroke(VG.yellow, lineWidth: 1.6))
+                .shadow(color: .black.opacity(0.5), radius: 6, y: 3)
+        } else if cassette {
             // tờ giấy note + mẩu băng dính phía trên
             RoundedRectangle(cornerRadius: 3).fill(CassettePalette.label)
                 .shadow(color: .black.opacity(0.45), radius: 5, x: 2, y: 4)

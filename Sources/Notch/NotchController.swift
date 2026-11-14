@@ -373,7 +373,7 @@ final class NotchController {
            let under = Self.screen(containing: mouse), under.displayID != screen.displayID {
             layout()
         }
-        let size = model.shapeSize(playing: media.hasTrack)
+        let size = model.shapeSize(wing: wingLayout().width)
         let f = screen.frame
         // Đang kéo file thì nới vùng bắt rộng hơn cho dễ "ném" vào notch.
         let margin: (CGFloat, CGFloat) = fileDragActive && !model.expanded ? (40, 30) : (4, 4)
@@ -560,7 +560,7 @@ final class NotchController {
         if model.expanded {
             petX = f.midX + (NotchModel.expandedWidth / 2 - 95) * NotchModel.scale
         } else {
-            let w = model.shapeSize(playing: media.hasTrack).width
+            let w = model.shapeSize(wing: wingLayout().width).width
             petX = f.midX + model.shapeOffsetX + w / 2 - model.topRadius - model.petWing / 2
         }
         PetState.shared.setLook((NSEvent.mouseLocation.x - petX) / 220)
@@ -673,8 +673,21 @@ final class NotchController {
         return leftDown
     }
 
+    /// Cánh lúc thu gọn của slot đang hoạt động (cùng cách tính với NotchRootView).
+    private func wingLayout() -> WingLayout {
+        WingLayout.resolve(settings: settings, hasTrack: media.hasTrack, calendar: calendar,
+                           battery: SystemMonitor.shared.batteryPercent, height: model.notchSize.height)
+    }
+
     private func setExpanded(_ value: Bool) {
-        if value, !model.expanded { Haptics.tap(.levelChange) }
+        if value, !model.expanded {
+            Haptics.tap(.levelChange)
+            // "Khi mở notch": tab cố định. Kéo file (khay) và Claude hỏi vẫn được ưu tiên.
+            if !fileDragActive, permissions.current == nil, let tab = settings.openTab.tab,
+               settings.enabledTabs.contains(tab) {
+                model.tab = tab
+            }
+        }
         model.expanded = value
         applyMinimal()
         if !value {

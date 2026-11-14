@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Giao diện Cassette: trình phát là băng cassette (trục quay theo nhạc), lịch là giấy ghi chú.
+/// Giao diện Cassette: trình phát là băng cassette (trục quay theo nhạc, tua thì quay nhanh + nhiễu).
 enum CassettePalette {
     static let background = Color(red: 0.08, green: 0.07, blue: 0.06)
     static let shell = Color(red: 0.17, green: 0.15, blue: 0.13)
@@ -29,9 +29,12 @@ extension Font {
 // MARK: - Trình phát
 
 struct CassettePlayerView: View {
+    static let scale: CGFloat = 0.82
     @ObservedObject var media: NowPlaying
     /// Đang tua: vị trí đích (giây) + vị trí lúc bắt đầu kéo.
     private var scrub = State<(target: Double, base: Double)?>(initialValue: nil)
+    /// Vừa bấm ⏩: trục quay nhanh + nhiễu băng trong chốc lát.
+    private var burst = State(initialValue: false)
 
     init(media: NowPlaying) {
         self.media = media
@@ -40,17 +43,19 @@ struct CassettePlayerView: View {
     var body: some View {
         let track = media.track
         let playing = track?.isPlaying == true
-        VStack(spacing: 10) {
+        // Cùng chiều cao với giao diện khác: băng thu nhỏ một chút, phím cơ xếp dọc bên phải.
+        HStack(alignment: .center, spacing: 10) {
             // Cập nhật mỗi giây: bộ đếm + lượng băng ở 2 trục.
             TimelineView(.periodic(from: .now, by: 1)) { ctx in
                 let position = scrub.wrappedValue?.target ?? track?.position(at: ctx.date) ?? 0
                 let ratio = (track?.duration ?? 0) > 0 ? position / track!.duration : 0
                 CassetteBody(title: track?.title ?? L("Chưa có băng", "No tape"),
                              artist: track?.artist ?? "",
-                             counter: track == nil ? "--:--" : ProgressRow.format(position),
-                             total: track.map { ProgressRow.format($0.duration) } ?? "--:--",
+                             counter: track == nil ? "--:--" : (track!.duration <= 0 ? L("● Trực tiếp", "● Live") : ProgressRow.format(position)),
+                             total: track.map { $0.duration <= 0 ? "" : ProgressRow.format($0.duration) } ?? "--:--",
                              ratio: ratio, playing: playing,
-                             scrubDelta: scrub.wrappedValue.map { $0.target - $0.base })
+                             scrubDelta: scrub.wrappedValue.map { $0.target - $0.base },
+                             fast: scrub.wrappedValue != nil || burst.wrappedValue)
             }
             .frame(width: 316, height: 150)
             .contentShape(Rectangle())
@@ -68,15 +73,21 @@ struct CassettePlayerView: View {
                     scrub.wrappedValue = nil
                 })
             .help(L("Bấm để mở app nhạc · kéo ngang để tua", "Click to open the player · drag sideways to seek"))
+            .scaleEffect(Self.scale)
+            .frame(width: 316 * Self.scale, height: 150 * Self.scale)
 
-            HStack(spacing: 8) {
+            VStack(spacing: 5) {
                 MechKey(symbol: "backward.fill", pressed: false, action: media.previous)
                 MechKey(symbol: playing ? "pause.fill" : "play.fill", pressed: playing, action: media.playPause)
-                MechKey(symbol: "forward.fill", pressed: false, action: media.next)
+                MechKey(symbol: "forward.fill", pressed: burst.wrappedValue) {
+                    media.next()
+                    burst.wrappedValue = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { burst.wrappedValue = false }
+                }
                 MechKey(symbol: "eject.fill", pressed: false, action: media.openPlayer)
             }
         }
-        .padding(.bottom, 12)
+        .padding(.bottom, 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
@@ -90,6 +101,8 @@ private struct CassetteBody: View {
     let playing: Bool
     /// Đang kéo tua: chênh lệch so với lúc bắt đầu (âm = tua lùi).
     let scrubDelta: Double?
+    /// Đang tua: trục quay nhanh, phủ nhiễu băng.
+    var fast = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -101,7 +114,7 @@ private struct CassetteBody: View {
                 HStack {
                     Text("SIDE A")
                     Spacer()
-                    Text("\(counter) / \(total)").monospacedDigit()
+                    Text(total.isEmpty ? counter : "\(counter) / \(total)").monospacedDigit()
                 }
                 .font(.hand(12))
                 .foregroundStyle(CassettePalette.ink)
@@ -141,12 +154,18 @@ private struct CassetteBody: View {
 
             BottomPlate().fill(CassettePalette.plate, style: FillStyle(eoFill: true))
 
+            if fast {
+                TapeNoise()
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                    .transition(.opacity)
+            }
+
             if let delta = scrubDelta {
                 // Tờ note to giữa băng khi đang tua: hướng tua + vị trí / tổng.
                 HStack(spacing: 6) {
                     Image(systemName: delta < 0 ? "backward.fill" : "forward.fill")
                         .font(.system(size: 13, weight: .bold))
-                    Text("\(counter) / \(total)").font(.hand(22)).monospacedDigit()
+                    Text(total.isEmpty ? counter : "\(counter) / \(total)").font(.hand(22)).monospacedDigit()
                 }
                 .foregroundStyle(CassettePalette.ink)
                 .padding(.horizontal, 12).padding(.vertical, 4)
@@ -160,6 +179,7 @@ private struct CassetteBody: View {
         }
         .frame(width: 316, height: 150)
         .animation(.easeOut(duration: 0.12), value: scrubDelta == nil)
+        .animation(.easeOut(duration: 0.12), value: fast)
     }
 
     /// Vạch bút đỏ chạy theo bài + đầu đọc tam giác: nhìn là biết đang ở đoạn nào.
@@ -195,7 +215,7 @@ private struct CassetteBody: View {
         return ZStack {
             Circle().fill(Color(red: 0.23, green: 0.2, blue: 0.17)).frame(width: 36, height: 36)
             Circle().fill(CassettePalette.tape).frame(width: r * 2, height: r * 2)
-            ReelHub(spinning: playing).frame(width: 20, height: 20)
+            ReelHub(spinning: playing || fast, fast: fast).frame(width: 20, height: 20)
         }
         .position(x: x, y: 81)
     }
@@ -219,8 +239,9 @@ private struct BottomPlate: Shape {
 /// Bánh răng trục băng: quay bằng Core Animation (không dựng lại view mỗi frame).
 struct ReelHub: NSViewRepresentable {
     let spinning: Bool
+    var fast = false
     func makeNSView(context: Context) -> ReelHubView { ReelHubView() }
-    func updateNSView(_ view: ReelHubView, context: Context) { view.setSpinning(spinning) }
+    func updateNSView(_ view: ReelHubView, context: Context) { view.setSpinning(spinning, fast: fast) }
 }
 
 final class ReelHubView: NSView {
@@ -262,12 +283,16 @@ final class ReelHubView: NSView {
         CATransaction.commit()
     }
 
-    func setSpinning(_ on: Bool) {
-        if on, spinner.animation(forKey: "spin") == nil {
+    private var fast = false
+
+    func setSpinning(_ on: Bool, fast: Bool = false) {
+        if on, spinner.animation(forKey: "spin") == nil || fast != self.fast {
+            self.fast = fast
             let anim = CABasicAnimation(keyPath: "transform.rotation.z")
             anim.fromValue = 0
             anim.toValue = -2 * Double.pi
-            anim.duration = 2.4
+            // Tua: quay nhanh gấp ~7 lần.
+            anim.duration = fast ? 0.35 : 2.4
             anim.repeatCount = .infinity
             spinner.add(anim, forKey: "spin")
         } else if !on {
@@ -285,118 +310,18 @@ private struct MechKey: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 13, weight: .bold))
+                .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(CassettePalette.ink)
-                .frame(width: 70, height: pressed ? 31 : 35)
+                .frame(width: 48, height: pressed ? 24 : 27)
                 .background(
                     RoundedRectangle(cornerRadius: 4)
                         .fill(pressed ? CassettePalette.keyDown : CassettePalette.key)
                         .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color(red: 0.48, green: 0.42, blue: 0.32)))
                 )
                 .offset(y: pressed ? 2 : 0)
-                .frame(height: 37, alignment: .top)
+                .frame(height: 28, alignment: .top)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-}
-
-// MARK: - Lịch giấy ghi chú
-
-struct NoteCalendar: View {
-    @ObservedObject var calendar: CalendarStore
-
-    private var cal: Calendar {
-        var c = Calendar(identifier: .gregorian)
-        c.locale = Lang.locale
-        return c
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Text(calendar.monthTitle).font(.hand(16)).foregroundStyle(CassettePalette.ink).lineLimit(1)
-                Spacer(minLength: 2)
-                Button { calendar.shiftWeek(-1) } label: { Image(systemName: "chevron.left") }.buttonStyle(.plain)
-                Button { calendar.shiftWeek(1) } label: { Image(systemName: "chevron.right") }.buttonStyle(.plain)
-            }
-            .font(.system(size: 10, weight: .bold))
-            .foregroundStyle(CassettePalette.ink.opacity(0.7))
-
-            HStack(spacing: 0) {
-                ForEach(calendar.weekDays, id: \.self) { day in
-                    dayCell(day)
-                }
-            }
-
-            if calendar.access == .granted {
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 5) {
-                        if calendar.selectedEvents.isEmpty {
-                            Text(L("Trống trơn ✌︎", "Nothing planned ✌︎"))
-                                .font(.hand(13)).foregroundStyle(CassettePalette.ink.opacity(0.6))
-                        }
-                        ForEach(calendar.selectedEvents) { item in
-                            HStack(spacing: 6) {
-                                Text("• \(timeLabel(item)) \(item.title)")
-                                    .font(.hand(13)).foregroundStyle(CassettePalette.ink).lineLimit(1)
-                                Spacer(minLength: 2)
-                                if let meeting = item.meeting { JoinButton(meeting: meeting, prominent: true) }
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            } else {
-                Button(L("Bấm để cho phép đọc lịch", "Click to allow calendar access")) {
-                    if calendar.access == .notDetermined { calendar.requestAccess() } else { calendar.openPrivacySettings() }
-                }
-                .font(.hand(13))
-                .foregroundStyle(CassettePalette.ink)
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(12)
-        .frame(width: 226, height: 186, alignment: .topLeading)
-        .background(Rectangle().fill(CassettePalette.note).shadow(color: .black.opacity(0.35), radius: 6, x: 3, y: 4))
-        .overlay(alignment: .top) {
-            Rectangle().fill(Color(red: 0.95, green: 0.9, blue: 0.79).opacity(0.85))
-                .frame(width: 56, height: 14).rotationEffect(.degrees(4)).offset(y: -7)
-        }
-        .rotationEffect(.degrees(-2.5))
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func dayCell(_ day: Date) -> some View {
-        let weekday = cal.component(.weekday, from: day)
-        let weekend = cal.isDateInWeekend(day)
-        let selected = day == calendar.selectedDay
-        let isToday = cal.isDateInToday(day)
-        return Button { calendar.selectedDay = day } label: {
-            VStack(spacing: 1) {
-                Text(cal.veryShortWeekdaySymbols[weekday - 1])
-                    .font(.system(size: 8, weight: .semibold))
-                    .foregroundStyle(CassettePalette.faded)
-                Text("\(cal.component(.day, from: day))")
-                    .font(.hand(isToday ? 16 : 14))
-                    .foregroundStyle(weekend ? CassettePalette.weekend : CassettePalette.ink)
-                    .frame(width: 26, height: 22)
-                    .overlay(
-                        Ellipse().stroke(CassettePalette.marker, lineWidth: 2)
-                            .rotationEffect(.degrees(-8))
-                            .opacity(selected ? 1 : 0)
-                    )
-            }
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func timeLabel(_ item: CalendarStore.Item) -> String {
-        if item.allDay { return L("cả ngày", "all day") }
-        let f = DateFormatter()
-        f.dateFormat = "H:mm"
-        return f.string(from: item.start)
     }
 }

@@ -101,6 +101,7 @@ final class PetLayerView: NSView {
         case .pixel: character = PixelDino()
         case .cassette: character = Walkman()
         case .standard: character = Fox()
+        case .vangogh: character = VanGoghPainter()
         }
         super.init(frame: .zero)
         wantsLayer = true
@@ -115,6 +116,8 @@ final class PetLayerView: NSView {
         case .pixel: NSFont(name: "VT323", size: 14) ?? .monospacedSystemFont(ofSize: 9, weight: .heavy)
         case .cassette: NSFont(name: "Marker Felt", size: 11) ?? .systemFont(ofSize: 10)
         case .standard: .systemFont(ofSize: 9, weight: .heavy)
+        case .vangogh: NSFont.systemFont(ofSize: 10, weight: .semibold).fontDescriptor.withDesign(.serif)
+            .flatMap { NSFont(descriptor: $0, size: 10) } ?? .systemFont(ofSize: 10, weight: .semibold)
         }
         bubble.font = font
         bubble.fontSize = font.pointSize
@@ -876,5 +879,80 @@ final class Fox: PetBase {
         }
         wag(0.2, 0.35, smooth: true)
         return (1.7, "!")
+    }
+}
+
+// MARK: - Van Gogh: hoạ sĩ chibi (ảnh), cử động bằng biến đổi cả hình
+
+final class VanGoghPainter: PetBase {
+    private let sprite = CALayer()
+    private let dab = CALayer()
+    override var ink: NSColor { VG.nsYellow }
+
+    init() {
+        // Mặt ở khoảng giữa trên (dưới vành mũ rơm): tai nghe đeo vòng qua đó.
+        super.init(size: CGSize(width: 18, height: 28), head: CGRect(x: 4, y: 7, width: 11, height: 7), pixel: false)
+        sprite.frame = actor.bounds
+        sprite.contents = VG.painter
+        sprite.contentsGravity = .resizeAspect
+        sprite.minificationFilter = .trilinear
+        sprite.zPosition = 1
+        actor.addSublayer(sprite)
+        dab.bounds = CGRect(x: 0, y: 0, width: 3.2, height: 3.2)
+        dab.cornerRadius = 1.6
+        dab.opacity = 0
+        dab.zPosition = 2
+        actor.addSublayer(dab)
+    }
+
+    /// Ảnh nhìn sang trái; con trỏ ở bên phải thì quay người sang phải.
+    override func render() {
+        sprite.setAffineTransform(lookX > 0.4 ? CGAffineTransform(scaleX: -1, y: 1) : .identity)
+    }
+
+    override func clearParts() {
+        sprite.removeAllAnimations()
+        dab.removeAllAnimations()
+        dab.opacity = 0
+    }
+
+    override func moodAnimations(_ mood: PetMood) {
+        switch mood {
+        case .idle:
+            // Thở nhẹ: 2 khung rời mỗi 2,6 s.
+            sprite.add(loop("transform.translation.y", [0, -0.6], times: [0, 0.5], duration: 2.6), forKey: "breathe")
+        case .dance:
+            root.add(loop("transform.rotation.z", [0.1, -0.1], times: [0, 0.5], duration: 0.84), forKey: "sway")
+            actor.add(loop("transform.translation.y", [0, -2, 0], times: [0, 0.25, 0.5], duration: 0.42), forKey: "bounce")
+        case .sleep:
+            // Gật gù: cúi dần rồi giật mình ngẩng lên.
+            root.add(loop("transform.rotation.z", [0, 0.06, 0.12, 0.02], times: [0, 0.4, 0.8, 0.9], duration: 3.2), forKey: "nod")
+        case .alert:
+            root.add(loop("transform.translation.y", [0, -4, 0, 0], times: [0, 0.1, 0.25, 0.5], duration: 1.1), forKey: "jump")
+        }
+    }
+
+    /// Vẩy cọ: một chấm sơn vàng hoặc xanh bay ra từ đầu cọ.
+    override func special() -> (CFTimeInterval, String?) {
+        let flipped = lookX > 0.4
+        let tip = CGPoint(x: flipped ? 15 : 3, y: 9)
+        let blue = NSColor(red: 0.23, green: 0.42, blue: 0.77, alpha: 1)
+        dab.backgroundColor = (Bool.random() ? VG.nsYellow : blue).cgColor
+        dab.position = tip
+        let dx: CGFloat = flipped ? 9 : -9
+        let path = CGMutablePath()
+        path.move(to: tip)
+        path.addQuadCurve(to: CGPoint(x: tip.x + dx, y: tip.y + 4), control: CGPoint(x: tip.x + dx * 0.4, y: tip.y - 9))
+        let fly = CAKeyframeAnimation(keyPath: "position")
+        fly.path = path
+        fly.duration = 0.9
+        let fade = once("opacity", [0, 1, 1, 0], times: [0, 0.1, 0.7, 1], duration: 0.9)
+        let group = CAAnimationGroup()
+        group.animations = [fly, fade]
+        group.duration = 0.9
+        group.preferredFrameRateRange = CAFrameRateRange(minimum: 15, maximum: 30, preferred: 30)
+        dab.add(group, forKey: "fling")
+        actor.add(once("transform.rotation.z", [0, flipped ? 0.18 : -0.18, 0], times: [0, 0.3, 1], duration: 0.6), forKey: "flick")
+        return (1.0, nil)
     }
 }

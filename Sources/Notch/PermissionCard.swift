@@ -86,12 +86,14 @@ struct PillButtonStyle: ButtonStyle {
     let text: Color
 
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
+        // Van Gogh: nút chính màu cam Claude thành vàng nét cọ, chữ mực.
+        let main = Theme.isVanGogh && fill == ClaudeInk.claude
+        return configuration.label
             .font(.ui(12, weight: .semibold))
-            .foregroundStyle(Theme.isCassette ? CassettePalette.ink : text)
+            .foregroundStyle(Theme.isCassette ? CassettePalette.ink : main ? VG.ink : text)
             .padding(.horizontal, 12)
             .padding(.vertical, 5)
-            .background(ThemedBackground(fill: fill))
+            .background(ThemedBackground(fill: main ? VG.yellow : fill))
             .opacity(configuration.isPressed ? 0.7 : 1)
             .scaleEffect(configuration.isPressed ? 0.96 : 1)
             .contentShape(Capsule())

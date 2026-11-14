@@ -257,6 +257,7 @@ struct TrayFilterBar: View {
             .font(cassette ? .hand(13) : .ui(10, weight: .semibold))
             .foregroundStyle(cassette ? (on ? CassettePalette.ink : CassettePalette.key.opacity(0.75))
                              : pixel ? (on ? .black : PixelPalette.border.opacity(0.8))
+                             : Theme.isVanGogh ? (on ? VG.ink : VG.cream.opacity(0.75))
                              : .white.opacity(on ? 0.95 : 0.5))
             .padding(.horizontal, 6)
             .frame(height: 16)
@@ -266,6 +267,8 @@ struct TrayFilterBar: View {
                 } else if pixel {
                     Rectangle().fill(on ? PixelPalette.pink : .clear)
                         .overlay(Rectangle().strokeBorder(on ? PixelPalette.pink : PixelPalette.dim, lineWidth: 1.5))
+                } else if Theme.isVanGogh {
+                    Capsule().fill(on ? VG.yellow : VG.navy.opacity(0.7))
                 } else {
                     Capsule().fill(.white.opacity(on ? 0.16 : 0.05))
                 }
@@ -284,7 +287,10 @@ struct TraySelectionMark: View {
 
     var body: some View {
         if selected {
-            if Theme.isCassette {
+            if Theme.isVanGogh {
+                RoundedRectangle(cornerRadius: 12).fill(VG.yellow.opacity(0.18))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(VG.yellow, lineWidth: 2.4))
+            } else if Theme.isCassette {
                 RoundedRectangle(cornerRadius: 6).fill(CassettePalette.band.opacity(0.28))
                     .overlay(RoundedRectangle(cornerRadius: 6).stroke(CassettePalette.band, lineWidth: 1.5))
             } else if Theme.isPixel {

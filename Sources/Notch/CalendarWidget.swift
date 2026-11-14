@@ -3,6 +3,9 @@ import SwiftUI
 /// Màu kiểu app Calendar của macOS: hôm nay đỏ, chọn ngày khác thì vòng xám.
 private let calendarRed = Color(red: 1.0, green: 0.27, blue: 0.23)
 
+/// Chữ trên nền tối: trắng (mặc định) hoặc kem (Van Gogh).
+private func tone(_ opacity: Double) -> Color { Theme.isVanGogh ? VG.cream.opacity(min(1, opacity + 0.1)) : .white.opacity(opacity) }
+
 struct CalendarWidget: View {
     @ObservedObject var calendar: CalendarStore
 
@@ -17,7 +20,7 @@ struct CalendarWidget: View {
             HStack(spacing: 4) {
                 Text(calendar.monthTitle)
                     .font(.ui(12, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.85))
+                    .foregroundStyle(tone(0.85))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                     .layoutPriority(1)
@@ -26,7 +29,7 @@ struct CalendarWidget: View {
                     Button { calendar.resetToToday() } label: {
                         Text(L("Hôm nay", "Today"))
                             .font(.ui(10.5, weight: .semibold))
-                            .foregroundStyle(.white.opacity(0.85))
+                            .foregroundStyle(tone(0.85))
                             .lineLimit(1)
                             .fixedSize()
                             .padding(.horizontal, 7)
@@ -72,7 +75,7 @@ struct CalendarWidget: View {
         if items.isEmpty {
             Text(calendar.isTodaySelected ? L("Hôm nay không còn sự kiện", "No more events today") : L("Không có sự kiện", "No events"))
                 .font(.ui(11))
-                .foregroundStyle(.white.opacity(0.45))
+                .foregroundStyle(tone(0.45))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.leading, 4)
         } else {
@@ -96,7 +99,7 @@ struct CalendarWidget: View {
         Button(action: action) {
             Label(title, systemImage: "calendar.badge.plus")
                 .font(.ui(11, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.85))
+                .foregroundStyle(tone(0.85))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .background(Capsule().fill(.white.opacity(0.12)))
@@ -119,7 +122,7 @@ private struct NavButton: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.ui(10, weight: .semibold))
-                .foregroundStyle(.white.opacity(hover.wrappedValue ? 0.95 : 0.55))
+                .foregroundStyle(Theme.isVanGogh ? VG.cream.opacity(hover.wrappedValue ? 1 : 0.8) : .white.opacity(hover.wrappedValue ? 0.95 : 0.55))
                 .frame(width: 20, height: 18)
                 .background(RoundedRectangle(cornerRadius: 5).fill(.white.opacity(hover.wrappedValue ? 0.12 : 0)))
                 .contentShape(Rectangle())
@@ -143,7 +146,8 @@ private struct WeekStrip: View {
                     isWeekend: cal.isDateInWeekend(day),
                     isToday: day == today,
                     isSelected: day == calendar.selectedDay,
-                    isBusy: calendar.busyDays.contains(day)
+                    isBusy: calendar.busyDays.contains(day),
+                    load: calendar.dayLoad[day] ?? 0
                 ) {
                     calendar.selectedDay = day
                 }
@@ -160,17 +164,19 @@ private struct DayCell: View {
     let isToday: Bool
     let isSelected: Bool
     let isBusy: Bool
+    var load = 0
     let select: () -> Void
     private var hover = State(initialValue: false)
 
     init(weekday: String, number: Int, isWeekend: Bool, isToday: Bool,
-         isSelected: Bool, isBusy: Bool, select: @escaping () -> Void) {
+         isSelected: Bool, isBusy: Bool, load: Int = 0, select: @escaping () -> Void) {
         self.weekday = weekday
         self.number = number
         self.isWeekend = isWeekend
         self.isToday = isToday
         self.isSelected = isSelected
         self.isBusy = isBusy
+        self.load = load
         self.select = select
     }
 
@@ -179,17 +185,33 @@ private struct DayCell: View {
             VStack(spacing: 3) {
                 Text(weekday)
                     .font(.ui(9, weight: .medium))
-                    .foregroundStyle(.white.opacity(isWeekend ? 0.3 : 0.45))
+                    .foregroundStyle(Theme.isVanGogh ? VG.muted.opacity(isWeekend ? 0.6 : 0.95) : .white.opacity(isWeekend ? 0.3 : 0.45))
                 Text("\(number)")
                     .font(.ui(13, weight: isToday || isSelected ? .semibold : .regular).monospacedDigit())
                     .foregroundStyle(numberColor)
                     .frame(width: 22, height: 22)
                     .background(Theme.isPixel
-                    ? AnyView(Rectangle().fill(isToday ? Color(red: 1, green: 0.3, blue: 0.3) : (isSelected ? PixelPalette.pink : Color(red: 0.1, green: 0.09, blue: 0.2))))
+                    ? AnyView(Rectangle().fill(isToday ? Color(red: 1, green: 0.3, blue: 0.3) : (isSelected ? PixelPalette.pink : Color(red: 0.1, green: 0.09, blue: 0.2)))
+                        .overlay(Rectangle().strokeBorder(isToday || isSelected ? PixelPalette.border : PixelPalette.dim, lineWidth: 2)))
+                    : Theme.isVanGogh ? AnyView(vgMark)
                     : AnyView(RoundedRectangle(cornerRadius: 11).fill(circleFill)))
+                    // Pixel: các ô ngày nối bằng đường chấm như bản đồ chọn màn; hôm nay cắm cờ nhấp nháy.
+                    .background { if Theme.isPixel { PixelMapPath().frame(width: 60) } }
+                    .overlay(alignment: .topTrailing) { if Theme.isPixel && isToday { PixelTodayFlag().offset(x: 7, y: -8) } }
+                if Theme.isPixel {
+                    PixelMonsters(load: load)
+                } else if Theme.isVanGogh {
+                    // Ngày có sự kiện: hoa hướng dương, càng nhiều sự kiện hoa càng to.
+                    let side = load == 0 ? 0 : load == 1 ? 11 : load == 2 ? 14 : 17
+                    Group {
+                        if side > 0 { Image(nsImage: VGArt.sunflower(side)) } else { Color.clear }
+                    }
+                    .frame(width: 17, height: 13)
+                } else {
                 Circle()
                     .fill(.white.opacity(isBusy ? 0.55 : 0))
                     .frame(width: 3, height: 3)
+                }
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 2)
@@ -200,8 +222,17 @@ private struct DayCell: View {
         .onHover { hover.wrappedValue = $0 }
     }
 
+    @ViewBuilder private var vgMark: some View {
+        if isToday {
+            VGSwirlHalo().frame(width: 28, height: 28)
+        } else if isSelected {
+            Circle().stroke(VG.yellow, lineWidth: 1.6)
+        }
+    }
+
     private var numberColor: Color {
         if Theme.isPixel { return isToday || isSelected ? .white : .white.opacity(0.85) }
+        if Theme.isVanGogh { return isToday ? VG.ink : VG.cream.opacity(isWeekend && !isSelected ? 0.65 : 1) }
         if isSelected { return .white }
         if isToday { return calendarRed }
         return .white.opacity(isWeekend ? 0.5 : 0.8)
@@ -226,10 +257,12 @@ struct JoinButton: View {
                 Text(meeting.provider)
             }
             .font(.ui(10, weight: .semibold))
-            .foregroundStyle(prominent ? .white : blue)
+            .foregroundStyle(Theme.isVanGogh ? VG.ink : prominent ? .white : blue)
             .padding(.horizontal, 7)
             .padding(.vertical, 3)
-            .background(ThemedBackground(fill: prominent ? blue : blue.opacity(0.18)))
+            .background(Theme.isVanGogh
+                        ? AnyView(Capsule().fill(VG.yellow).overlay(Capsule().stroke(VG.ink, lineWidth: 1.2)))
+                        : AnyView(ThemedBackground(fill: prominent ? blue : blue.opacity(0.18))))
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -253,11 +286,11 @@ private struct EventRow: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.title)
                     .font(.ui(12, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(tone(0.9))
                     .lineLimit(1)
                 Text(timeText)
                     .font(.ui(11).monospacedDigit())
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(tone(0.5))
             }
             Spacer(minLength: 4)
             if let meeting = item.meeting {

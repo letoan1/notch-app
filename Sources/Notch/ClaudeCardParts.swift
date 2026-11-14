@@ -152,8 +152,9 @@ struct ScopeLine: View {
                 }
                 .font(paper ? .typewriter(10.5) : .ui(10))
                 .foregroundStyle(ClaudeInk.secondary(paper))
-                .lineLimit(1)
-                .truncationMode(.middle)
+                // VT323 không có "…": cho xuống 2 dòng thay vì cắt giữa.
+                .lineLimit(Theme.isPixel ? 2 : 1)
+                .truncationMode(Theme.isPixel ? .tail : .middle)
                 .help(scope.sentence + (scope.fileURL.map { "\n" + $0.path } ?? ""))
             } else if request.kind == .tool {
                 Text(L("Claude không gợi ý luật nào cho yêu cầu này nên không có nút Luôn cho phép.", "Claude suggested no rule for this request, so there is no Always allow button."))
