@@ -7,8 +7,8 @@ cd "$(dirname "$0")/.."
 
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 if [[ "$1" == "--default" ]]; then
-  swiftc -O scripts/make-icon.swift -o "$TMP/mk" 2>/dev/null
-  "$TMP/mk" "$TMP/icon.png" >/dev/null
+  swiftc -O scripts/icon-from-image.swift -o "$TMP/mk" 2>/dev/null
+  "$TMP/mk" Resources/AppIcon-source.png "$TMP/icon.png"
 else
   [[ -f "$1" ]] || { echo "Không thấy file: $1"; exit 1; }
   swiftc -O scripts/icon-from-image.swift -o "$TMP/mk" 2>/dev/null
