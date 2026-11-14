@@ -9,6 +9,7 @@
   <img src="https://img.shields.io/badge/Xcode-kh%C3%B4ng%20c%E1%BA%A7n-8A46D6" alt="Không cần Xcode">
   <img src="https://img.shields.io/badge/CPU-d%C6%B0%E1%BB%9Bi%200.5%25%20khi%20thu%20g%E1%BB%8Dn-30D158" alt="CPU dưới 0.5% khi thu gọn">
   <img src="https://img.shields.io/badge/Claude%20Code-hook-D97757" alt="Claude Code hook">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT License"></a>
 </p>
 
 <p align="center">
@@ -265,4 +266,6 @@ Roost dùng các phần mã và tài nguyên sau, mỗi phần theo giấy phép
 - **Font VT323** từ [Google Fonts](https://fonts.google.com/specimen/VT323), SIL Open Font License 1.1 (`Resources/OFL-VT323.txt`).
 - **Ảnh nền tranh và nhân vật hoạ sĩ** của giao diện Van Gogh được tạo bằng AI, lấy cảm hứng từ tranh của Vincent van Gogh (đã thuộc phạm vi công cộng). Icon chim cổ đỏ cũng được tạo bằng AI.
 
-Phần mã còn lại do tác giả Roost viết. Repo hiện chưa có file `LICENSE`, nên theo mặc định mọi quyền thuộc về tác giả cho tới khi giấy phép được chọn.
+Phần mã còn lại của Roost phát hành theo [giấy phép MIT](LICENSE): bạn được dùng, sửa và phát hành lại, kể cả cho mục đích thương mại, miễn giữ lại dòng bản quyền và giấy phép.
+
+**Ngoại lệ: model ArcFace.** Model nhận diện khuôn mặt trong `Packages/FaceUnlockKit` không thuộc giấy phép MIT và chỉ được dùng cho nghiên cứu phi thương mại. Nếu muốn dùng Roost vào việc thương mại, hãy bỏ tính năng mở khoá bằng khuôn mặt hoặc thay bằng một model có giấy phép cho phép thương mại.
