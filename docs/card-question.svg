@@ -17,7 +17,7 @@
     <rect width="640" height="380" fill="#0d0d18"/>
     <circle cx="80" cy="40" r="160" fill="#ff7a59" opacity=".28" filter="url(#b60)"/>
     <text x="36" y="56" font-size="24" font-weight="800" fill="#fff">Claude hỏi, bạn trả lời tại chỗ</text>
-    <text x="36" y="84" font-size="14" fill="#fff" opacity=".6">Chọn đáp án, hoặc bấm “Khác…” để gõ câu trả lời riêng</text>
+    <text x="36" y="84" font-size="14" fill="#fff" opacity=".6">Chọn một đáp án, hoặc bấm "Khác…" để tự gõ câu trả lời</text>
 
     <rect x="36" y="112" width="568" height="300" rx="18" fill="url(#wall)"/>
     <rect x="36" y="112" width="568" height="26" fill="#fff" opacity=".18"/>

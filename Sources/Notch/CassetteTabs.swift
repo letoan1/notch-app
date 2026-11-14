@@ -96,15 +96,19 @@ struct CassetteTrayView: View {
         HStack(spacing: 14) {
             if !tray.files.isEmpty {
                 VStack(spacing: 0) {
+                    TrayFilterBar(tray: tray)
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 10) {
-                            ForEach(tray.files, id: \.self) { url in
-                                MiniTapeTile(url: url, remove: { tray.remove(url) }, onMenu: { menu.wrappedValue = .init(url: url, point: $0) })
+                            ForEach(tray.visibleFiles, id: \.self) { url in
+                                MiniTapeTile(url: url, tray: tray, selected: tray.selection.contains(url),
+                                             remove: { tray.remove(url) }, onMenu: { menu.wrappedValue = .init(url: url, point: $0) })
+                                    .transition(.scale(scale: 0.3).combined(with: .opacity))
                             }
                         }
                         .padding(.horizontal, 2)
                         .padding(.top, 6)
                     }
+                    .background(Color.black.opacity(0.001).onTapGesture { tray.selection = [] })
                     Rectangle().fill(Color(red: 0.42, green: 0.29, blue: 0.18)).frame(height: 8)
                     Rectangle().fill(Color(red: 0.29, green: 0.2, blue: 0.13)).frame(height: 4)
                 }
@@ -125,12 +129,16 @@ struct CassetteTrayView: View {
 
 private struct MiniTapeTile: View {
     let url: URL
+    @ObservedObject var tray: TrayStore
+    let selected: Bool
     let remove: () -> Void
     let onMenu: (CGPoint) -> Void
     private var hover = State(initialValue: false)
 
-    init(url: URL, remove: @escaping () -> Void, onMenu: @escaping (CGPoint) -> Void) {
+    init(url: URL, tray: TrayStore, selected: Bool, remove: @escaping () -> Void, onMenu: @escaping (CGPoint) -> Void) {
         self.url = url
+        self.tray = tray
+        self.selected = selected
         self.remove = remove
         self.onMenu = onMenu
     }
@@ -144,6 +152,8 @@ private struct MiniTapeTile: View {
             }
         }
             .frame(width: 112, height: 76)
+            .background(TraySelectionMark(selected: selected).padding(-3))
+            .overlay(TrayItemInteraction(url: url, tray: tray))
             .overlay(alignment: .topTrailing) {
                 if hover.wrappedValue {
                     Button(action: remove) {
@@ -159,10 +169,8 @@ private struct MiniTapeTile: View {
             .animation(.easeOut(duration: 0.12), value: hover.wrappedValue)
             .contentShape(Rectangle())
             .onHover { hover.wrappedValue = $0 }
-            .onTapGesture(count: 2) { NSWorkspace.shared.open(url) }
-            .onDrag { NSItemProvider(object: url as NSURL) }
-            .fileMenu(url: url, remove: remove, onThemed: onMenu)
-            .help(url.path)
+            .fileMenu(url: url, remove: remove, quickLook: { TrayQuickLook.shared.show(tray.targets(for: url)) },
+                      onThemed: onMenu)
     }
 }
 
@@ -307,6 +315,10 @@ struct CassetteMirrorView: View {
                 }
             }
             .allowsHitTesting(false)
+            if camera.access == .granted {
+                // Trên dòng ngày VHS / pin ở đáy khung ngắm.
+                MirrorGuideOverlay(hint: camera.guide, bottomInset: 44).padding(6)
+            }
         }
     }
 
@@ -416,50 +428,123 @@ struct CassettePermissionCard: View {
     let pending: Int
     let decide: (PermissionDecision) -> Void
 
+    private var waiting: Bool { request.state.isWaiting }
+
+    private var slipTitle: String {
+        switch request.kind {
+        case .plan: return L("PHIẾU DUYỆT KẾ HOẠCH", "PLAN APPROVAL SLIP")
+        case .question: return L("PHIẾU CÂU HỎI", "QUESTION SLIP")
+        case .tool: return L("PHIẾU XIN QUYỀN", "PERMISSION SLIP")
+        }
+    }
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             LinedPaper()
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(L("PHIẾU XIN QUYỀN", "PERMISSION SLIP") + " · " + request.project)
-                        .font(.typewriter(15, bold: true))
-                        .lineLimit(1)
-                    Spacer()
-                    if pending > 1 { Text("+\(pending - 1)").font(.typewriter(12)) }
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 8) {
+                    Text(slipTitle)
+                        .font(.typewriter(14, bold: true))
+                        .fixedSize()
+                    OriginRow(request: request, paper: true, size: 11)
+                    Spacer(minLength: 4)
+                    CountdownBadge(request: request, paper: true)
                 }
-                field(L("Người xin", "From"), "Claude Code")
-                field(L("Công cụ", "Tool"), request.tool)
-                field(L("Lệnh", "Command"), request.summary)
-                if let detail = request.detail, !detail.isEmpty { field(L("Mục đích", "Purpose"), detail) }
+                .lineLimit(1)
+                field(request.kind == .plan ? L("Kế hoạch", "Plan") : request.tool, request.summary)
+                    .help(request.detail ?? request.summary)
+                if let scope = request.allowScope, waiting {
+                    field(L("Luôn duyệt", "Always"), scope.what + ", " + scope.whereText)
+                        .help(request.alwaysHelp)
+                } else if let detail = request.detail, !detail.isEmpty {
+                    field(request.kind == .plan ? L("Tiếp theo", "Then") : L("Mục đích", "Purpose"), detail)
+                }
                 Spacer(minLength: 0)
                 HStack(spacing: 16) {
-                    Spacer()
-                    StampButton(text: L("BÁC", "DENY"), color: Color(red: 0.48, green: 0.48, blue: 0.48), tilt: -6) { decide(.deny) }
-                    if request.canAlwaysAllow {
-                        StampButton(text: L("LUÔN DUYỆT", "ALWAYS"), color: Color(red: 0.18, green: 0.44, blue: 0.82), tilt: 4) { decide(.allowAlways) }
+                    if request.host != nil {
+                        Button { PermissionCenter.active?.openHost(request) } label: {
+                            Text(L("mở \(request.host?.name ?? "")", "open \(request.host?.name ?? "")"))
+                                .font(.typewriter(12))
+                                .underline()
+                                .foregroundStyle(CassettePalette.faded)
+                        }
+                        .buttonStyle(.plain)
+                        .help(L("Đưa app đang chạy phiên này lên trước", "Bring the app running this session to the front"))
                     }
-                    StampButton(text: L("DUYỆT", "APPROVE"), color: CassettePalette.marker, tilt: -7) { decide(.allow) }
+                    Spacer()
+                    if waiting {
+                        StampButton(text: request.kind == .plan ? L("CHƯA", "NOT YET") : L("BÁC", "DENY"),
+                                    color: Color(red: 0.48, green: 0.48, blue: 0.48), tilt: -6) { decide(.deny) }
+                        if request.canAlwaysAllow {
+                            StampButton(text: L("LUÔN DUYỆT", "ALWAYS"), color: Color(red: 0.18, green: 0.44, blue: 0.82), tilt: 4) { decide(.allowAlways) }
+                                .help(request.alwaysHelp)
+                        }
+                        StampButton(text: L("DUYỆT", "APPROVE"), color: CassettePalette.marker, tilt: -7) { decide(.allow) }
+                    }
                 }
             }
             .foregroundStyle(CassettePalette.ink)
             .padding(.leading, 42)
             .padding(.trailing, 18)
-            .padding(.vertical, 12)
+            .padding(.vertical, 10)
             Paperclip().stroke(Color(white: 0.6), style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
                 .frame(width: 16, height: 40)
                 .offset(x: 16, y: -10)
         }
+        .overlay {
+            if !waiting { ResultStamp(state: request.state).transition(.scale(scale: 1.4).combined(with: .opacity)) }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: waiting)
         .rotationEffect(.degrees(-0.8))
         .padding(.horizontal, 18)
         .padding(.top, 4)
-        .padding(.bottom, 14)
+        .padding(.bottom, 12)
     }
 
     private func field(_ label: String, _ value: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(label + ":").font(.typewriter(12)).frame(width: 82, alignment: .leading)
+            Text(label + ":").font(.typewriter(12)).lineLimit(1).frame(width: 82, alignment: .leading)
             Text(value).font(.typewriter(13)).lineLimit(1).truncationMode(.middle)
         }
+    }
+}
+
+/// Con dấu kết quả đóng lên phiếu sau khi xử lý.
+private struct ResultStamp: View {
+    let state: RequestState
+
+    private var text: String {
+        switch state {
+        case .allowed, .answered: return L("ĐÃ DUYỆT", "APPROVED")
+        case .allowedAlways: return L("LUÔN DUYỆT", "ALWAYS OK")
+        case .denied: return L("ĐÃ BÁC", "DENIED")
+        case .expired: return L("QUÁ HẠN", "EXPIRED")
+        case .answeredElsewhere: return L("ĐÃ XỬ LÝ NƠI KHÁC", "HANDLED ELSEWHERE")
+        case .cancelled: return L("HUỶ", "VOID")
+        case .handedOff: return L("CHUYỂN VỀ APP", "SENT BACK")
+        case .waiting: return ""
+        }
+    }
+
+    private var color: Color {
+        switch state {
+        case .allowed, .allowedAlways, .answered: return CassettePalette.marker
+        case .denied: return Color(red: 0.36, green: 0.36, blue: 0.36)
+        default: return Color(red: 0.18, green: 0.44, blue: 0.82)
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 2) {
+            Text(text).font(.typewriter(22, bold: true)).tracking(3)
+            Text(state.title).font(.typewriter(10))
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(color, lineWidth: 3))
+        .rotationEffect(.degrees(-9))
+        .opacity(0.88)
     }
 }
 

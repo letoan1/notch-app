@@ -28,10 +28,25 @@ struct QuestionCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: "sparkle").foregroundStyle(claude)
-                Text(L("Claude hỏi", "Claude asks")).foregroundStyle(.white)
-                Text("· \(request.project)").foregroundStyle(.white.opacity(0.5))
+            HStack(spacing: 8) {
+                HStack(spacing: 5) {
+                    Image(systemName: request.kindSymbol).foregroundStyle(claude)
+                    Text(request.kindTitle).foregroundStyle(.white)
+                }
+                .font(.ui(12, weight: .semibold))
+                .fixedSize()
+                OriginRow(request: request)
+                Spacer(minLength: 4)
+                if questions.count > 1 {
+                    Text("\(index.wrappedValue + 1)/\(questions.count)")
+                        .font(.ui(11, weight: .semibold).monospacedDigit())
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+                CountdownBadge(request: request)
+            }
+            .lineLimit(1)
+
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 if !question.header.isEmpty {
                     Text(question.header)
                         .font(.ui(10, weight: .bold))
@@ -39,23 +54,20 @@ struct QuestionCard: View {
                         .padding(.horizontal, 6)
                         .padding(.vertical, 1)
                         .background(Capsule().fill(claude.opacity(0.18)))
+                        .fixedSize()
                 }
-                Spacer()
-                if questions.count > 1 {
-                    Text("\(index.wrappedValue + 1)/\(questions.count)")
-                        .foregroundStyle(.white.opacity(0.5))
-                }
+                Text(question.text)
+                    .font(.ui(13, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .font(.ui(12, weight: .semibold))
-            .lineLimit(1)
 
-            Text(question.text)
-                .font(.ui(13, weight: .semibold))
-                .foregroundStyle(.white)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-
-            if typing.wrappedValue {
+            if !request.state.isWaiting {
+                StateBanner(state: request.state)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(RoundedRectangle(cornerRadius: 9).fill(.black.opacity(Theme.isCassette ? 0.35 : 0.15)))
+            } else if typing.wrappedValue {
                 VStack(alignment: .leading, spacing: 5) {
                     TextField(L("Nhập câu trả lời của bạn…", "Type your answer…"), text: otherText.projectedValue)
                         .textFieldStyle(.plain)
@@ -69,8 +81,8 @@ struct QuestionCard: View {
                         .onSubmit { submitOther() }
                         .onExitCommand { typing.wrappedValue = false }
                     Text(question.multiSelect && !picked.wrappedValue.isEmpty
-                         ? L("Gửi kèm \(picked.wrappedValue.count) lựa chọn đã tích · Enter để gửi · Esc để quay lại", "Sends with \(picked.wrappedValue.count) checked option(s) · Enter to send · Esc to go back")
-                         : L("Enter để gửi · Esc để quay lại", "Enter to send · Esc to go back"))
+                         ? L("Gửi kèm \(picked.wrappedValue.count) lựa chọn đã tích. Enter để gửi, Esc để quay lại.", "Your \(picked.wrappedValue.count) checked option(s) go along. Press Enter to send, Esc to go back.")
+                         : L("Enter để gửi, Esc để quay lại.", "Press Enter to send, Esc to go back."))
                         .font(.ui(10))
                         .foregroundStyle(.white.opacity(0.4))
                 }
@@ -88,10 +100,12 @@ struct QuestionCard: View {
 
             Spacer(minLength: 0)
 
+            if request.state.isWaiting {
             HStack {
-                Button(L("Trả lời trong VS Code", "Answer in VS Code"), action: dismiss)
+                Button(request.host.map { L("Trả lời trong \($0.name)", "Answer in \($0.name)") }
+                       ?? L("Trả lời ở terminal", "Answer in the terminal"), action: dismiss)
                     .buttonStyle(PillButtonStyle(fill: .white.opacity(0.08), text: .white.opacity(0.6)))
-                    .help(L("Ẩn thẻ này; dùng hộp thoại gốc", "Hide this card and use the original dialog"))
+                    .help(L("Ẩn thẻ này và mở hộp thoại gốc của Claude Code", "Hide this card and go to Claude Code's own dialog"))
                 Spacer()
                 if typing.wrappedValue {
                     Button(L("Gửi", "Send")) { submitOther() }
@@ -109,6 +123,7 @@ struct QuestionCard: View {
                                                      text: .white))
                         .disabled(picked.wrappedValue.isEmpty)
                 }
+            }
             }
         }
         .padding(.horizontal, 20)

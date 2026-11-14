@@ -27,21 +27,28 @@ final class NotchModel: ObservableObject {
         case charge(ChargePeek)
         case audio(name: String, symbol: String)
         case screenshot(NSImage?)
+        /// Vừa mở khoá máy: quét → ✓ + "Chào <tên>".
+        case unlocked(String)
 
         var wing: CGFloat {
             switch self {
             case .charge, .screenshot: return 80
+            case .unlocked: return 96
             case .audio: return 118
             }
         }
     }
 
     @Published var peek: Peek?
+    /// Nhịp "nuốt" ngắn khi file bay vào khay.
+    @Published var gulp = false
 
     /// Thẻ câu hỏi của Claude cần cao hơn để vừa 4 lựa chọn.
     @Published var tall = false
     /// Tab gương: cao hơn bình thường một chút cho khung camera.
     @Published var mirrorMode = false
+    /// Màn hình này đang có app toàn màn hình: chỉ còn notch đen, không cánh / thú cưng / thông báo nhanh.
+    @Published var minimal = false
     static let mirrorBodyHeight: CGFloat = 190
 
     var expandedBodyHeight: CGFloat {
@@ -52,11 +59,19 @@ final class NotchModel: ObservableObject {
         return Self.normalBodyHeight
     }
 
+    /// Viên nổi (màn không có notch + Cài đặt "Viên nổi"): bo tròn hết, cách mép trên `topGap`.
+    @Published private(set) var pill = false
+    static let pillGap: CGFloat = 5
+    var topGap: CGFloat { pill ? Self.pillGap : 0 }
+
     var topRadius: CGFloat { expanded ? 14 : 6 }
-    var bottomRadius: CGFloat { expanded ? 24 : 10 }
+    /// Viên nổi: thu gọn = con nhộng (bán kính bị kẹp ở nửa chiều cao), mở = chữ nhật bo góc.
+    var bottomRadius: CGFloat { pill ? (expanded ? 22 : 99) : (expanded ? 24 : 10) }
 
     /// Thú cưng ngồi ở cánh phải khi notch thu gọn (không che thông báo nhanh).
-    var petShown: Bool { SettingsStore.shared.showPet && !expanded }
+    var petShown: Bool {
+        SettingsStore.shared.showPet && !expanded && !minimal && !SystemMonitor.shared.lowPower
+    }
     var petWing: CGFloat { petShown ? notchSize.height : 0 }
     /// Cánh thú cưng chỉ thêm bên phải: dời khung sang phải nửa cánh để mép trái vẫn khớp notch.
     var shapeOffsetX: CGFloat { petWing / 2 }
@@ -69,14 +84,16 @@ final class NotchModel: ObservableObject {
             let menuBar = screen.frame.maxY - screen.visibleFrame.maxY
             notchSize = CGSize(width: 190, height: menuBar > 0 ? menuBar : 24)
         }
+        let wantPill = top == 0 && SettingsStore.shared.noNotchStyle == .pill
+        if pill != wantPill { pill = wantPill }
     }
 
     /// Kích thước khung shape (đã gồm 2 "tai" ở mép trên).
     func shapeSize(playing: Bool) -> CGSize {
         if expanded {
-            return CGSize(width: Self.expandedWidth * Self.scale, height: (notchSize.height + expandedBodyHeight) * Self.scale)
+            return CGSize(width: Self.expandedWidth * Self.scale, height: notchSize.height + expandedBodyHeight * Self.scale)
         }
-        let wings = peek.map { $0.wing * 2 } ?? (playing ? notchSize.height * 2 : 0)
+        let wings = minimal ? 0 : peek.map { $0.wing * 2 } ?? (playing ? notchSize.height * 2 : 0)
         return CGSize(width: notchSize.width + topRadius * 2 + wings + petWing, height: notchSize.height)
     }
 }

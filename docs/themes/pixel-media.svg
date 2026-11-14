@@ -1072,7 +1072,7 @@
 <rect x="72" y="32" width="1136" height="8" fill="#1d1b33"/>
 <rect x="72" y="40" width="8" height="420" fill="#1d1b33"/><rect x="1200" y="40" width="8" height="420" fill="#1d1b33"/>
 <rect x="80" y="40" width="1120" height="32" fill="#ffffff" opacity=".18"/>
-<text x="104" y="62" font-family="VT323, Menlo, monospace" font-size="20" fill="#fff">NOTCH  FILE  EDIT  VIEW</text>
+<text x="104" y="62" font-family="VT323, Menlo, monospace" font-size="20" fill="#fff">ROOST  FILE  EDIT  VIEW</text>
 <text x="1176" y="62" font-family="VT323, Menlo, monospace" font-size="20" fill="#fff" text-anchor="end">FRI 13  09:41</text>
 <polygon points="292,40 988,40 988,324 988,324 980,324 980,332 972,332 972,340 964,340 964,348 316,348 316,348 316,340 308,340 308,332 300,332 300,324 292,324" fill="#e8e0ff"/>
 <polygon points="308,56 988,56 988,332 988,332 980,332 980,340 972,340 972,348 964,348 964,356 332,356 332,356 332,348 324,348 324,340 316,340 316,332 308,332" fill="#05040c" opacity=".55"/>
@@ -1347,7 +1347,7 @@
 <rect x="458" y="235" width="9" height="9" fill="#1d3a7a"/>
 <rect x="467" y="235" width="9" height="9" fill="#2f5fb3"/>
 <text x="512" y="120" font-family="VT323, Menlo, monospace" font-size="28" fill="#fff">LATE NIGHT LO-FI</text>
-<text x="512" y="148" font-family="VT323, Menlo, monospace" font-size="21" fill="#8f86c9">NOTCH FM</text>
+<text x="512" y="148" font-family="VT323, Menlo, monospace" font-size="21" fill="#8f86c9">ROOST FM</text>
 <rect class="eq" x="612" y="130" width="6" height="18" fill="#ffb36b"/>
 <rect class="eq e2" x="622" y="130" width="6" height="18" fill="#ffb36b"/>
 <rect class="eq e3" x="632" y="130" width="6" height="18" fill="#ffb36b"/>
@@ -1517,8 +1517,8 @@
 <text x="788" y="252" font-family="VT323, Menlo, monospace" font-size="18" fill="#fff">SHIP V1.0</text>
 <text x="788" y="267" font-family="VT323, Menlo, monospace" font-size="15" fill="#8f86c9">14:00-15:00</text>
 <text class="blink" x="640" y="426" font-family="VT323, Menlo, monospace" font-size="25" fill="#ffe66d" text-anchor="middle">PRESS OPT+SPACE</text>
-<text x="640" y="538" font-family="VT323, Menlo, monospace" font-size="48" fill="#ff6ea8" text-anchor="middle">NOTCH · 8-BIT MODE</text>
-<text x="640" y="572" font-family="VT323, Menlo, monospace" font-size="20" fill="#8f86c9" text-anchor="middle">PIXEL UI CONCEPT — MUSIC · CALENDAR · MEET</text>
+<text x="640" y="538" font-family="VT323, Menlo, monospace" font-size="48" fill="#ff6ea8" text-anchor="middle">NHẠC VÀ LỊCH KIỂU 8-BIT</text>
+<text x="640" y="572" font-family="VT323, Menlo, monospace" font-size="20" fill="#8f86c9" text-anchor="middle">BÀI ĐANG PHÁT, LỊCH TUẦN VÀ NÚT VÀO MEET</text>
 <rect x="0" y="0" width="1280" height="1" fill="#000" opacity=".12"/>
 <rect x="0" y="4" width="1280" height="1" fill="#000" opacity=".12"/>
 <rect x="0" y="8" width="1280" height="1" fill="#000" opacity=".12"/>

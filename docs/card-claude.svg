@@ -18,7 +18,7 @@
     <rect width="640" height="380" fill="#0d0d18"/>
     <circle cx="560" cy="60" r="160" fill="#d97757" opacity=".35" filter="url(#b60)"/>
     <text x="36" y="56" font-size="24" font-weight="800" fill="#fff">Duyệt lệnh Claude ngay trên notch</text>
-    <text x="36" y="84" font-size="14" fill="#fff" opacity=".6">Không cần chuyển Desktop · Cho phép, Từ chối, Luôn cho phép</text>
+    <text x="36" y="84" font-size="14" fill="#fff" opacity=".6">Cho phép, từ chối hoặc luôn cho phép mà không phải chuyển Desktop</text>
 
     <rect x="36" y="112" width="568" height="300" rx="18" fill="url(#wall)"/>
     <rect x="36" y="112" width="568" height="26" fill="#fff" opacity=".18"/>

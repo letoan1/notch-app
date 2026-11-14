@@ -8,6 +8,7 @@ struct NotchRootView: View {
     @ObservedObject var calendar: CalendarStore
     let camera: CameraMirror
     @ObservedObject var settings: SettingsStore
+    @ObservedObject var system = SystemMonitor.shared
 
     private let spring = Animation.spring(response: 0.42, dampingFraction: 0.82)
     // Không dùng macro @Namespace/@State (plugin chỉ có trong Xcode).
@@ -16,7 +17,7 @@ struct NotchRootView: View {
     var body: some View {
         let size = model.shapeSize(playing: media.hasTrack)
         let shape = NotchShape(topRadius: model.topRadius, bottomRadius: model.bottomRadius,
-                               pixel: Theme.isPixel && model.expanded)
+                               pixel: Theme.isPixel && (model.expanded || model.pill), pill: model.pill)
         let notch = model.notchSize
 
         // Nội dung có kích thước cố định ở trạng thái cuối; khung shape lớn dần và "lộ" nó ra
@@ -26,17 +27,22 @@ struct NotchRootView: View {
             if model.expanded {
                 ExpandedView(model: model, media: media, permissions: permissions, tray: tray,
                              calendar: calendar, camera: camera, settings: settings,
-                             notchHeight: notch.height, ns: ns.wrappedValue)
+                             notchHeight: notch.height / NotchModel.scale, ns: ns.wrappedValue)
+                    // Hàng tab chia ngược tỉ lệ → sau khi co giãn vẫn cao đúng bằng notch thật,
+                    // nội dung không lọt vào sau camera ở cỡ Gọn.
                     .frame(width: NotchModel.expandedWidth - 28,
-                           height: notch.height + model.expandedBodyHeight)
+                           height: notch.height / NotchModel.scale + model.expandedBodyHeight)
                     .scaleEffect(NotchModel.scale, anchor: .top)
                     .transition(.notchContent)
+            } else if model.minimal {
+                EmptyView()
             } else if let peek = model.peek {
                 Group {
                     switch peek {
                     case let .charge(charge): ChargeWings(peek: charge, wing: peek.wing)
                     case let .audio(name, symbol): AudioWings(name: name, symbol: symbol, wing: peek.wing)
                     case let .screenshot(thumb): ScreenshotWings(thumb: thumb, wing: peek.wing)
+                    case let .unlocked(name): UnlockWings(name: name, wing: peek.wing)
                     }
                 }
                 .frame(width: notch.width + peek.wing * 2, height: notch.height)
@@ -53,18 +59,40 @@ struct NotchRootView: View {
                     .frame(width: model.petWing, height: notch.height)
                     .padding(.trailing, model.topRadius)
                     .frame(maxWidth: .infinity, alignment: .trailing)
-                    .transition(.opacity)
+                    .transition(.notchContent)
             }
         }
         .frame(width: size.width, height: size.height, alignment: .top)
         .clipShape(shape)
         .overlay(shape.stroke(Theme.isPixel ? PixelPalette.border.opacity(model.expanded ? 1 : 0) : Color.white.opacity(model.expanded ? 0.08 : 0),
                               lineWidth: Theme.isPixel ? 3 : 1))
-        .shadow(color: .black.opacity(model.expanded ? 0.6 : 0), radius: 18, y: 8)
-        .offset(x: model.shapeOffsetX)
+        // Bóng đổ chỉ tính trên khung (không trên cả nội dung) → co / giãn không phải dựng lại bóng của
+        // ảnh bìa, lịch, chữ ở mỗi khung hình.
+        .background {
+            shape.fill(Color.black)
+                // Viên nổi tách khỏi mép trên → có bóng nhẹ cả khi thu gọn.
+                .shadow(color: .black.opacity(model.expanded ? 0.6 : model.pill && !model.minimal ? 0.35 : 0),
+                        radius: model.expanded ? 18 : 6, y: model.expanded ? 8 : 2)
+        }
+        // Quầng sáng màu ảnh bìa: chỉ khi thu gọn, hiện dần sau khi co xong (không làm nhoè khung đang co).
+        .background {
+            if settings.ambientGlow, media.isPlaying, media.artwork != nil, !model.expanded, !model.minimal, !system.lowPower {
+                shape.fill(media.accent)
+                    .blur(radius: 9)
+                    .opacity(0.7)
+                    .transition(.asymmetric(insertion: .opacity.animation(.easeIn(duration: 0.4).delay(0.35)),
+                                            removal: .opacity.animation(.easeOut(duration: 0.08))))
+            }
+        }
+        .animation(.easeInOut(duration: 0.6), value: media.accent)
+        // "Nuốt" file vừa bay tới: phình nhẹ rồi nảy về.
+        .scaleEffect(model.gulp ? 1.04 : 1, anchor: .top)
+        .animation(.spring(response: 0.22, dampingFraction: 0.45), value: model.gulp)
+        .offset(x: model.shapeOffsetX, y: model.topGap)
         .animation(spring, value: settings.showPet)
         .animation(spring, value: settings.expandedSize)
-        .animation(spring, value: model.expanded)
+        .animation(model.expanded ? .spring(response: 0.46, dampingFraction: 0.72)
+                                  : .spring(response: 0.3, dampingFraction: 0.9), value: model.expanded)
         .animation(spring, value: model.tall)
         .animation(spring, value: model.mirrorMode)
         .animation(spring, value: model.peek)
@@ -87,8 +115,11 @@ extension AnyTransition {
             insertion: .modifier(active: BlurModifier(radius: 8), identity: BlurModifier(radius: 0))
                 .combined(with: .opacity)
                 .combined(with: .scale(scale: 0.92, anchor: .top))
-                .animation(.spring(response: 0.4, dampingFraction: 0.86).delay(0.06)),
-            removal: .opacity.animation(.easeIn(duration: 0.1))
+                .animation(.spring(response: 0.4, dampingFraction: 0.86).delay(0.14)),
+            // Đóng: mờ + thu nhẹ về mép trên cùng nhịp với khung, không biến mất cụt.
+            removal: .opacity
+                .combined(with: .scale(scale: 0.94, anchor: .top))
+                .animation(.easeOut(duration: 0.15))
         )
     }
 }
@@ -274,6 +305,8 @@ struct ExpandedView: View {
     @ObservedObject var settings: SettingsStore
     let notchHeight: CGFloat
     let ns: Namespace.ID
+    /// Hiện lần lượt: hàng tab trước, nội dung sau (chỉ chạy lúc mở).
+    var shown = State(initialValue: false)
 
     var body: some View {
         VStack(spacing: 0) {
@@ -296,8 +329,12 @@ struct ExpandedView: View {
                         model.tab = .mirror
                     }
                 }
+                if permissions.requests.count > 1 {
+                    QueueStrip(requests: permissions.requests)
+                        .padding(.leading, 6)
+                }
                 Spacer()
-                if settings.showPet {
+                if settings.showPet, !SystemMonitor.shared.lowPower {
                     // Notch mở: thú cưng lên hàng tab (Claude hỏi vẫn thấy nó giật mình); bấm để vuốt ve.
                     PetView().frame(width: 34, height: notchHeight)
                 }
@@ -316,11 +353,15 @@ struct ExpandedView: View {
                         .foregroundStyle(.white.opacity(0.5))
                 }
                 .buttonStyle(.plain)
-                .help(L("Thoát Notch", "Quit Notch"))
+                .help(L("Thoát Roost", "Quit Roost"))
             }
             .padding(.horizontal, 18)
             .frame(height: notchHeight)
+            .opacity(shown.wrappedValue ? 1 : 0)
+            .offset(y: shown.wrappedValue ? 0 : -5)
+            .animation(.spring(response: 0.36, dampingFraction: 0.85).delay(0.05), value: shown.wrappedValue)
 
+            Group {
             if let request = permissions.current, let questions = request.questions, !questions.isEmpty {
                 QuestionCard(request: request, questions: questions,
                              answer: { permissions.answer(request, $0) },
@@ -391,7 +432,12 @@ struct ExpandedView: View {
                     }
                 }
             }
+            }
+            .opacity(shown.wrappedValue ? 1 : 0)
+            .offset(y: shown.wrappedValue ? 0 : 10)
+            .animation(.spring(response: 0.42, dampingFraction: 0.82).delay(0.11), value: shown.wrappedValue)
         }
+        .onAppear { shown.wrappedValue = true }
         // Neo lên trên: tab nào thấp hơn thì hàng tab cũng không bị đẩy xuống.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         // Thả file vào bất kỳ đâu trên notch đang mở đều vào khay.
@@ -401,10 +447,90 @@ struct ExpandedView: View {
         )) { providers in
             guard settings.showTray else { return false }
             Haptics.tap(.alignment)
-            tray.accept(providers)
+            // Điểm thả (toạ độ màn hình) = nơi file bắt đầu bay vào khay.
+            tray.accept(providers, at: NSEvent.mouseLocation)
             model.tab = .tray
             return true
         }
+    }
+}
+
+/// Nhiều yêu cầu của Claude cùng chờ: ‹ 2/3 › + một chip cho mỗi yêu cầu; bấm chip / mũi tên để xem thẻ đó.
+/// Mỗi thẻ giữ kết nối riêng, đổi thẻ không trả lời thẻ nào.
+struct QueueStrip: View {
+    let requests: [PermissionRequest]
+    @ObservedObject private var center: PermissionCenter
+    private let claude = Color(red: 0.85, green: 0.47, blue: 0.34)
+
+    init(requests: [PermissionRequest], center: PermissionCenter? = nil) {
+        self.requests = requests
+        self.center = center ?? PermissionCenter.active ?? PermissionCenter()
+    }
+
+    private var list: [PermissionRequest] { center.requests.isEmpty ? requests : center.requests }
+    private var selectedIndex: Int { list.firstIndex { $0.id == center.current?.id } ?? 0 }
+
+    var body: some View {
+        let cassette = Theme.isCassette
+        HStack(spacing: 4) {
+            arrow("chevron.left") { center.selectNext(-1) }
+            Text("\(selectedIndex + 1)/\(list.count)")
+                .font(.ui(10, weight: .bold).monospacedDigit())
+                .foregroundStyle(cassette ? CassettePalette.ink : .white)
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(cassette ? AnyView(RoundedRectangle(cornerRadius: 2).fill(CassettePalette.note))
+                                     : AnyView(Capsule().fill(claude)))
+            arrow("chevron.right") { center.selectNext(1) }
+            ForEach(Array(list.enumerated().prefix(4)), id: \.element.id) { i, r in
+                chip(i, r, selected: i == selectedIndex)
+            }
+            if list.count > 4 {
+                Text("+\(list.count - 4)")
+                    .font(.ui(10, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+        }
+        .frame(maxWidth: 260, alignment: .leading)
+    }
+
+    private func arrow(_ symbol: String, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(.white.opacity(0.6))
+                .frame(width: 14, height: 18)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func chip(_ i: Int, _ r: PermissionRequest, selected: Bool) -> some View {
+        let cassette = Theme.isCassette
+        return Button { center.select(r.id) } label: {
+            HStack(spacing: 3) {
+                Image(systemName: r.state.isWaiting ? r.kindSymbol : r.state.symbol)
+                    .font(.system(size: 8, weight: .bold))
+                Text(r.project.isEmpty ? "\(i + 1)" : r.project)
+                    .font(.ui(10, weight: selected ? .bold : .medium))
+                    .lineLimit(1)
+                    .frame(maxWidth: 64)
+            }
+            .foregroundStyle(cassette ? CassettePalette.ink : .white.opacity(selected ? 0.95 : 0.6))
+            .padding(.horizontal, 6).padding(.vertical, 2)
+            .background {
+                if cassette {
+                    RoundedRectangle(cornerRadius: 2).fill(selected ? CassettePalette.note : CassettePalette.key)
+                } else if Theme.isPixel {
+                    Rectangle().strokeBorder(selected ? PixelPalette.pink : PixelPalette.dim, lineWidth: 2)
+                } else {
+                    Capsule().fill(.white.opacity(selected ? 0.22 : 0.1))
+                }
+            }
+            .opacity(r.state.isWaiting ? 1 : 0.55)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help("\(r.kindTitle): \(r.summary)\n\(r.originHelp)")
     }
 }
 
@@ -434,6 +560,10 @@ struct TabPill: View {
                         .padding(.horizontal, 3.5)
                         .frame(minWidth: 13, minHeight: 13)
                         .background(Capsule().fill(.white.opacity(0.9)))
+                        // Đổi số → bản mới nảy từ to về (file vừa bay vào khay).
+                        .id(badge)
+                        .transition(.asymmetric(insertion: .scale(scale: 1.7).combined(with: .opacity),
+                                                removal: .opacity))
                         .offset(x: 3, y: -3)
                 }
             }
@@ -456,7 +586,7 @@ struct PlayerView: View {
                 .background(ArtworkGlow(image: media.artwork))
                 .contentShape(Rectangle())
                 .onTapGesture { media.openPlayer() }
-                .help(L("Mở \(track.player.rawValue)", "Open \(track.player.rawValue)"))
+                .help(L("Mở \(track.appName)", "Open \(track.appName)"))
 
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 3) {
@@ -507,59 +637,204 @@ struct ProgressRow: View {
         self.seek = seek
     }
 
+    // Thanh chạy bằng Core Animation (LiveProgressBar), chữ thời gian chỉ dựng lại khi sang giây mới.
+    // Bản TimelineView 10 khung/giây làm cả notch layout lại liên tục: ~10% CPU khi mở lúc đang phát.
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !track.isPlaying && drag.wrappedValue == nil)) { ctx in
-            let live = track.duration > 0 ? track.position(at: ctx.date) / track.duration : 0
-            let ratio = drag.wrappedValue ?? live
-            let active = hover.wrappedValue || drag.wrappedValue != nil
-            HStack(spacing: 8) {
-                Text(Self.format(ratio * track.duration))
-                GeometryReader { geo in
-                    bar(ratio: ratio, active: active, width: geo.size.width)
-                        .frame(height: active && !Theme.isPixel ? 7 : 5)
-                        .frame(maxHeight: .infinity)
-                        .contentShape(Rectangle())
-                        .gesture(DragGesture(minimumDistance: 0)
-                            .onChanged { drag.wrappedValue = min(max($0.location.x / geo.size.width, 0), 1) }
-                            .onEnded { v in
-                                let r = min(max(v.location.x / geo.size.width, 0), 1)
-                                seek?(r * track.duration)
-                                drag.wrappedValue = nil
-                            })
+        let dragging = drag.wrappedValue
+        let active = hover.wrappedValue || dragging != nil
+        HStack(spacing: 8) {
+            if let dragging {
+                Text(Self.format(dragging * track.duration))
+            } else {
+                TimelineView(SecondTicks(track: track)) { ctx in
+                    Text(Self.format(track.position(at: ctx.date)))
                 }
-                .frame(height: 14)
-                .onHover { hover.wrappedValue = $0 && seek != nil }
-                .animation(.easeOut(duration: 0.12), value: active)
-                Text(Self.format(track.duration))
             }
-            .font(.ui(11, weight: .medium).monospacedDigit())
-            .foregroundStyle(.white.opacity(0.55))
+            GeometryReader { geo in
+                bar(dragging: dragging, active: active)
+                    .frame(height: active && !Theme.isPixel ? 7 : 5)
+                    .frame(maxHeight: .infinity)
+                    .contentShape(Rectangle())
+                    .gesture(DragGesture(minimumDistance: 0)
+                        .onChanged { drag.wrappedValue = min(max($0.location.x / geo.size.width, 0), 1) }
+                        .onEnded { v in
+                            let r = min(max(v.location.x / geo.size.width, 0), 1)
+                            seek?(r * track.duration)
+                            drag.wrappedValue = nil
+                        })
+            }
+            .frame(height: 14)
+            .onHover { hover.wrappedValue = $0 && seek != nil }
+            .animation(.easeOut(duration: 0.12), value: active)
+            Text(Self.format(track.duration))
         }
+        .font(.ui(11, weight: .medium).monospacedDigit())
+        .foregroundStyle(.white.opacity(0.55))
     }
 
-    @ViewBuilder private func bar(ratio: Double, active: Bool, width: CGFloat) -> some View {
+    @ViewBuilder private func bar(dragging: Double?, active: Bool) -> some View {
         if Theme.isPixel {
-            PixelSegments(ratio: ratio, accent: PixelPalette.pink)
-        } else {
-            ZStack(alignment: .leading) {
-                Capsule().fill(.white.opacity(0.2))
-                Capsule()
-                    .fill(LinearGradient(colors: [accent.opacity(0.75), accent],
-                                         startPoint: .leading, endPoint: .trailing))
-                    .frame(width: width * ratio)
-                if active {
-                    Circle().fill(.white)
-                        .frame(width: 11, height: 11)
-                        .shadow(color: .black.opacity(0.4), radius: 2)
-                        .offset(x: min(max(width * ratio - 5.5, -2), width - 9))
+            // 16 ô: mỗi ô đổi màu vài giây một lần, cập nhật theo giây là đủ.
+            if let dragging {
+                PixelSegments(ratio: dragging, accent: PixelPalette.pink)
+            } else {
+                TimelineView(SecondTicks(track: track)) { ctx in
+                    PixelSegments(ratio: track.duration > 0 ? track.position(at: ctx.date) / track.duration : 0,
+                                  accent: PixelPalette.pink)
                 }
             }
+        } else {
+            LiveProgressBar(track: track, accent: accent, knob: active, override: dragging)
         }
     }
 
     static func format(_ seconds: Double) -> String {
         let s = Int(seconds.rounded(.down))
         return String(format: "%d:%02d", s / 60, s % 60)
+    }
+}
+
+/// Mốc thời gian đúng lúc vị trí bài hát sang giây mới (đang dừng thì chỉ một mốc).
+struct SecondTicks: TimelineSchedule {
+    let track: Track
+
+    func entries(from start: Date, mode: TimelineScheduleMode) -> AnyIterator<Date> {
+        var first = true
+        guard track.isPlaying else {
+            return AnyIterator { defer { first = false }; return first ? start : nil }
+        }
+        let pos = track.position(at: start)
+        var next = start.addingTimeInterval(floor(pos) + 1 - pos + 0.01)
+        return AnyIterator {
+            if first { first = false; return start }
+            defer { next = next.addingTimeInterval(1) }
+            return next
+        }
+    }
+}
+
+/// Thanh tiến độ do render server tự chạy: app chỉ đặt lại animation khi bài, vị trí, trạng thái
+/// phát hoặc kích thước đổi, không phải dựng lại view mỗi khung hình.
+struct LiveProgressBar: NSViewRepresentable {
+    let track: Track
+    let accent: Color
+    let knob: Bool
+    /// Đang kéo: đứng yên ở tỉ lệ này.
+    let override: Double?
+
+    func makeNSView(context: Context) -> LiveProgressView { LiveProgressView() }
+
+    func updateNSView(_ view: LiveProgressView, context: Context) {
+        view.update(track: track, accent: NSColor(accent), knob: knob, override: override)
+    }
+}
+
+final class LiveProgressView: NSView {
+    private let rail = CALayer()
+    private let fill = CAGradientLayer()
+    private let thumb = CALayer()
+    private var track: Track?
+    private var override: Double?
+    private var accent: NSColor = .white
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        rail.backgroundColor = NSColor.white.withAlphaComponent(0.2).cgColor
+        fill.startPoint = CGPoint(x: 0, y: 0.5)
+        fill.endPoint = CGPoint(x: 1, y: 0.5)
+        fill.anchorPoint = CGPoint(x: 0, y: 0.5)
+        thumb.backgroundColor = NSColor.white.cgColor
+        thumb.shadowColor = NSColor.black.cgColor
+        thumb.shadowOpacity = 0.4
+        thumb.shadowRadius = 2
+        thumb.shadowOffset = .zero
+        thumb.isHidden = true
+        for l in [rail, fill, thumb] { layer?.addSublayer(l) }
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    override var isFlipped: Bool { true }
+
+    func update(track: Track, accent: NSColor, knob: Bool, override: Double?) {
+        let changed = self.track.map { !Self.sameRun($0, track) } ?? true
+        let accentChanged = accent != self.accent
+        let wasDragging = self.override != nil
+        self.track = track
+        self.override = override
+        self.accent = accent
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        if accentChanged || fill.colors == nil {
+            fill.colors = [accent.withAlphaComponent(0.75).cgColor, accent.cgColor]
+        }
+        thumb.isHidden = !knob
+        CATransaction.commit()
+        if changed || override != nil || wasDragging || accentChanged { restart() }
+    }
+
+    /// Cùng một đoạn chạy liên tục: không cần đặt lại animation.
+    private static func sameRun(_ a: Track, _ b: Track) -> Bool {
+        a.isPlaying == b.isPlaying && a.duration == b.duration && a.title == b.title
+            && abs(a.position(at: Date()) - b.position(at: Date())) < 0.25
+    }
+
+    override func layout() {
+        super.layout()
+        restart()
+    }
+
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        let scale = window?.backingScaleFactor ?? 2
+        for l in [layer, rail, fill, thumb] { l?.contentsScale = scale }
+    }
+
+    private func restart() {
+        guard let track else { return }
+        let w = bounds.width, h = bounds.height
+        guard w > 0, h > 0 else { return }
+        let now = Date()
+        let dur = max(track.duration, 0.001)
+        let ratio = override ?? min(max(track.position(at: now) / dur, 0), 1)
+        let knobSize: CGFloat = 11
+        let knobX = { (r: Double) in min(max(w * r - knobSize / 2, -2), w - 9) + knobSize / 2 }
+
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        rail.frame = bounds
+        rail.cornerRadius = h / 2
+        fill.cornerRadius = h / 2
+        fill.removeAnimation(forKey: "run")
+        thumb.removeAnimation(forKey: "run")
+        fill.bounds = CGRect(x: 0, y: 0, width: w * ratio, height: h)
+        fill.position = CGPoint(x: 0, y: h / 2)
+        thumb.bounds = CGRect(x: 0, y: 0, width: knobSize, height: knobSize)
+        thumb.cornerRadius = knobSize / 2
+        thumb.position = CGPoint(x: knobX(ratio), y: h / 2)
+
+        let remaining = track.duration - track.position(at: now)
+        if override == nil, track.isPlaying, remaining > 0.05 {
+            let begin = CACurrentMediaTime()
+            let grow = CABasicAnimation(keyPath: "bounds.size.width")
+            grow.fromValue = w * ratio
+            grow.toValue = w
+            let slide = CABasicAnimation(keyPath: "position.x")
+            slide.fromValue = knobX(ratio)
+            slide.toValue = knobX(1)
+            for (a, l) in [(grow, fill as CALayer), (slide, thumb)] {
+                a.beginTime = begin
+                a.duration = remaining
+                a.timingFunction = CAMediaTimingFunction(name: .linear)
+                a.fillMode = .forwards
+                a.isRemovedOnCompletion = false
+                // Thanh chỉ nhích vài pt mỗi giây: không cần 60 khung/giây.
+                a.preferredFrameRateRange = CAFrameRateRange(minimum: 8, maximum: 30, preferred: 15)
+                l.add(a, forKey: "run")
+            }
+        }
+        CATransaction.commit()
     }
 }
 
@@ -597,8 +872,20 @@ struct Artwork: View {
         ZStack {
             RoundedRectangle(cornerRadius: Theme.isPixel ? 2 : corner).fill(.white.opacity(0.1))
             if let image {
-                Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
-                    .transition(.opacity)
+                // Khung luôn giữ đúng kích thước (ảnh không làm giãn khung). Ảnh ngang kiểu video
+                // (YouTube 16:9): hiện trọn khung hình, nền là chính ảnh làm mờ; ảnh vuông thì lấp đầy.
+                Group {
+                    if image.size.width > image.size.height * 1.15 {
+                        Color.clear
+                            .overlay(Image(nsImage: image).resizable().aspectRatio(contentMode: .fill)
+                                .blur(radius: 8).opacity(0.7))
+                            .overlay(Image(nsImage: image).resizable().aspectRatio(contentMode: .fit))
+                    } else {
+                        Color.clear
+                            .overlay(Image(nsImage: image).resizable().aspectRatio(contentMode: .fill))
+                    }
+                }
+                .transition(.opacity)
             } else {
                 Image(systemName: "music.note").foregroundStyle(.white.opacity(0.5))
             }
@@ -625,7 +912,14 @@ struct EqualizerBars: NSViewRepresentable {
 }
 
 final class EqualizerLayerView: NSView {
-    private static let speeds: [Double] = [0.42, 0.31, 0.5, 0.36]
+    /// Sóng giả lập: mỗi cột đi qua nhiều độ cao, nội suy cong (chậm, mượt), các cột lệch nhịp nhau.
+    private static let levels: [[Double]] = [
+        [0.35, 0.8, 0.5, 0.95, 0.4, 0.7, 0.35],
+        [0.6, 0.35, 0.9, 0.55, 0.75, 0.4, 0.6],
+        [0.45, 0.95, 0.6, 0.4, 0.85, 0.5, 0.45],
+        [0.7, 0.45, 0.75, 0.95, 0.5, 0.35, 0.7],
+    ]
+    private static let periods: [Double] = [2.6, 3.1, 2.8, 3.4]
     private static let barWidth: CGFloat = 2, gap: CGFloat = 1.5, barHeight: CGFloat = 9
     private var bars: [CALayer] = []
 
@@ -711,13 +1005,13 @@ final class EqualizerLayerView: NSView {
         faking = on
         for (i, bar) in bars.enumerated() {
             if on {
-                let anim = CABasicAnimation(keyPath: "transform.scale.y")
-                anim.fromValue = 0.3
-                anim.toValue = 1
-                anim.duration = Self.speeds[i]
-                anim.autoreverses = true
+                let anim = CAKeyframeAnimation(keyPath: "transform.scale.y")
+                anim.values = Self.levels[i]
+                anim.calculationMode = .cubic
+                anim.duration = Self.periods[i]
+                anim.timeOffset = Self.periods[i] * Double(i) / 4
                 anim.repeatCount = .infinity
-                anim.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+                anim.preferredFrameRateRange = CAFrameRateRange(minimum: 20, maximum: 60, preferred: 30)
                 bar.add(anim, forKey: "eq")
             } else {
                 bar.removeAnimation(forKey: "eq")

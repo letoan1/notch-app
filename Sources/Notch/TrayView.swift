@@ -15,15 +15,22 @@ struct TrayView: View {
     var body: some View {
         HStack(spacing: 16) {
             if !tray.files.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 14) {
-                        ForEach(tray.files, id: \.self) { url in
-                            TrayTile(url: url, remove: { tray.remove(url) }, onMenu: { menu.wrappedValue = .init(url: url, point: $0) })
+                VStack(alignment: .leading, spacing: 2) {
+                    TrayFilterBar(tray: tray)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 14) {
+                            ForEach(tray.visibleFiles, id: \.self) { url in
+                                TrayTile(url: url, tray: tray, selected: tray.selection.contains(url),
+                                         remove: { tray.remove(url) }, onMenu: { menu.wrappedValue = .init(url: url, point: $0) })
+                                    .transition(.scale(scale: 0.3).combined(with: .opacity))
+                            }
                         }
+                        .padding(.horizontal, 2)
+                        .frame(maxHeight: .infinity)
                     }
-                    .padding(.horizontal, 2)
-                    .frame(maxHeight: .infinity)
                 }
+                // Bấm chỗ trống: bỏ chọn.
+                .background(Color.black.opacity(0.001).onTapGesture { tray.selection = [] })
             }
             DropZone(targeted: targeted, wide: tray.files.isEmpty)
                 .frame(width: tray.files.isEmpty ? nil : 150)
@@ -44,6 +51,18 @@ private struct DropZone: View {
     let targeted: Bool
     let wide: Bool
     private var phase = State(initialValue: CGFloat(0))
+
+    private func march(_ on: Bool) {
+        if on {
+            withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) {
+                phase.wrappedValue = Theme.isPixel ? -32 : -24  // đúng 2 chu kỳ dash (8+8 hoặc 7+5) để vòng lặp không giật
+            }
+        } else {
+            var t = Transaction()
+            t.disablesAnimations = true
+            withTransaction(t) { phase.wrappedValue = 0 }
+        }
+    }
 
     init(targeted: Bool, wide: Bool) {
         self.targeted = targeted
@@ -69,22 +88,24 @@ private struct DropZone: View {
                 .foregroundStyle(.white.opacity(targeted ? 1 : 0.85))
             )
             .scaleEffect(targeted ? 1.03 : 1)
-            .onAppear {
-                withAnimation(.linear(duration: 1).repeatForever(autoreverses: false)) {
-                    phase.wrappedValue = Theme.isPixel ? -32 : -24  // đúng 2 chu kỳ dash (8+8 hoặc 7+5) để vòng lặp không giật
-                }
-            }
+            // Viền chạy chỉ khi đang kéo file vào: chạy suốt thì SwiftUI vẽ lại mỗi khung hình (~8% CPU khi mở khay).
+            .onAppear { if targeted { march(true) } }
+            .onChange(of: targeted) { _, on in march(on) }
     }
 }
 
 private struct TrayTile: View {
     let url: URL
+    @ObservedObject var tray: TrayStore
+    let selected: Bool
     let remove: () -> Void
     let onMenu: (CGPoint) -> Void
     private var hover = State(initialValue: false)
 
-    init(url: URL, remove: @escaping () -> Void, onMenu: @escaping (CGPoint) -> Void) {
+    init(url: URL, tray: TrayStore, selected: Bool, remove: @escaping () -> Void, onMenu: @escaping (CGPoint) -> Void) {
         self.url = url
+        self.tray = tray
+        self.selected = selected
         self.remove = remove
         self.onMenu = onMenu
     }
@@ -112,6 +133,9 @@ private struct TrayTile: View {
         .padding(.vertical, 6)
         .padding(.horizontal, 2)
         .background(RoundedRectangle(cornerRadius: 10).fill(.white.opacity(hover.wrappedValue ? 0.08 : 0)))
+        .background(TraySelectionMark(selected: selected))
+        // Click / ⌘-click / double-click / kéo nhiều file (AppKit); nằm dưới nút ✕.
+        .overlay(TrayItemInteraction(url: url, tray: tray))
         .overlay(alignment: .topTrailing) {
             if hover.wrappedValue {
                 Button(action: remove) {
@@ -125,10 +149,8 @@ private struct TrayTile: View {
         }
         .contentShape(Rectangle())
         .onHover { hover.wrappedValue = $0 }
-        .onTapGesture(count: 2) { NSWorkspace.shared.open(url) }
-        .onDrag { NSItemProvider(object: url as NSURL) }
-        .fileMenu(url: url, remove: remove, onThemed: onMenu)
-        .help(url.path)
+        .fileMenu(url: url, remove: remove, quickLook: { TrayQuickLook.shared.show(tray.targets(for: url)) },
+                  onThemed: onMenu)
     }
 }
 
@@ -211,8 +233,10 @@ private struct DocFold: Shape {
 struct ShareMenu: View {
     let url: URL
     let remove: () -> Void
+    let quickLook: () -> Void
 
     var body: some View {
+        Button(L("Xem nhanh", "Quick Look"), action: quickLook)
         Button(L("Mở", "Open")) { NSWorkspace.shared.open(url) }
         Button(L("Hiện trong Finder", "Show in Finder")) {
             NSWorkspace.shared.activateFileViewerSelecting([url])
@@ -249,9 +273,10 @@ extension State where Value == TrayMenuTarget? {
 
 extension View {
     /// Theme mặc định: menu gốc macOS. Pixel / Cassette: bắt chuột phải để hiện ThemedMenu.
-    @ViewBuilder func fileMenu(url: URL, remove: @escaping () -> Void, onThemed: @escaping (CGPoint) -> Void) -> some View {
+    @ViewBuilder func fileMenu(url: URL, remove: @escaping () -> Void, quickLook: @escaping () -> Void,
+                               onThemed: @escaping (CGPoint) -> Void) -> some View {
         if Theme.current == .standard {
-            contextMenu { ShareMenu(url: url, remove: remove) }
+            contextMenu { ShareMenu(url: url, remove: remove, quickLook: quickLook) }
         } else {
             overlay { RightClickCatcher(action: onThemed) }
         }
@@ -320,6 +345,7 @@ private struct TrayMenuOverlay: ViewModifier {
             ]
         }
         return [
+            .init(title: L("Xem nhanh", "Quick Look"), action: { TrayQuickLook.shared.show(tray.targets(for: url)) }),
             .init(title: L("Mở", "Open"), action: { NSWorkspace.shared.open(url) }),
             .init(title: L("Hiện trong Finder", "Show in Finder"), action: { NSWorkspace.shared.activateFileViewerSelecting([url]) }),
             .init(title: "", action: nil),

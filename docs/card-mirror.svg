@@ -35,8 +35,8 @@
     <rect width="1280" height="400" fill="#0d0d18"/>
     <circle cx="1120" cy="40" r="200" fill="#ffd27a" opacity=".22" filter="url(#b60)"/>
     <circle cx="160" cy="40" r="180" fill="#8b5cf6" opacity=".25" filter="url(#b60)"/>
-    <text x="48" y="66" font-size="28" font-weight="800" fill="#fff">Soi gương trước khi họp, có cả đèn</text>
-    <text x="48" y="98" font-size="15" fill="#fff" opacity=".6">Camera ngay trên notch · đèn viền rọi sáng mặt khi phòng tối · vào Meet một chạm</text>
+    <text x="48" y="66" font-size="28" font-weight="800" fill="#fff">Soi gương trước khi họp</text>
+    <text x="48" y="98" font-size="15" fill="#fff" opacity=".6">Camera hiện ngay trên notch, đèn viền rọi sáng mặt khi phòng tối, bấm một lần là vào Meet</text>
 
     <!-- Màn hình + đèn viền -->
     <rect x="48" y="124" width="1184" height="320" rx="20" fill="url(#wall)"/>
@@ -45,7 +45,7 @@
       <rect class="breathe" x="48" y="124" width="1184" height="320" rx="20" fill="none" stroke="#ffe7c2" stroke-width="90" filter="url(#b18)"/>
       <rect x="48" y="124" width="1184" height="320" rx="20" fill="none" stroke="#fff3df" stroke-width="44"/>
       <g font-size="14" font-weight="600" fill="#fff" opacity=".9">
-        <text x="98" y="300">← Đèn viền: Dịu · Vừa · Mạnh</text>
+        <text x="98" y="300">← Đèn viền có ba mức: Dịu, Vừa, Mạnh</text>
         <text x="1182" y="300" text-anchor="end">Camera tự tắt khi rời tab ✓</text>
       </g>
     </g>

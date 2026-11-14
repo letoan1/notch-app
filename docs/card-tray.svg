@@ -20,7 +20,7 @@
     <rect width="640" height="380" fill="#0d0d18"/>
     <circle cx="580" cy="320" r="170" fill="#22d3ee" opacity=".25" filter="url(#b60)"/>
     <text x="36" y="56" font-size="24" font-weight="800" fill="#fff">Kéo file lên notch, thả ra bất cứ đâu</text>
-    <text x="36" y="84" font-size="14" fill="#fff" opacity=".6">Đổi tên, di chuyển file vẫn còn trong khay · chuột phải để AirDrop / Chia sẻ</text>
+    <text x="36" y="84" font-size="14" fill="#fff" opacity=".6">File đổi tên hay chuyển chỗ vẫn còn trong khay. Chuột phải để AirDrop hoặc chia sẻ.</text>
 
     <rect x="36" y="112" width="568" height="300" rx="18" fill="url(#wall)"/>
     <rect x="36" y="112" width="568" height="26" fill="#fff" opacity=".18"/>

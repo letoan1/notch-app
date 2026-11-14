@@ -34,7 +34,11 @@ enum Player: String, CaseIterable {
 }
 
 struct Track: Equatable {
-    var player: Player
+    /// App đang phát (trình duyệt, Podcasts, Spotify…): mở app, nghe sóng nhạc.
+    var bundleID: String
+    var appName: String
+    /// Spotify / Music: điều khiển được bằng AppleScript khi không có MediaRemote.
+    var player: Player?
     var title: String
     var artist: String
     var album: String
@@ -53,7 +57,7 @@ struct Track: Equatable {
     /// Bỏ qua lệch vị trí nhỏ để không re-render vô ích mỗi lần đọc.
     func sameMoment(as other: Track) -> Bool {
         let now = Date()
-        return player == other.player && title == other.title && artist == other.artist
+        return bundleID == other.bundleID && title == other.title && artist == other.artist
             && album == other.album && isPlaying == other.isPlaying && duration == other.duration
             && abs(position(at: now) - other.position(at: now)) < 1.5
     }
@@ -87,6 +91,8 @@ final class ScriptRunner: @unchecked Sendable {
               let title = d.atIndex(2)?.stringValue, !title.isEmpty
         else { return nil }
         return Track(
+            bundleID: player.bundleID,
+            appName: player.rawValue,
             player: player,
             title: title,
             artist: d.atIndex(3)?.stringValue ?? "",
@@ -100,6 +106,8 @@ final class ScriptRunner: @unchecked Sendable {
     }
 }
 
+/// Bài đang phát. Nguồn chính: MediaRemote qua mediaremote-adapter (mọi app, đẩy theo sự kiện).
+/// Adapter hỏng / không có gì → tự quay về AppleScript cho Spotify / Music như trước.
 @MainActor
 final class NowPlaying: ObservableObject {
     @Published private(set) var track: Track? { didSet { syncSpectrum() } }
@@ -124,6 +132,18 @@ final class NowPlaying: ObservableObject {
     /// Sau khi tua: bỏ qua kết quả đọc còn vị trí cũ (lệch > 2s so với đích) trong 1.5s.
     private var seekTarget: (position: Double, at: Date)?
 
+    // MediaRemote
+    private let adapter = MediaRemoteAdapter()
+    /// Adapter đang chạy và đã in ít nhất 1 dòng.
+    private var adapterLive = false
+    private var adapterTrack: Track?
+    private var latestAdapter: Track?
+    private var reapplyScheduled = false
+    private var adapterFailures = 0
+    private var appNames: [String: String] = [:]
+
+    private var usingAdapter: Bool { adapterLive && adapterTrack != nil }
+
     func start() {
         let center = DistributedNotificationCenter.default()
         for player in Player.allCases {
@@ -131,11 +151,23 @@ final class NowPlaying: ObservableObject {
                 MainActor.assumeIsolated { self?.refresh() }
             }
         }
-        // Notification không bắn khi tua bài, poll chậm để đồng bộ lại vị trí.
-        timer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.refresh() }
+        if let adapter {
+            adapter.onUpdate = { [weak self] snap in
+                Task { @MainActor in self?.receive(snap) }
+            }
+            adapter.onExit = { [weak self] lived in
+                Task { @MainActor in self?.adapterExited(after: lived) }
+            }
+            adapter.start()
+            NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification,
+                                                   object: nil, queue: .main) { [weak adapter] _ in
+                adapter?.stop()
+            }
         }
-        refresh()
+        updateTimer()
+        // Có adapter: đợi dòng đầu tiên của nó (tới ngay) rồi mới tính chuyện AppleScript,
+        // để lúc mở app không gửi Apple event (và không bật hộp thoại quyền) khi MediaRemote đã có bài.
+        if adapter == nil { refresh() }
     }
 
     func playPause() {
@@ -144,40 +176,54 @@ final class NowPlaying: ObservableObject {
             t.position = t.position(at: Date())
             t.fetchedAt = Date()
             t.isPlaying.toggle()
-            track = t
+            setTrack(t)
             expected = (t.isPlaying, Date().addingTimeInterval(2))
         }
-        send("playpause")
+        if usingAdapter { adapter?.playPause() } else { send("playpause") }
     }
 
-    func next() { send("next track") }
+    func next() {
+        if usingAdapter { adapter?.next() } else { send("next track") }
+    }
+
+    func previous() {
+        if usingAdapter { adapter?.previous() } else { send("previous track") }
+    }
 
     /// Chỉ nghe âm thanh khi đang phát + bật trong Cài đặt.
     func syncSpectrum() {
-        let bundle = track?.isPlaying == true && AudioSpectrum.enabled ? track?.player.bundleID : nil
+        let bundle = track?.isPlaying == true && AudioSpectrum.enabled ? track?.bundleID : nil
         AudioSpectrum.shared.follow(bundle)
     }
 
-    /// Tua tới `seconds` (Spotify / Music đều nhận `player position` theo giây).
+    /// Tua tới `seconds`.
     func seek(_ seconds: Double) {
         guard var t = track else { return }
         t.position = seconds
         t.fetchedAt = Date()
-        track = t
+        setTrack(t)
         seekTarget = (seconds, Date())
-        send("set player position to \(String(format: "%.2f", seconds))")
+        if usingAdapter {
+            adapter?.seek(seconds)
+        } else {
+            send("set player position to \(String(format: "%.2f", seconds))")
+        }
     }
 
-    /// Đưa app đang phát (Spotify / Music) lên trước.
+    /// Đưa app đang phát lên trước (trình duyệt, Spotify, Podcasts…).
     func openPlayer() {
-        guard let player = track?.player,
-              let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: player.bundleID)
-        else { return }
-        NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+        guard let bundle = track?.bundleID else { return }
+        if let app = NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first {
+            app.activate()
+        } else if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) {
+            NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+        }
     }
-    func previous() { send("previous track") }
+
+    // MARK: - AppleScript (dự phòng)
 
     func refresh() {
+        guard !usingAdapter else { return }
         if refreshing { pending = true; return }
         refreshing = true
         // Chỉ gửi Apple event khi app đang chạy: `tell application` sẽ tự mở app nếu nó tắt.
@@ -192,6 +238,8 @@ final class NowPlaying: ObservableObject {
 
     private func apply(_ next: Track?) {
         refreshing = false
+        // MediaRemote đã có bài: kết quả AppleScript chạy dở thì bỏ.
+        guard !usingAdapter else { pending = false; return }
         if let e = expected {
             if Date() < e.until, let n = next, n.isPlaying != e.playing {
                 if pending {
@@ -215,13 +263,7 @@ final class NowPlaying: ObservableObject {
             }
             seekTarget = nil
         }
-        let unchanged: Bool
-        switch (track, next) {
-        case (nil, nil): unchanged = true
-        case let (a?, b?): unchanged = a.sameMoment(as: b)
-        default: unchanged = false
-        }
-        if !unchanged { track = next }
+        setTrack(next)
         updateArtwork(for: next)
         if pending { pending = false; refresh() }
     }
@@ -234,13 +276,38 @@ final class NowPlaying: ObservableObject {
         }
     }
 
+    /// Notification không bắn khi tua bài → poll chậm, chỉ khi không có MediaRemote (adapter hỏng / không có).
+    /// Adapter sống mà chưa có bài: Spotify / Music vẫn báo qua distributed notification, không cần poll.
+    private func updateTimer() {
+        if adapterLive {
+            timer?.invalidate()
+            timer = nil
+        } else if timer == nil {
+            let t = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.refresh() }
+            }
+            t.tolerance = 0.5
+            timer = t
+        }
+    }
+
+    private func setTrack(_ next: Track?) {
+        let unchanged: Bool
+        switch (track, next) {
+        case (nil, nil): unchanged = true
+        case let (a?, b?): unchanged = a.sameMoment(as: b)
+        default: unchanged = false
+        }
+        if !unchanged { track = next }
+    }
+
     private func updateArtwork(for track: Track?) {
         guard let track else { artworkKey = ""; artwork = nil; return }
-        let key = "\(track.player.rawValue)|\(track.title)|\(track.album)"
-        guard key != artworkKey else { return }
+        let key = "\(track.bundleID)|\(track.title)|\(track.album)"
+        guard key != artworkKey, let player = track.player else { return }
         artworkKey = key
 
-        switch track.player {
+        switch player {
         case .spotify:
             guard let url = URL(string: track.artworkURL) else { artwork = nil; return }
             Task {
@@ -257,5 +324,104 @@ final class NowPlaying: ObservableObject {
                 }
             }
         }
+    }
+
+    // MARK: - MediaRemote
+
+    private func receive(_ snap: MediaRemoteAdapter.Snapshot?) {
+        let wasLive = adapterLive
+        adapterLive = true
+        if !wasLive { adapterFailures = 0; updateTimer() }
+        guard let snap else {
+            latestAdapter = nil
+            adapterTrack = nil
+            updateTimer()
+            // Không có gì trên MediaRemote: để AppleScript đọc lại (có thể vẫn còn Spotify tạm dừng).
+            setTrack(nil)
+            artworkKey = ""
+            artwork = nil
+            refresh()
+            return
+        }
+        let bundle = snap.parentBundleID ?? snap.bundleID
+        let next = Track(
+            bundleID: bundle,
+            appName: appName(for: bundle),
+            player: Player.allCases.first { $0.bundleID == bundle },
+            title: snap.title,
+            artist: snap.artist,
+            album: snap.album,
+            artworkURL: "",
+            duration: snap.duration,
+            position: snap.elapsed,
+            isPlaying: snap.playing,
+            fetchedAt: snap.timestamp ?? Date()
+        )
+        if snap.artworkChanged || !snap.hasArtwork {
+            artworkKey = "mr"
+            artwork = snap.artwork.flatMap(NSImage.init(data:))
+        }
+        latestAdapter = next
+        applyAdapter()
+    }
+
+    /// Áp bài mới nhất từ MediaRemote, trừ khi nó còn mang trạng thái cũ ngay sau khi bấm / tua.
+    private func applyAdapter() {
+        guard let next = latestAdapter else { return }
+        let now = Date()
+        if let e = expected, now < e.until, next.isPlaying != e.playing {
+            reapply(at: e.until)
+            return
+        }
+        expected = nil
+        if let s = seekTarget {
+            let elapsed = now.timeIntervalSince(s.at)
+            let want = s.position + (next.isPlaying ? elapsed : 0)
+            if elapsed < 1.5, next.title == track?.title, abs(next.position(at: now) - want) > 2 {
+                reapply(at: s.at.addingTimeInterval(1.5))
+                return
+            }
+            seekTarget = nil
+        }
+        adapterTrack = next
+        updateTimer()
+        setTrack(next)
+    }
+
+    private func reapply(at date: Date) {
+        guard !reapplyScheduled else { return }
+        reapplyScheduled = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + max(date.timeIntervalSinceNow, 0.05)) { [weak self] in
+            MainActor.assumeIsolated {
+                self?.reapplyScheduled = false
+                self?.applyAdapter()
+            }
+        }
+    }
+
+    /// Stream chết: thử lại (giãn dần); chết nhanh 3 lần liên tiếp thì bỏ, dùng hẳn AppleScript.
+    private func adapterExited(after lived: TimeInterval) {
+        adapterLive = false
+        adapterTrack = nil
+        latestAdapter = nil
+        if artworkKey == "mr" { artworkKey = "" }
+        updateTimer()
+        refresh()
+        adapterFailures = lived < 10 ? adapterFailures + 1 : 1
+        guard adapterFailures < 3 else { return }
+        let delay = Double(adapterFailures) * 2
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            MainActor.assumeIsolated { self?.adapter?.start() }
+        }
+    }
+
+    private func appName(for bundle: String) -> String {
+        if let cached = appNames[bundle] { return cached }
+        let name = NSRunningApplication.runningApplications(withBundleIdentifier: bundle).first?.localizedName
+            ?? NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle)
+                .map { FileManager.default.displayName(atPath: $0.path).replacingOccurrences(of: ".app", with: "") }
+            ?? bundle
+        appNames[bundle] = name
+        return name
     }
 }

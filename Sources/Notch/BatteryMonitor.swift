@@ -10,6 +10,8 @@ final class BatteryMonitor {
     }
 
     var onPlugIn: ((Status) -> Void)?
+    /// Mọi thay đổi nguồn điện (mức pin, cắm / rút sạc).
+    var onUpdate: ((Status) -> Void)?
 
     private var lastOnAC: Bool?
     private var source: CFRunLoopSource?
@@ -28,6 +30,7 @@ final class BatteryMonitor {
     private func changed() {
         guard let status = Self.read() else { return }
         defer { lastOnAC = status.onAC }
+        onUpdate?(status)
         if status.onAC, lastOnAC == false { onPlugIn?(status) }
     }
 

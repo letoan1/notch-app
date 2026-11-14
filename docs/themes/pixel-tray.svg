@@ -1077,7 +1077,7 @@
 <rect x="72" y="32" width="1136" height="8" fill="#1d1b33"/>
 <rect x="72" y="40" width="8" height="420" fill="#1d1b33"/><rect x="1200" y="40" width="8" height="420" fill="#1d1b33"/>
 <rect x="80" y="40" width="1120" height="32" fill="#ffffff" opacity=".18"/>
-<text x="104" y="62" font-family="VT323, Menlo, monospace" font-size="20" fill="#fff" text-anchor="start">NOTCH  FILE  EDIT  VIEW</text>
+<text x="104" y="62" font-family="VT323, Menlo, monospace" font-size="20" fill="#fff" text-anchor="start">ROOST  FILE  EDIT  VIEW</text>
 <text x="1176" y="62" font-family="VT323, Menlo, monospace" font-size="20" fill="#fff" text-anchor="end">FRI 13  09:41</text>
 <polygon points="292,40 988,40 988,234 988,234 980,234 980,242 972,242 972,250 964,250 964,258 316,258 316,258 316,250 308,250 308,242 300,242 300,234 292,234" fill="#e8e0ff"/>
 <polygon points="308,56 988,56 988,242 988,242 980,242 980,250 972,250 972,258 964,258 964,266 332,266 332,266 332,258 324,258 324,250 316,250 316,242 308,242" fill="#05040c" opacity=".55"/>
@@ -1707,8 +1707,8 @@
 <rect x="896" y="296" width="4" height="4" fill="#ffffff"/>
 <text x="880" y="332" font-family="VT323, Menlo, monospace" font-size="14" fill="#fff" text-anchor="middle">SVG</text>
 </g>
-<text x="640" y="538" font-family="VT323, Menlo, monospace" font-size="48" fill="#ff6ea8" text-anchor="middle">KHAY FILE · 8-BIT MODE</text>
-<text x="640" y="572" font-family="VT323, Menlo, monospace" font-size="20" fill="#8f86c9" text-anchor="middle">KÉO FILE LÊN NOTCH · CHUỘT PHẢI ĐỂ AIRDROP / CHIA SẺ</text>
+<text x="640" y="538" font-family="VT323, Menlo, monospace" font-size="48" fill="#ff6ea8" text-anchor="middle">KHAY FILE KIỂU 8-BIT</text>
+<text x="640" y="572" font-family="VT323, Menlo, monospace" font-size="20" fill="#8f86c9" text-anchor="middle">KÉO FILE LÊN NOTCH, CHUỘT PHẢI ĐỂ AIRDROP HOẶC CHIA SẺ</text>
 <rect x="0" y="0" width="1280" height="1" fill="#000" opacity=".12"/>
 <rect x="0" y="4" width="1280" height="1" fill="#000" opacity=".12"/>
 <rect x="0" y="8" width="1280" height="1" fill="#000" opacity=".12"/>

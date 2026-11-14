@@ -10,10 +10,13 @@ final class AudioDeviceMonitor {
     }
 
     var onConnect: ((Device) -> Void)?
+    /// Đầu ra hiện tại có phải tai nghe không (gọi lúc start và mỗi lần đổi đầu ra).
+    var onHeadphonesChange: ((Bool) -> Void)?
     private var lastID = AudioDeviceID(0)
 
     func start() {
         lastID = Self.defaultOutput()
+        onHeadphonesChange?(Self.isHeadphones(lastID))
         var addr = AudioObjectPropertyAddress(mSelector: kAudioHardwarePropertyDefaultOutputDevice,
                                               mScope: kAudioObjectPropertyScopeGlobal,
                                               mElement: kAudioObjectPropertyElementMain)
@@ -26,9 +29,24 @@ final class AudioDeviceMonitor {
         let id = Self.defaultOutput()
         guard id != 0, id != lastID else { return }
         lastID = id
+        onHeadphonesChange?(Self.isHeadphones(id))
         let wanted = [kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE, kAudioDeviceTransportTypeUSB]
         guard let transport = Self.transport(id), wanted.contains(transport), let name = Self.name(id) else { return }
         onConnect?(Device(name: name, symbol: Self.symbol(name: name, transport: transport)))
+    }
+
+    /// Tai nghe = Bluetooth / USB mà tên không giống loa (JBL Flip, SoundLink, HomePod…).
+    private static func isHeadphones(_ id: AudioDeviceID) -> Bool {
+        guard id != 0, let transport = transport(id), let name = name(id) else { return false }
+        let n = name.lowercased()
+        let speakerWords = ["speaker", "loa", "soundlink", "flip", "charge", "boombox", "boom", "xtreme", "go 3", "go 4",
+                            "pulse", "homepod", "sonos", "soundbar", "partybox", "megaboom", "wonderboom", "clip"]
+        if speakerWords.contains(where: n.contains) { return false }
+        switch transport {
+        case kAudioDeviceTransportTypeBluetooth, kAudioDeviceTransportTypeBluetoothLE: return true
+        case kAudioDeviceTransportTypeUSB: return ["headset", "headphone", "earphone", "tai nghe"].contains(where: n.contains)
+        default: return false
+        }
     }
 
     private static func symbol(name: String, transport: UInt32) -> String {

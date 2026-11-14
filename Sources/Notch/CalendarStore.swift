@@ -102,6 +102,7 @@ final class CalendarStore: ObservableObject {
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.reload() }
         }
+        timer?.tolerance = 10
         reload()
     }
 

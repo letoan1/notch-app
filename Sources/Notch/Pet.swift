@@ -24,6 +24,8 @@ struct PetEvent: Equatable {
 final class PetState: ObservableObject {
     static let shared = PetState()
     @Published var mood: PetMood = .idle
+    /// Âm thanh đang ra tai nghe → thú cưng đeo tai nghe suốt (không chỉ lúc vừa kết nối).
+    @Published var wearingHeadphones = false
     /// Hướng nhìn theo con trỏ: -1 (trái) … 1 (phải), làm tròn 0.5 để ít cập nhật.
     @Published private(set) var look: CGFloat = 0
     @Published private(set) var event: PetEvent?
@@ -63,7 +65,7 @@ struct PetView: View {
     @ObservedObject private var pet = PetState.shared
 
     var body: some View {
-        PetLayer(mood: pet.mood, look: pet.look, event: pet.event)
+        PetLayer(mood: pet.mood, look: pet.look, event: pet.event, headphones: pet.wearingHeadphones)
             .contentShape(Rectangle())
             .onTapGesture { pet.react(.heart) }
             .help(L("Vuốt ve", "Pet me"))
@@ -74,9 +76,13 @@ private struct PetLayer: NSViewRepresentable {
     let mood: PetMood
     let look: CGFloat
     let event: PetEvent?
+    let headphones: Bool
 
     func makeNSView(context: Context) -> PetLayerView { PetLayerView(lastToken: event?.token ?? 0) }
-    func updateNSView(_ view: PetLayerView, context: Context) { view.update(mood: mood, look: look, event: event) }
+    func updateNSView(_ view: PetLayerView, context: Context) {
+        view.setHeadphones(headphones)
+        view.update(mood: mood, look: look, event: event)
+    }
 }
 
 final class PetLayerView: NSView {
@@ -129,6 +135,14 @@ final class PetLayerView: NSView {
         holder.transform = CATransform3DMakeScale(scale, scale, 1)
         holder.position = CGPoint(x: bounds.midX - 3, y: 1)
         bubble.position = CGPoint(x: bounds.midX + 13, y: bounds.maxY - 7)
+        CATransaction.commit()
+    }
+
+    func setHeadphones(_ on: Bool) {
+        guard character.wearing != on else { return }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        character.wearing = on
         CATransaction.commit()
     }
 
@@ -265,6 +279,10 @@ class PetBase {
     let root = CALayer()
     let actor = CALayer()
     private let headphones = CALayer()
+    /// Đeo tai nghe liên tục khi âm thanh ra tai nghe.
+    var wearing = false {
+        didSet { headphones.isHidden = !wearing }
+    }
     var eyes: Eyes = .open
     var mouthOpen = false
     var lookX: CGFloat = 0
@@ -315,7 +333,7 @@ class PetBase {
         root.transform = CATransform3DIdentity
         actor.transform = CATransform3DIdentity
         actor.opacity = 1
-        headphones.isHidden = true
+        headphones.isHidden = !wearing
         eyes = mood == .sleep ? .closed : mood == .alert ? .wide : .open
         mouthOpen = mood == .alert
         render()

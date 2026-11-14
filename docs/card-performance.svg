@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="600" viewBox="0 0 640 600" role="img" aria-label="Biểu đồ CPU và RAM của Roost theo trạng thái">
+<defs><clipPath id="card"><rect width="640" height="600" rx="28"/></clipPath><filter id="b60" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="60"/></filter></defs>
+<style>text { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }</style>
+<g clip-path="url(#card)"><rect width="640" height="600" fill="#0d0d18"/>
+<circle cx="560" cy="60" r="160" fill="#3987e5" opacity=".14" filter="url(#b60)"/>
+<text x="36" y="56" font-size="24" font-weight="800" fill="#f0efec">Nhẹ khi thu gọn</text>
+<text x="36" y="84" font-size="14" fill="#c3c2b7">Đo trên MacBook Air M2, macOS 27, bằng top, trung bình 20 giây mỗi mốc.</text>
+<text x="36" y="132" font-size="16" font-weight="700" fill="#f0efec">CPU</text>
+<line x1="236.0" y1="150" x2="236.0" y2="310" stroke="#ffffff" stroke-opacity="0.18" stroke-width="1"/>
+<text x="236.0" y="326" font-size="11" fill="#8a8984" text-anchor="middle">0%</text>
+<line x1="344.0" y1="150" x2="344.0" y2="310" stroke="#ffffff" stroke-opacity="0.07" stroke-width="1"/>
+<text x="344.0" y="326" font-size="11" fill="#8a8984" text-anchor="middle">4%</text>
+<line x1="452.0" y1="150" x2="452.0" y2="310" stroke="#ffffff" stroke-opacity="0.07" stroke-width="1"/>
+<text x="452.0" y="326" font-size="11" fill="#8a8984" text-anchor="middle">8%</text>
+<line x1="560.0" y1="150" x2="560.0" y2="310" stroke="#ffffff" stroke-opacity="0.07" stroke-width="1"/>
+<text x="560.0" y="326" font-size="11" fill="#8a8984" text-anchor="middle">12%</text>
+<text x="224" y="163.5" font-size="13" fill="#c3c2b7" text-anchor="end">Thu gọn, máy rảnh</text>
+<path d="M236 150 H237.0 Q238 150 238 151.0 V167.0 Q238 168 237.0 168 H236 Z" fill="#3987e5"/>
+<text x="246" y="163.5" font-size="13" font-weight="700" fill="#f0efec">0,01%</text>
+<text x="224" y="197.5" font-size="13" fill="#c3c2b7" text-anchor="end">Thu gọn, đang phát nhạc</text>
+<path d="M236 184 H241.45 Q245.45 184 245.45 188 V198 Q245.45 202 241.45 202 H236 Z" fill="#3987e5"/>
+<text x="253.45" y="197.5" font-size="13" font-weight="700" fill="#f0efec">0,35%</text>
+<text x="224" y="231.5" font-size="13" fill="#c3c2b7" text-anchor="end">Mở tab Nhạc, đang phát</text>
+<path d="M236 218 H275.2 Q279.2 218 279.2 222 V232 Q279.2 236 275.2 236 H236 Z" fill="#3987e5"/>
+<text x="287.2" y="231.5" font-size="13" font-weight="700" fill="#f0efec">1,6%</text>
+<text x="224" y="265.5" font-size="13" fill="#c3c2b7" text-anchor="end">Mở tab Khay</text>
+<path d="M236 252 H277.9 Q281.9 252 281.9 256 V266 Q281.9 270 277.9 270 H236 Z" fill="#3987e5"/>
+<text x="289.9" y="265.5" font-size="13" font-weight="700" fill="#f0efec">1,7%</text>
+<text x="224" y="299.5" font-size="13" fill="#c3c2b7" text-anchor="end">Mở tab Gương, camera bật</text>
+<path d="M236 286 H475.0 Q479.0 286 479.0 290 V300 Q479.0 304 475.0 304 H236 Z" fill="#3987e5"/>
+<text x="487.0" y="299.5" font-size="13" font-weight="700" fill="#f0efec">9%</text>
+<text x="36" y="368" font-size="16" font-weight="700" fill="#f0efec">Bộ nhớ (RAM)</text>
+<line x1="236.0" y1="386" x2="236.0" y2="546" stroke="#ffffff" stroke-opacity="0.18" stroke-width="1"/>
+<text x="236.0" y="562" font-size="11" fill="#8a8984" text-anchor="middle">0 MB</text>
+<line x1="344.0" y1="386" x2="344.0" y2="546" stroke="#ffffff" stroke-opacity="0.07" stroke-width="1"/>
+<text x="344.0" y="562" font-size="11" fill="#8a8984" text-anchor="middle">50 MB</text>
+<line x1="452.0" y1="386" x2="452.0" y2="546" stroke="#ffffff" stroke-opacity="0.07" stroke-width="1"/>
+<text x="452.0" y="562" font-size="11" fill="#8a8984" text-anchor="middle">100 MB</text>
+<line x1="560.0" y1="386" x2="560.0" y2="546" stroke="#ffffff" stroke-opacity="0.07" stroke-width="1"/>
+<text x="560.0" y="562" font-size="11" fill="#8a8984" text-anchor="middle">150 MB</text>
+<text x="224" y="399.5" font-size="13" fill="#c3c2b7" text-anchor="end">Vừa mở app</text>
+<path d="M236 386 H296.8 Q300.8 386 300.8 390 V400 Q300.8 404 296.8 404 H236 Z" fill="#3987e5"/>
+<text x="308.8" y="399.5" font-size="13" font-weight="700" fill="#f0efec">30 MB</text>
+<text x="224" y="433.5" font-size="13" fill="#c3c2b7" text-anchor="end">Sau 20 lần mở và đóng notch</text>
+<path d="M236 420 H322.72 Q326.72 420 326.72 424 V434 Q326.72 438 322.72 438 H236 Z" fill="#3987e5"/>
+<text x="334.72" y="433.5" font-size="13" font-weight="700" fill="#f0efec">42 MB</text>
+<text x="224" y="467.5" font-size="13" fill="#c3c2b7" text-anchor="end">Đã mở cửa sổ Cài đặt</text>
+<path d="M236 454 H333.52 Q337.52 454 337.52 458 V468 Q337.52 472 333.52 472 H236 Z" fill="#3987e5"/>
+<text x="345.52" y="467.5" font-size="13" font-weight="700" fill="#f0efec">47 MB</text>
+<text x="224" y="501.5" font-size="13" fill="#c3c2b7" text-anchor="end">Sau khi tắt camera</text>
+<path d="M236 488 H448.0 Q452.0 488 452.0 492 V502 Q452.0 506 448.0 506 H236 Z" fill="#3987e5"/>
+<text x="460.0" y="501.5" font-size="13" font-weight="700" fill="#f0efec">100 MB</text>
+<text x="224" y="535.5" font-size="13" fill="#c3c2b7" text-anchor="end">Đang bật camera</text>
+<path d="M236 522 H538.72 Q542.72 522 542.72 526 V536 Q542.72 540 538.72 540 H236 Z" fill="#3987e5"/>
+<text x="550.72" y="535.5" font-size="13" font-weight="700" fill="#f0efec">142 MB</text>
+</g></svg>

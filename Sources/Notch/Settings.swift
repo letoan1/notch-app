@@ -43,6 +43,18 @@ final class SettingsStore: ObservableObject {
         }
     }
 
+    /// Màn hình không có notch thật: vẽ notch dính mép trên, hoặc viên nổi kiểu Dynamic Island.
+    enum NoNotchStyle: String, CaseIterable, Identifiable {
+        case notch, pill
+        var id: String { rawValue }
+        var title: String {
+            switch self {
+            case .notch: return L("Notch vẽ", "Drawn notch")
+            case .pill: return L("Viên nổi (Dynamic Island)", "Floating pill (Dynamic Island)")
+            }
+        }
+    }
+
     /// Phím tắt có sẵn. Tránh ⌃Space / ⌃⌥Space: macOS dùng để đổi bộ gõ.
     enum Hotkey: String, CaseIterable, Identifiable {
         case off, optionSpace, ctrlOptionN, ctrlOptionM
@@ -66,7 +78,13 @@ final class SettingsStore: ObservableObject {
         }
     }
 
-    static let hoverDelays: [Double] = [0, 0.15, 0.3, 0.5]
+    /// `hoverDelay` < 0 = Thông minh: mở khi chuột chậm lại / dừng trên notch, lướt qua thì không.
+    static let smartHover: Double = -1
+    static let hoverDelays: [Double] = [smartHover, 0, 0.15, 0.3, 0.5]
+    static func hoverDelayTitle(_ delay: Double) -> String {
+        if delay < 0 { return L("Thông minh", "Smart") }
+        return delay == 0 ? L("Không", "None") : String(format: "%.2g s", delay)
+    }
 
     /// Kích thước notch khi mở: phóng cả nội dung quanh mép trên.
     enum ExpandedSize: String, CaseIterable, Identifiable {
@@ -91,9 +109,11 @@ final class SettingsStore: ObservableObject {
     @Published var language: Language { didSet { save(language.rawValue, "language") } }
     @Published var theme: Theme { didSet { save(theme.rawValue, "theme") } }
     @Published var openMode: OpenMode { didSet { save(openMode.rawValue, "openMode") } }
-    @Published var hoverDelay: Double { didSet { save(hoverDelay, "hoverDelay") } }
+    /// Key mới "hoverDelay2": giá trị cũ (mặc định 0) không chặn chế độ Thông minh thành mặc định.
+    @Published var hoverDelay: Double { didSet { save(hoverDelay, "hoverDelay2") } }
     @Published var hotkey: Hotkey { didSet { save(hotkey.rawValue, "hotkey") } }
     @Published var displayMode: DisplayMode { didSet { save(displayMode.rawValue, "displayMode") } }
+    @Published var noNotchStyle: NoNotchStyle { didSet { save(noNotchStyle.rawValue, "noNotchStyle") } }
     @Published var showMedia: Bool { didSet { save(showMedia, "tab.media") } }
     @Published var showCalendar: Bool { didSet { save(showCalendar, "tab.calendar") } }
     @Published var showTray: Bool { didSet { save(showTray, "tab.tray") } }
@@ -102,29 +122,40 @@ final class SettingsStore: ObservableObject {
     @Published var trayExpiryDays: Int { didSet { save(trayExpiryDays, "trayExpiryDays") } }
     static let trayExpiryOptions = [0, 1, 7, 30]
     @Published var screenshotsToTray: Bool { didSet { save(screenshotsToTray, "screenshotsToTray") } }
-    @Published var realVisualizer: Bool { didSet { save(realVisualizer, "realVisualizer") } }
+    /// Mặc định tắt (key mới): bật lên macOS hiện chấm tím "đang ghi âm thanh hệ thống".
+    @Published var realVisualizer: Bool { didSet { save(realVisualizer, "realVisualizer2") } }
     @Published var showPet: Bool { didSet { save(showPet, "showPet") } }
     @Published var expandedSize: ExpandedSize { didSet { save(expandedSize.rawValue, "expandedSize") } }
     @Published var haptics: Bool { didSet { save(haptics, "haptics") } }
+    @Published var ambientGlow: Bool { didSet { save(ambientGlow, "ambientGlow") } }
+    @Published var autoMinimal: Bool { didSet { save(autoMinimal, "autoMinimal") } }
+    @Published var powerSaver: Bool { didSet { save(powerSaver, "powerSaver") } }
+    /// Lớp 1 của mở khoá bằng khuôn mặt: chỉ là hiệu ứng, chạy cả khi tính năng tắt.
+    @Published var unlockEffect: Bool { didSet { save(unlockEffect, "unlockEffect") } }
 
     private init() {
         let d = UserDefaults.standard
         language = Language(rawValue: d.string(forKey: "language") ?? "") ?? .auto
         theme = Theme(rawValue: d.string(forKey: "theme") ?? "") ?? .standard
         openMode = OpenMode(rawValue: d.string(forKey: "openMode") ?? "") ?? .hover
-        hoverDelay = d.object(forKey: "hoverDelay") as? Double ?? 0
+        hoverDelay = d.object(forKey: "hoverDelay2") as? Double ?? Self.smartHover
         hotkey = Hotkey(rawValue: d.string(forKey: "hotkey") ?? "") ?? .optionSpace
         displayMode = DisplayMode(rawValue: d.string(forKey: "displayMode") ?? "") ?? .notch
+        noNotchStyle = NoNotchStyle(rawValue: d.string(forKey: "noNotchStyle") ?? "") ?? .notch
         showMedia = d.object(forKey: "tab.media") as? Bool ?? true
         showCalendar = d.object(forKey: "tab.calendar") as? Bool ?? true
         showTray = d.object(forKey: "tab.tray") as? Bool ?? true
         showMirror = d.object(forKey: "tab.mirror") as? Bool ?? true
         trayExpiryDays = d.object(forKey: "trayExpiryDays") as? Int ?? 0
         screenshotsToTray = d.object(forKey: "screenshotsToTray") as? Bool ?? true
-        realVisualizer = d.object(forKey: "realVisualizer") as? Bool ?? true
+        realVisualizer = d.object(forKey: "realVisualizer2") as? Bool ?? false
         showPet = d.object(forKey: "showPet") as? Bool ?? true
         expandedSize = ExpandedSize(rawValue: d.string(forKey: "expandedSize") ?? "") ?? .regular
         haptics = d.object(forKey: "haptics") as? Bool ?? true
+        ambientGlow = d.object(forKey: "ambientGlow") as? Bool ?? true
+        autoMinimal = d.object(forKey: "autoMinimal") as? Bool ?? true
+        powerSaver = d.object(forKey: "powerSaver") as? Bool ?? true
+        unlockEffect = d.object(forKey: "unlockEffect") as? Bool ?? true
     }
 
     /// Các tab đang bật, theo thứ tự hiển thị.

@@ -3,13 +3,15 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleExecutable</key>
-	<string>Notch</string>
+	<string>Roost</string>
 	<key>CFBundleIconFile</key>
 	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
-	<string>local.toan.notch</string>
+	<string>io.github.letoan1.roost</string>
 	<key>CFBundleName</key>
-	<string>Notch</string>
+	<string>Roost</string>
+	<key>CFBundleDisplayName</key>
+	<string>Roost</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -21,14 +23,14 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>Notch đọc bài đang phát và điều khiển Spotify/Music. — Notch reads the current track and controls Spotify/Music.</string>
+	<string>Roost đọc bài đang phát và điều khiển Spotify/Music. — Roost reads the current track and controls Spotify/Music.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
-	<string>Notch hiển thị các sự kiện trong lịch của bạn. — Notch shows your calendar events.</string>
+	<string>Roost hiển thị các sự kiện trong lịch của bạn. — Roost shows your calendar events.</string>
 	<key>NSCalendarsUsageDescription</key>
-	<string>Notch hiển thị các sự kiện trong lịch của bạn. — Notch shows your calendar events.</string>
+	<string>Roost hiển thị các sự kiện trong lịch của bạn. — Roost shows your calendar events.</string>
 	<key>NSAudioCaptureUsageDescription</key>
-	<string>Notch nghe âm thanh của Spotify/Music để vẽ sóng nhạc theo nhạc thật, không ghi hay lưu lại. — Notch listens to Spotify/Music audio to draw a live visualizer; nothing is recorded or saved.</string>
+	<string>Roost nghe âm thanh của app đang phát nhạc để vẽ sóng nhạc theo nhạc thật, không ghi hay lưu lại. — Roost listens to the playing app's audio to draw a live visualizer; nothing is recorded or saved.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Notch hiện hình camera để bạn soi gương trước khi họp, không ghi hay lưu hình. — Notch shows your camera as a mirror before calls; nothing is recorded or saved.</string>
+	<string>Roost hiện hình camera để bạn soi gương trước khi họp và (nếu bạn bật) nhận khuôn mặt để mở khoá máy; không ghi hay lưu hình. — Roost shows your camera as a mirror before calls and, if you turn it on, recognizes your face to unlock the Mac; no video is recorded or saved.</string>
 </dict>
 </plist>

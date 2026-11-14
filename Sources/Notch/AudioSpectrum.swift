@@ -9,7 +9,11 @@ import Foundation
 final class AudioSpectrum: @unchecked Sendable {
     static let shared = AudioSpectrum()
     static let bandCount = 4
-    static var enabled: Bool { UserDefaults.standard.object(forKey: "realVisualizer") as? Bool ?? true }
+    static var enabled: Bool {
+        (UserDefaults.standard.object(forKey: "realVisualizer2") as? Bool ?? false) && !suppressed
+    }
+    /// Tiết kiệm pin đang bật → tạm tắt (SystemMonitor đặt).
+    nonisolated(unsafe) static var suppressed = false
 
     private let control = DispatchQueue(label: "notch.spectrum.control", qos: .userInitiated)
     private let io = DispatchQueue(label: "notch.spectrum.io", qos: .userInteractive)
@@ -100,16 +104,17 @@ final class AudioSpectrum: @unchecked Sendable {
             io.async { self.sampleRate = rate }
         }
 
-        guard let outputUID = Self.defaultOutputUID() else { stopTap(); return }
+        guard Self.defaultOutputUID() != nil else { stopTap(); return }
         let config: [String: Any] = [
-            kAudioAggregateDeviceNameKey: "Notch Visualizer",
+            kAudioAggregateDeviceNameKey: "Roost Visualizer",
             kAudioAggregateDeviceUIDKey: UUID().uuidString,
-            kAudioAggregateDeviceMainSubDeviceKey: outputUID,
             kAudioAggregateDeviceIsPrivateKey: true,
             kAudioAggregateDeviceIsStackedKey: false,
             kAudioAggregateDeviceTapAutoStartKey: true,
-            kAudioAggregateDeviceSubDeviceListKey: [[kAudioSubDeviceUIDKey: outputUID]],
-            kAudioAggregateDeviceTapListKey: [[kAudioSubTapDriftCompensationKey: true,
+            // Không gộp loa / tai nghe đang dùng vào thiết bị nghe: chỉ đọc nguồn âm của tap, để đường phát
+            // của máy không bị kéo theo nhịp (gây rè / trễ / đổi chất lượng âm).
+            kAudioAggregateDeviceSubDeviceListKey: [] as [[String: Any]],
+            kAudioAggregateDeviceTapListKey: [[kAudioSubTapDriftCompensationKey: false,
                                                kAudioSubTapUIDKey: desc.uuid.uuidString]],
         ]
         var agg = AudioObjectID(kAudioObjectUnknown)

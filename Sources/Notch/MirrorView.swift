@@ -44,6 +44,7 @@ struct MirrorView: View {
         case .granted:
             CameraPreview(session: camera.session, cornerRadius: 18, mirrored: camera.mirrored)
                 .overlay(RoundedRectangle(cornerRadius: 18).stroke(.white.opacity(0.15), lineWidth: 1))
+                .overlay { MirrorGuideOverlay(hint: camera.guide) }
         case .notDetermined:
             placeholder(icon: "camera.fill", text: L("Bật camera để soi gương", "Turn on the camera"), action: camera.requestAccess)
         case .denied:
@@ -127,5 +128,92 @@ private struct MirrorButton: View {
                 .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+    }
+}
+
+/// Gợi ý trên khung gương: oval căn mặt khi lệch / gần / xa, nút bật đèn viền khi mặt tối.
+struct MirrorGuideOverlay: View {
+    let hint: FaceGuide.Hint?
+    var bottomInset: CGFloat = 8
+    @ObservedObject var edge = EdgeLight.shared
+
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .bottom) {
+                if let hint, hint != .dark, hint != .noFace {
+                    // Vị trí mặt lý tưởng: giữa ngang, hơi cao hơn tâm.
+                    Ellipse()
+                        .stroke(Color.white.opacity(0.55), style: StrokeStyle(lineWidth: Theme.isPixel ? 2 : 1.4, dash: [5, 4]))
+                        .frame(width: geo.size.height * 0.5, height: geo.size.height * 0.66)
+                        .position(x: geo.size.width / 2, y: geo.size.height * 0.45)
+                        .transition(.opacity)
+                }
+                if let hint {
+                    chip(hint)
+                        .padding(.bottom, bottomInset)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                }
+            }
+            .frame(width: geo.size.width, height: geo.size.height)
+        }
+        .animation(.easeOut(duration: 0.25), value: hint)
+    }
+
+    @ViewBuilder private func chip(_ hint: FaceGuide.Hint) -> some View {
+        let cassette = Theme.isCassette, pixel = Theme.isPixel
+        HStack(spacing: 6) {
+            Image(systemName: Self.symbol(hint)).font(.system(size: 10, weight: .bold))
+            Text(Self.text(hint)).lineLimit(1)
+            if hint == .dark, edge.level != .strong {
+                Button {
+                    edge.set(edge.isOn ? .strong : .medium)
+                } label: {
+                    Text(edge.isOn ? L("Đèn mạnh hơn", "Brighter") : L("Bật đèn viền", "Edge light"))
+                        .foregroundStyle(cassette ? CassettePalette.ink : Color(white: 0.12))
+                        .padding(.horizontal, 7).padding(.vertical, 2)
+                        .background(ThemedBackground(fill: Color(red: 1.0, green: 0.86, blue: 0.55)))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .font(cassette ? .typewriter(11, bold: true) : .ui(11, weight: .semibold))
+        .foregroundStyle(.white)
+        .padding(.horizontal, 9).padding(.vertical, 4)
+        .background {
+            if pixel {
+                Rectangle().fill(Color.black.opacity(0.7)).overlay(Rectangle().strokeBorder(PixelPalette.border, lineWidth: 2))
+            } else if cassette {
+                RoundedRectangle(cornerRadius: 3).fill(Color.black.opacity(0.55))
+            } else {
+                Capsule().fill(.black.opacity(0.55))
+            }
+        }
+    }
+
+    private static func symbol(_ hint: FaceGuide.Hint) -> String {
+        switch hint {
+        case .moveLeft: return "arrow.left"
+        case .moveRight: return "arrow.right"
+        case .tooHigh: return "arrow.down"
+        case .tooLow: return "arrow.up"
+        case .tooClose: return "arrow.down.right.and.arrow.up.left"
+        case .tooFar: return "arrow.up.left.and.arrow.down.right"
+        case .noFace: return "person.crop.circle.badge.questionmark"
+        case .dark: return "sun.min"
+        }
+    }
+
+    private static func text(_ hint: FaceGuide.Hint) -> String {
+        switch hint {
+        case .moveLeft: return L("Dịch sang trái một chút", "Move a little to your left")
+        case .moveRight: return L("Dịch sang phải một chút", "Move a little to your right")
+        case .tooHigh: return L("Mặt hơi cao trong khung", "Face sits high in the frame")
+        case .tooLow: return L("Nâng camera ngang tầm mắt", "Raise the camera to eye level")
+        case .tooClose: return L("Lùi ra xa một chút", "Move back a little")
+        case .tooFar: return L("Ngồi gần lại", "Move closer")
+        case .noFace: return L("Chưa thấy mặt bạn", "Can't see your face")
+        case .dark: return L("Mặt hơi tối", "Your face is dark")
+        }
     }
 }

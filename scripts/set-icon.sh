@@ -27,4 +27,4 @@ echo "→ Resources/AppIcon.icns"
 
 ./build.sh install
 # Dock/Launchpad cache icon: chạm bundle để Finder đọc lại.
-touch /Applications/Notch.app
+touch /Applications/Roost.app

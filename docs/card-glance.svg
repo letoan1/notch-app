@@ -24,7 +24,7 @@
     <rect width="640" height="380" fill="#0d0d18"/>
     <circle cx="90" cy="330" r="170" fill="#30d158" opacity=".2" filter="url(#b60)"/>
     <text x="36" y="56" font-size="24" font-weight="800" fill="#fff">Thu gọn mà vẫn đủ thông tin</text>
-    <text x="36" y="84" font-size="14" fill="#fff" opacity=".6">Cắm sạc là hiện % pin · đang phát nhạc thì có ảnh bìa + sóng nhạc</text>
+    <text x="36" y="84" font-size="14" fill="#fff" opacity=".6">Cắm sạc thì notch hiện % pin. Đang phát nhạc thì hai cánh hiện ảnh bìa và sóng nhạc.</text>
 
     <rect x="36" y="112" width="568" height="300" rx="18" fill="url(#wall)"/>
     <rect x="36" y="112" width="568" height="26" fill="#fff" opacity=".18"/>

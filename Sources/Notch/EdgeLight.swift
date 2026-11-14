@@ -40,6 +40,11 @@ final class EdgeLight: ObservableObject {
         apply()
     }
 
+    func set(_ new: Level) {
+        level = new
+        apply()
+    }
+
     func turnOff() {
         level = .off
         apply()
