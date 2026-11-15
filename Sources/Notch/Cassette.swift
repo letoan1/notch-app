@@ -75,6 +75,10 @@ struct CassettePlayerView: View {
             .help(L("Bấm để mở app nhạc · kéo ngang để tua", "Click to open the player · drag sideways to seek"))
             .scaleEffect(Self.scale)
             .frame(width: 316 * Self.scale, height: 150 * Self.scale)
+            .overlay(alignment: .topTrailing) {
+                // Nhãn dán icon app đang phát, dán lệch ở góc băng.
+                if let track { SourceBadge(bundleID: track.bundleID, size: 26, open: media.openPlayer).offset(x: 6, y: -4) }
+            }
 
             VStack(spacing: 5) {
                 MechKey(symbol: "backward.fill", pressed: false, action: media.previous)
@@ -86,9 +90,18 @@ struct CassettePlayerView: View {
                 }
                 MechKey(symbol: "eject.fill", pressed: false, action: media.openPlayer)
             }
+            // Cột phím nhỏ: trộn / lặp, chỉ khi nguồn cho điều khiển.
+            if let modes = media.modes {
+                VStack(spacing: 5) {
+                    ModeButton(kind: .shuffle, modes: modes, compact: true, action: media.toggleShuffle)
+                    ModeButton(kind: .repeatMode, modes: modes, compact: true, action: media.cycleRepeat)
+                }
+                .padding(.leading, -4)
+            }
         }
         .padding(.bottom, 10)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear { media.refreshModes(force: true) }
     }
 }
 

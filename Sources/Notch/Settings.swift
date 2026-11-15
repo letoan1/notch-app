@@ -108,7 +108,7 @@ final class SettingsStore: ObservableObject {
 
     /// Nội dung một bên cánh notch lúc thu gọn. Tự động = ảnh bìa bên trái, sóng nhạc bên phải.
     enum WingItem: String, CaseIterable, Identifiable {
-        case auto, artwork, equalizer, meeting, battery, clock, none
+        case auto, artwork, equalizer, meeting, battery, clock, claude, none
         var id: String { rawValue }
         var title: String {
             switch self {
@@ -118,6 +118,7 @@ final class SettingsStore: ObservableObject {
             case .meeting: return L("Cuộc họp kế tiếp", "Next meeting")
             case .battery: return L("Pin", "Battery")
             case .clock: return L("Giờ", "Time")
+            case .claude: return L("Mức dùng Claude", "Claude usage")
             case .none: return L("Trống", "Nothing")
             }
         }
@@ -136,12 +137,12 @@ final class SettingsStore: ObservableObject {
 
     /// Tab hiện ra khi mở notch.
     enum OpenTab: String, CaseIterable, Identifiable {
-        case last, media, tray, mirror
+        case last, media, sound, tray, mirror
         var id: String { rawValue }
         var title: String {
             switch self {
             case .last: return L("Tab dùng lần trước", "Last used tab")
-            case .media, .tray, .mirror: return NotchModel.Tab(rawValue: rawValue)!.title
+            case .media, .sound, .tray, .mirror: return NotchModel.Tab(rawValue: rawValue)!.title
             }
         }
         var tab: NotchModel.Tab? { NotchModel.Tab(rawValue: rawValue) }
@@ -159,6 +160,7 @@ final class SettingsStore: ObservableObject {
     @Published var showCalendar: Bool { didSet { save(showCalendar, "tab.calendar") } }
     @Published var showTray: Bool { didSet { save(showTray, "tab.tray") } }
     @Published var showMirror: Bool { didSet { save(showMirror, "tab.mirror") } }
+    @Published var showSound: Bool { didSet { save(showSound, "tab.sound") } }
     /// Tự gỡ file khỏi khay sau N ngày kể từ lúc thả vào; 0 = không bao giờ.
     @Published var trayExpiryDays: Int { didSet { save(trayExpiryDays, "trayExpiryDays") } }
     static let trayExpiryOptions = [0, 1, 7, 30]
@@ -195,6 +197,7 @@ final class SettingsStore: ObservableObject {
         showCalendar = d.object(forKey: "tab.calendar") as? Bool ?? true
         showTray = d.object(forKey: "tab.tray") as? Bool ?? true
         showMirror = d.object(forKey: "tab.mirror") as? Bool ?? true
+        showSound = d.object(forKey: "tab.sound") as? Bool ?? true
         trayExpiryDays = d.object(forKey: "trayExpiryDays") as? Int ?? 0
         screenshotsToTray = d.object(forKey: "screenshotsToTray") as? Bool ?? true
         realVisualizer = d.object(forKey: "realVisualizer2") as? Bool ?? false
@@ -211,6 +214,8 @@ final class SettingsStore: ObservableObject {
         accentHex = d.string(forKey: "accentHex") ?? "#FF8A3D"
         var order = (d.stringArray(forKey: "tabOrder") ?? []).compactMap(NotchModel.Tab.init(rawValue:))
         order = order.enumerated().filter { order.firstIndex(of: $0.element) == $0.offset }.map(\.element)
+        // Tab mới (vd. Âm thanh) chèn ngay sau Nhạc, các tab còn thiếu khác thì nối cuối.
+        if !order.isEmpty, !order.contains(.sound) { order.insert(.sound, at: (order.firstIndex(of: .media) ?? -1) + 1) }
         order += NotchModel.Tab.allCases.filter { !order.contains($0) }
         tabOrder = order
         openTab = OpenTab(rawValue: d.string(forKey: "openTab") ?? "") ?? .last
@@ -226,6 +231,7 @@ final class SettingsStore: ObservableObject {
         case .media: return showMedia || showCalendar
         case .tray: return showTray
         case .mirror: return showMirror
+        case .sound: return showSound
         }
     }
 

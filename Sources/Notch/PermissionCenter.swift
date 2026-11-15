@@ -271,6 +271,9 @@ final class PermissionCenter: ObservableObject {
     /// Instance đang chạy (QueueStrip cần để chọn thẻ).
     private(set) static weak var active: PermissionCenter?
 
+    /// Phiên Claude cần bạn (Notification hook) → notch hiện thông báo nhanh.
+    var onNotice: ((ClaudeNotice) -> Void)?
+
     var current: PermissionRequest? {
         requests.first { $0.id == selectedID } ?? requests.first
     }
@@ -444,7 +447,14 @@ final class PermissionCenter: ObservableObject {
     private func add(_ obj: [String: Any], from conn: HookConnection) {
         if let event = obj["notch_event"] as? String {
             conn.cancel()
-            clear(after: event, obj)
+            switch event {
+            case "Usage":
+                if let limits = obj["rate_limits"] as? [String: Any] { ClaudeUsage.shared.ingest(limits) }
+            case "Notification":
+                notify(obj)
+            default:
+                clear(after: event, obj)
+            }
             return
         }
         let meta = obj["roost"] as? [String: Any] ?? [:]
@@ -494,7 +504,7 @@ final class PermissionCenter: ObservableObject {
         activity.noteProject(projectDir)
         // Chỉ tự chọn thẻ mới khi chưa có thẻ nào đang xem; thẻ đang chờ / đang hiện kết quả giữ nguyên.
         if selectedID == nil || !requests.contains(where: { $0.id == selectedID }) { select(id) }
-        NSSound(named: "Tink")?.play()
+        ClaudeExtras.shared.playSound()
 
         // Hết giờ: chuyển thẻ sang "Hết giờ" kể cả khi hook chưa kịp đóng socket.
         DispatchQueue.main.asyncAfter(deadline: .now() + deadline.timeIntervalSinceNow) { [weak self] in
@@ -514,6 +524,18 @@ final class PermissionCenter: ObservableObject {
                 }
             }
         }
+    }
+
+    /// Notification của Claude Code: phiên đang chờ bạn. Bỏ qua khi thẻ xin quyền của phiên đó đã hiện
+    /// (Claude Code cũng gửi Notification cho chính yêu cầu ấy).
+    private func notify(_ obj: [String: Any]) {
+        let session = obj["session_id"] as? String ?? ""
+        let type = obj["notification_type"] as? String ?? ""
+        if type == "auth_success" { return }
+        if requests.contains(where: { $0.session == session && $0.state.isWaiting }) { return }
+        let dir = (obj["project_dir"] as? String).flatMap { $0.isEmpty ? nil : $0 } ?? obj["cwd"] as? String ?? ""
+        ClaudeExtras.shared.playSound()
+        onNotice?(.waiting(project: (dir as NSString).lastPathComponent))
     }
 
     /// Kết nối đóng khi thẻ còn chờ: hook hết giờ (đúng hạn) hoặc Claude Code dừng / hook bị kill.

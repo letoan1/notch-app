@@ -100,7 +100,7 @@ Soi webcam ngay trên notch trước khi họp, kèm cuộc họp sắp tới v�
 
 <p align="center"><img src="docs/card-pets.svg" alt="Bốn thú cưng: cáo, khủng long pixel, Walkman và hoạ sĩ Van Gogh" width="100%"></p>
 
-Mỗi giao diện có một con ngồi ở cánh notch: cáo, khủng long pixel, máy Walkman và hoạ sĩ tí hon. Nó nhảy theo nhạc, nhìn theo con trỏ, đeo tai nghe khi âm thanh đang ra tai nghe (AirPods hay tai nghe Bluetooth, USB khác), giật mình khi bạn chụp màn hình hay khi Claude xin quyền. Hoạt ảnh chạy bằng Core Animation nên gần như không tốn CPU. Bật tắt trong Cài đặt › Chung.
+Mỗi giao diện có một con ngồi ở cánh notch: cáo, khủng long pixel, máy Walkman và hoạ sĩ tí hon. Nó nhảy theo nhạc, nhìn theo con trỏ, đeo tai nghe khi âm thanh đang ra tai nghe (AirPods hay tai nghe Bluetooth, USB khác), giật mình khi bạn chụp màn hình hay khi Claude xin quyền. Hoạt ảnh chạy bằng Core Animation nên gần như không tốn CPU. Bật tắt trong Cài đặt › Giao diện.
 
 ### Tuỳ chỉnh
 

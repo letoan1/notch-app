@@ -237,9 +237,15 @@ enum ClaudeHookDetector {
 
     static func scan(projects: [String]) -> [Found] {
         var files = [NSHomeDirectory() + "/.claude/settings.json", NSHomeDirectory() + "/.claude/settings.local.json"]
+        // Hook có thể nằm ở thư mục cha của project (vd. workspace chứa nhiều repo): dò ngược lên tới $HOME.
+        let home = NSHomeDirectory()
         for dir in projects {
-            files.append(dir + "/.claude/settings.json")
-            files.append(dir + "/.claude/settings.local.json")
+            var url = URL(fileURLWithPath: dir).standardizedFileURL
+            while url.path.hasPrefix(home), url.path != home {
+                files.append(url.path + "/.claude/settings.json")
+                files.append(url.path + "/.claude/settings.local.json")
+                url.deleteLastPathComponent()
+            }
         }
         var seen = Set<String>()
         return files.compactMap { file in

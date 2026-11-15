@@ -63,7 +63,8 @@ final class NotchSlot {
 
 @MainActor
 final class NotchController {
-    static let canvas = CGSize(width: 760, height: 320)
+    // Đủ rộng cho notch mở cỡ Rộng (620 × 1,15) cộng hai cột nút tròn hai bên.
+    static let canvas = CGSize(width: 840, height: 320)
 
     let media = NowPlaying()
     let permissions = PermissionCenter()
@@ -171,6 +172,7 @@ final class NotchController {
             MainActor.assumeIsolated { self?.handleScroll(event) ?? event }
         }
         media.start()
+        LyricsStore.shared.bind(media)
         permissions.start()
         battery.onPlugIn = { [weak self] status in
             MainActor.assumeIsolated {
@@ -179,10 +181,23 @@ final class NotchController {
         }
         battery.start()
         audio.onHeadphonesChange = { on in
-            MainActor.assumeIsolated { PetState.shared.wearingHeadphones = on }
+            MainActor.assumeIsolated {
+                PetState.shared.wearingHeadphones = on
+                BluetoothAudio.shared.refresh()
+            }
         }
         audio.onConnect = { [weak self] device in
-            MainActor.assumeIsolated { self?.showPeek(.audio(name: device.name, symbol: device.symbol)) }
+            MainActor.assumeIsolated {
+                if self?.settings.showPet == true { PetState.shared.react(.headphones) }
+                BluetoothBattery.level(named: device.name) { level in
+                    DispatchQueue.main.async {
+                        AlertCenter.shared.post(NotchAlert(
+                            kind: .device, title: device.name, highlight: nil, subtitle: L("Đã kết nối", "Connected"),
+                            icon: .symbol(device.symbol), tone: .neutral, priority: 0, duration: 3.5, action: .none,
+                            ring: level))
+                    }
+                }
+            }
         }
         audio.start()
         SystemMonitor.shared.start(battery: battery)
@@ -242,6 +257,12 @@ final class NotchController {
             MainActor.assumeIsolated { self?.showPeek(.unlocked(name)) }
         }
         FaceUnlockController.shared.start()
+        // Claude: phiên chờ bạn / hạn mức đặt lại → thông báo nhanh; nhạc trên màn hình khoá.
+        permissions.onNotice = { [weak self] notice in self?.showPeek(.claude(notice)) }
+        ClaudeUsage.shared.onReset = { [weak self] w in self?.showPeek(.claude(.reset(w))) }
+        LockScreenMusic.shared.start(media: media)
+        SoundCenter.shared.start()
+        startSystemAlerts()
         settings.$realVisualizer.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in
             MainActor.assumeIsolated { self?.media.syncSpectrum() }
         }.store(in: &cancellables)
@@ -339,6 +360,7 @@ final class NotchController {
     }
 
     private func tick() {
+        capsLock.check()
         activateSlotUnderMouse()
         updatePet()
         let isQuestion = permissions.current?.questions?.isEmpty == false
@@ -378,10 +400,23 @@ final class NotchController {
         // Đang kéo file thì nới vùng bắt rộng hơn cho dễ "ném" vào notch.
         let margin: (CGFloat, CGFloat) = fileDragActive && !model.expanded ? (40, 30) : (4, 4)
         // Viên nổi: vùng bắt kéo lên tận mép trên (hất chuột lên đỉnh màn hình vẫn mở).
-        let hot = NSRect(x: f.midX - size.width / 2 + model.shapeOffsetX, y: f.maxY - size.height - model.topGap,
-                         width: size.width, height: size.height + model.topGap)
+        // Notch mở có cột nút tròn hai bên: rê chuột sang nút không làm notch đóng.
+        let layoutStore = NotchLayoutStore.shared
+        let orbL = model.expanded && !model.minimal ? layoutStore.orbInset(.left) : 0
+        let orbR = model.expanded && !model.minimal ? layoutStore.orbInset(.right) : 0
+        let hot = NSRect(x: f.midX - size.width / 2 + model.shapeOffsetX - orbL, y: f.maxY - size.height - model.topGap,
+                         width: size.width + orbL + orbR, height: size.height + model.topGap)
             .insetBy(dx: -margin.0, dy: -margin.1)
 
+        // Thẻ thông báo đang hiện: rê chuột lên thì giữ thẻ, bấm thì chạy hành động (không mở notch).
+        if model.alert != nil, !model.expanded {
+            let inside = hot.contains(mouse)
+            AlertCenter.shared.setHovering(inside)
+            if inside { lastInside = Date() }
+            if inside, pressBegan { AlertCenter.shared.activate() }
+            scheduleHover(Self.fastPoll)
+            return
+        }
         if hot.contains(mouse) {
             lastInside = Date()
             pinned = false
@@ -572,14 +607,64 @@ final class NotchController {
         if PetState.shared.mood != mood { PetState.shared.mood = mood }
     }
     private let screenshots = ScreenshotWatcher()
+    private let batteryAlerts = BatteryAlerts()
+    private let network = NetworkWatcher()
+    private let capsLock = CapsLockWatcher()
+    private let downloads = DownloadsWatcher()
 
-    private func showPeek(_ peek: NotchModel.Peek) {
+    /// Pin, mất mạng, Caps Lock, file tải về, giữ máy thức: tất cả theo sự kiện.
+    private func startSystemAlerts() {
+        AlertCenter.shared.apply = { [weak self] alert in
+            guard let self else { return false }
+            guard let alert else {
+                for slot in self.slots where slot.model.alert != nil { slot.model.alert = nil }
+                return true
+            }
+            var shown = false
+            for slot in self.slots where !slot.model.expanded && (!slot.model.minimal || alert.priority >= 2) {
+                slot.model.alert = alert
+                shown = true
+            }
+            if shown { self.scheduleHover(Self.fastPoll) }
+            return shown
+        }
+        batteryAlerts.start()
+        network.start()
+        capsLock.onChange = { [weak self] on in self?.showPeek(.capsLock(on)) }
+        SystemHUD.shared.show = { [weak self] hud in
+            guard let self, !self.model.expanded,
+                  self.slots.contains(where: { !$0.model.expanded && !$0.model.minimal && $0.model.alert == nil }) else { return false }
+            self.showPeek(.hud(hud), duration: 1.6)
+            return true
+        }
+        SystemHUD.shared.start()
+        capsLock.start()
+        downloads.onFile = { [weak self] url in
+            guard let self, self.settings.showTray else { return }
+            self.tray.add(url)
+            let thumb: NSImage? = ["png", "jpg", "jpeg", "heic", "gif", "webp"].contains(url.pathExtension.lowercased())
+                ? NSImage(contentsOf: url) : NSWorkspace.shared.icon(forFile: url.path)
+            self.showPeek(.screenshot(thumb))
+        }
+        AlertSettings.shared.$downloadsToTray.combineLatest(settings.$showTray).receive(on: DispatchQueue.main).sink { [weak self] on, tray in
+            MainActor.assumeIsolated { self?.downloads.setEnabled(on && tray) }
+        }.store(in: &cancellables)
+        KeepAwake.shared.start()
+        SystemMonitor.shared.$batteryPercent.combineLatest(SystemMonitor.shared.$batteryCharging)
+            .receive(on: DispatchQueue.main).sink { percent, onAC in
+                MainActor.assumeIsolated { KeepAwake.shared.batteryChanged(percent: percent, onAC: onAC) }
+            }.store(in: &cancellables)
+    }
+
+    private func showPeek(_ peek: NotchModel.Peek, duration: TimeInterval = 3.2) {
         if settings.showPet {
             switch peek {
             case .charge: PetState.shared.react(.charge)
             case .audio: PetState.shared.react(.headphones)
             case .screenshot: PetState.shared.react(.surprise)
             case .unlocked: PetState.shared.react(.happy)
+            case .claude: PetState.shared.react(.surprise)
+            case .capsLock, .hud: break
             }
         }
         guard !model.expanded else { return }
@@ -588,7 +673,7 @@ final class NotchController {
         for slot in slots where !slot.model.expanded && !slot.model.minimal {
             slot.model.peek = peek
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3.2) { [weak self] in
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
             MainActor.assumeIsolated {
                 guard let self, self.peekToken == token else { return }
                 for slot in self.slots { slot.model.peek = nil }
@@ -689,6 +774,12 @@ final class NotchController {
             }
         }
         model.expanded = value
+        if value {
+            if model.alert != nil { for slot in slots { slot.model.alert = nil } }
+            AlertCenter.shared.notchExpanded()
+        } else {
+            AlertCenter.shared.notchCollapsed()
+        }
         applyMinimal()
         if !value {
             pinned = false

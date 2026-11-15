@@ -374,6 +374,9 @@ struct VGPlayerView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { media.openPlayer() }
                 .help(L("Mở \(track.appName)", "Open \(track.appName)"))
+                .overlay(alignment: .bottomTrailing) {
+                    SourceBadge(bundleID: track.bundleID, size: 28, open: media.openPlayer).offset(x: 7, y: 7)
+                }
 
             VStack(alignment: .leading, spacing: 6) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -399,10 +402,13 @@ struct VGPlayerView: View {
                 ProgressRow(track: track, accent: VG.yellow, seek: media.seek)
                     .padding(.top, 14)
 
-                HStack(spacing: 14) {
+                let modes = media.modes
+                HStack(spacing: modes == nil ? 14 : 6) {
+                    if let modes { ModeButton(kind: .shuffle, modes: modes, action: media.toggleShuffle) }
                     ControlButton(symbol: "backward.fill", size: 15, action: media.previous)
                     ControlButton(symbol: track.isPlaying ? "pause.fill" : "play.fill", size: 19, action: media.playPause)
                     ControlButton(symbol: "forward.fill", size: 15, action: media.next)
+                    if let modes { ModeButton(kind: .repeatMode, modes: modes, action: media.cycleRepeat) }
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -410,6 +416,7 @@ struct VGPlayerView: View {
         .padding(.horizontal, 20)
         .padding(.bottom, 12)
         .frame(maxHeight: .infinity)
+        .onAppear { media.refreshModes(force: true) }
     }
 }
 
@@ -578,7 +585,7 @@ final class BrushProgressView: NSView {
 
 /// Icon vẽ bằng nét cọ theo đề tài tranh: nốt nhạc, giỏ đan, giá vẽ, hướng dương, nút nguồn.
 struct VGIcon: View {
-    enum Kind { case music, basket, easel, sunflower, power }
+    enum Kind { case music, basket, easel, sunflower, power, dots }
     let kind: Kind
 
     static func kind(for symbol: String) -> Kind? {
@@ -588,6 +595,7 @@ struct VGIcon: View {
         case "camera.fill": return .easel
         case "gearshape.fill": return .sunflower
         case "power": return .power
+        case "ellipsis": return .dots
         default: return nil
         }
     }
@@ -644,6 +652,12 @@ struct VGIconShape: Shape {
         case .power:
             path.addArc(center: p(8, 8.6), radius: 5.2 * sx, startAngle: .degrees(-55), endAngle: .degrees(235), clockwise: false)
             path.move(to: p(8, 1.8)); path.addLine(to: p(8, 7.6))
+        case .dots:
+            // Ba chấm sơn ngắn.
+            for x in [3.0, 8.0, 13.0] as [CGFloat] {
+                let c = p(x, 8)
+                path.addEllipse(in: CGRect(x: c.x - 1.2 * sx, y: c.y - 1.1 * sy, width: 2.4 * sx, height: 2.2 * sy))
+            }
         }
         return path
     }

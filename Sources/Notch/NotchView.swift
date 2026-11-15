@@ -9,6 +9,8 @@ struct NotchRootView: View {
     let camera: CameraMirror
     @ObservedObject var settings: SettingsStore
     @ObservedObject var system = SystemMonitor.shared
+    @ObservedObject var awake = KeepAwake.shared
+    @ObservedObject var usage = ClaudeUsage.shared
 
     private let spring = Animation.spring(response: 0.42, dampingFraction: 0.82)
     // Không dùng macro @Namespace/@State (plugin chỉ có trong Xcode).
@@ -44,6 +46,10 @@ struct NotchRootView: View {
                            height: notch.height / NotchModel.scale + model.expandedBodyHeight)
                     .scaleEffect(NotchModel.scale, anchor: .top)
                     .transition(.notchContent)
+            } else if let alert = model.alert {
+                AlertCard(alert: alert, notchHeight: notch.height)
+                    .frame(width: size.width, height: size.height)
+                    .transition(.notchContent)
             } else if model.minimal {
                 EmptyView()
             } else if let peek = model.peek {
@@ -53,6 +59,9 @@ struct NotchRootView: View {
                     case let .audio(name, symbol): AudioWings(name: name, symbol: symbol, wing: peek.wing)
                     case let .screenshot(thumb): ScreenshotWings(thumb: thumb, wing: peek.wing)
                     case let .unlocked(name): UnlockWings(name: name, wing: peek.wing)
+                    case let .claude(notice): ClaudeNoticeWings(notice: notice, wing: peek.wing)
+                    case let .capsLock(on): CapsLockWings(on: on, wing: peek.wing)
+                    case let .hud(hud): HUDWings(hud: hud, wing: peek.wing)
                     }
                 }
                 .frame(width: notch.width + peek.wing * 2, height: notch.height)
@@ -122,6 +131,16 @@ struct NotchRootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.6), value: media.accent)
+        // Nút tròn hai bên notch mở (Cài đặt › Giao diện › Bố cục notch).
+        .overlay(alignment: .top) {
+            if model.expanded, !model.minimal {
+                NotchOrbColumns(media: media, settings: settings, model: model, panelWidth: size.width)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.6, anchor: .top))
+                            .animation(.spring(response: 0.4, dampingFraction: 0.75).delay(0.12)),
+                        removal: .opacity.animation(.easeOut(duration: 0.1))))
+            }
+        }
         // "Nuốt" file vừa bay tới: phình nhẹ rồi nảy về.
         .scaleEffect(model.gulp ? 1.04 : 1, anchor: .top)
         .animation(.spring(response: 0.22, dampingFraction: 0.45), value: model.gulp)
@@ -133,6 +152,7 @@ struct NotchRootView: View {
         .animation(spring, value: model.tall)
         .animation(spring, value: model.mirrorMode)
         .animation(spring, value: model.peek)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: model.alert)
         .animation(spring, value: wings)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .environment(\.locale, settings.locale)
@@ -304,6 +324,8 @@ struct ExpandedView: View {
     let ns: Namespace.ID
     /// Hiện lần lượt: hàng tab trước, nội dung sau (chỉ chạy lúc mở).
     var shown = State(initialValue: false)
+    @ObservedObject var lyrics = LyricsStore.shared
+    @ObservedObject var layoutStore = NotchLayoutStore.shared
     // Hiệu ứng đổi tab chỉ 0,3 s mỗi lần bấm: giữ cả khi tiết kiệm pin.
     private var tabFX: Bool { (Theme.isPixel || Theme.isCassette || Theme.isVanGogh) && permissions.current == nil }
 
@@ -326,6 +348,10 @@ struct ExpandedView: View {
                         TabPill(symbol: "camera.fill", label: nil, selected: model.tab == .mirror) {
                             model.tab = .mirror
                         }
+                    case .sound:
+                        TabPill(symbol: "speaker.wave.2.fill", label: nil, selected: model.tab == .sound) {
+                            model.tab = .sound
+                        }
                     }
                 }
                 if permissions.requests.count > 1 {
@@ -337,22 +363,10 @@ struct ExpandedView: View {
                     // Notch mở: thú cưng lên hàng tab (Claude hỏi vẫn thấy nó giật mình); bấm để vuốt ve.
                     PetView().frame(width: 34, height: notchHeight)
                 }
-                Button { SettingsWindowController.shared.show() } label: {
-                    ThemedIcon(symbol: "gearshape.fill")
-                        .font(.ui(11, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.5))
-                        .frame(width: 22, height: 22)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help(L("Cài đặt", "Settings"))
-                Button { NSApp.terminate(nil) } label: {
-                    ThemedIcon(symbol: "power")
-                        .font(.ui(11, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.5))
-                }
-                .buttonStyle(.plain)
-                .help(L("Thoát Roost", "Quit Roost"))
+                // Góc phải gọn: viên trạng thái (mức dùng Claude, ly cà phê khi đang bật), nút đặt trên thanh công cụ, nút Cài đặt.
+                HeaderStatusPill()
+                HeaderToolbarItems(model: model, media: media, settings: settings)
+                HeaderSettingsButton()
             }
             .padding(.horizontal, 18)
             .frame(height: notchHeight)
@@ -414,6 +428,8 @@ struct ExpandedView: View {
                 } else {
                     TrayView(tray: tray, targeted: model.dropTargeted)
                 }
+            } else if settings.showSound && model.tab == .sound {
+                SoundPanel()
             } else if settings.showMirror && model.tab == .mirror {
                 if Theme.isCassette {
                     InstantCameraMirror(camera: camera, calendar: calendar, tray: tray)
@@ -433,7 +449,9 @@ struct ExpandedView: View {
                 HStack(spacing: 0) {
                     if settings.showMedia {
                     Group {
-                        if Theme.isCassette {
+                        if lyrics.showInNotch, LyricsStore.supports(lyrics.track) {
+                            NotchLyricsView(media: media)
+                        } else if Theme.isCassette {
                             CassettePlayerView(media: media)
                         } else if Theme.isVanGogh, let track = media.track {
                             VGPlayerView(media: media, track: track)
@@ -444,6 +462,12 @@ struct ExpandedView: View {
                                 .font(.ui(13))
                                 .foregroundStyle(Theme.isVanGogh ? VG.muted : .white.opacity(0.5))
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
+                    }
+                    .overlay(alignment: Theme.isCassette ? .bottomLeading : .topTrailing) {
+                        // Lời bài hát: chỉ với Spotify và Apple Music.
+                        if !lyrics.showInNotch, LyricsStore.supports(lyrics.track) {
+                            LyricsToggleButton().padding(Theme.isCassette ? 6 : 4)
                         }
                     }
                     .frame(width: settings.showCalendar ? 350 : nil)
@@ -474,6 +498,8 @@ struct ExpandedView: View {
             .offset(y: shown.wrappedValue ? 0 : 10)
             .animation(.spring(response: 0.42, dampingFraction: 0.82).delay(0.11), value: shown.wrappedValue)
         }
+        // Bảng mức dùng Claude thả xuống từ chip trên hàng tab.
+        .overlay(alignment: .topTrailing) { ClaudeUsagePanelHost().padding(.top, notchHeight + 2).padding(.trailing, 14) }
         .onAppear { shown.wrappedValue = true }
         // Neo lên trên: tab nào thấp hơn thì hàng tab cũng không bị đẩy xuống.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -627,6 +653,9 @@ struct PlayerView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { media.openPlayer() }
                 .help(L("Mở \(track.appName)", "Open \(track.appName)"))
+                .overlay(alignment: .bottomTrailing) {
+                    SourceBadge(bundleID: track.bundleID, open: media.openPlayer).offset(x: 7, y: 7)
+                }
 
             VStack(alignment: .leading, spacing: 10) {
                 VStack(alignment: .leading, spacing: 3) {
@@ -649,10 +678,15 @@ struct PlayerView: View {
 
                 ProgressRow(track: track, accent: media.accent, seek: media.seek)
 
-                HStack(spacing: 14) {
-                    ControlButton(symbol: "backward.fill", size: 18, action: media.previous)
-                    ControlButton(symbol: track.isPlaying ? "pause.fill" : "play.fill", size: 24, action: media.playPause)
-                    ControlButton(symbol: "forward.fill", size: 18, action: media.next)
+                // Trộn / lặp chỉ hiện khi nguồn cho điều khiển (Spotify, Music…); hàng chật nên khít lại.
+                let modes = media.modes
+                let key: CGFloat? = modes != nil && Theme.isPixel ? 40 : nil
+                HStack(spacing: modes == nil ? 14 : 4) {
+                    if let modes { ModeButton(kind: .shuffle, modes: modes, compact: Theme.isPixel, action: media.toggleShuffle) }
+                    ControlButton(symbol: "backward.fill", size: 18, width: key, action: media.previous)
+                    ControlButton(symbol: track.isPlaying ? "pause.fill" : "play.fill", size: 24, width: key, action: media.playPause)
+                    ControlButton(symbol: "forward.fill", size: 18, width: key, action: media.next)
+                    if let modes { ModeButton(kind: .repeatMode, modes: modes, compact: Theme.isPixel, action: media.cycleRepeat) }
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -661,6 +695,7 @@ struct PlayerView: View {
         .padding(.bottom, 12)
         .frame(maxHeight: .infinity)
         .overlay { if Theme.isPixel { PixelLevelUpBanner() } }
+        .onAppear { media.refreshModes(force: true) }
     }
 }
 
@@ -927,6 +962,8 @@ final class LiveProgressView: NSView {
 struct ControlButton: View {
     let symbol: String
     let size: CGFloat
+    /// Phím Pixel thu hẹp khi hàng có thêm nút trộn / lặp.
+    var width: CGFloat? = nil
     let action: () -> Void
     // Không dùng macro @State: plugin SwiftUIMacros chỉ có trong Xcode, CLT không có.
     private var hover = State(initialValue: false)
@@ -941,7 +978,7 @@ struct ControlButton: View {
             Image(systemName: symbol)
                 .font(.system(size: size))
                 .foregroundStyle(Theme.isPixel ? Color.black : .white)
-                .frame(width: Theme.isPixel ? 52 : 38, height: Theme.isPixel ? 38 : 34)
+                .frame(width: width ?? (Theme.isPixel ? 52 : 38), height: Theme.isPixel ? 38 : 34)
                 .background(Theme.isPixel
                     ? AnyView(PixelKey(fill: symbol.hasPrefix("pause") || symbol.hasPrefix("play") ? Color(red: 1, green: 0.9, blue: 0.43) : PixelPalette.border))
                     : AnyView(Circle().fill(.white.opacity(hovering ? 0.12 : 0))))

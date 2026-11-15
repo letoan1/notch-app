@@ -2,13 +2,15 @@ import SwiftUI
 
 /// Nội dung một bên cánh notch lúc thu gọn, đã quyết theo Cài đặt + trạng thái hiện tại.
 enum WingContent: Equatable {
-    case artwork, equalizer, battery, clock
+    case artwork, equalizer, battery, clock, coffee, claudeUsage
     case meeting(start: Date, end: Date, video: Bool)
 
     func width(height: CGFloat) -> CGFloat {
         switch self {
         case .artwork, .equalizer: return height
         case .clock: return 46
+        case .claudeUsage: return 52
+        case .coffee: return 26
         case .battery: return 58
         case .meeting: return 64
         }
@@ -35,6 +37,7 @@ struct WingLayout: Equatable {
             case .equalizer: return hasTrack ? .equalizer : nil
             case .battery: return battery == nil ? nil : .battery
             case .clock: return .clock
+            case .claude: return ClaudeUsage.shared.hasData ? .claudeUsage : nil
             case .none: return nil
             case .meeting:
                 guard calendar.weekOffset == 0 else { return nil }
@@ -45,8 +48,12 @@ struct WingLayout: Equatable {
                 return .meeting(start: e.start, end: e.end, video: e.meeting != nil)
             }
         }
-        let left = content(settings.leftWing, auto: .artwork)
-        let right = content(settings.rightWing, auto: .equalizer)
+        var left = content(settings.leftWing, auto: .artwork)
+        var right = content(settings.rightWing, auto: .equalizer)
+        // Đang giữ máy thức: ly cà phê nhỏ ở bên còn trống (hết chỗ thì thay bên phải).
+        if KeepAwake.shared.active {
+            if left == nil { left = .coffee } else { right = .coffee }
+        }
         let width = [left, right].compactMap { $0?.width(height: height) }.max() ?? 0
         return WingLayout(left: left, right: right, width: width)
     }
@@ -134,6 +141,12 @@ struct CollapsedWings: View {
                 }
                 .foregroundStyle(Theme.isVanGogh ? VG.yellow : Color(red: 0.45, green: 0.75, blue: 1))
             }
+        case .claudeUsage?:
+            ClaudeUsageWing()
+        case .coffee?:
+            Image(systemName: "cup.and.saucer.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(KeepAwakeButton.activeColor)
         case nil:
             Color.clear
         }

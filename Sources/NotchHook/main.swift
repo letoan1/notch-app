@@ -4,6 +4,8 @@ import Foundation
 // - PermissionRequest: gửi yêu cầu lên app Roost qua Unix socket rồi chờ người dùng bấm.
 // - PostToolUse / PostToolUseFailure / Stop / SessionEnd / UserPromptSubmit: báo app gỡ thẻ đã được
 //   trả lời ở terminal (hộp thoại terminal chạy song song với hook), không chờ, không in gì.
+// - Notification: báo app phiên đang cần bạn (âm báo + thông báo nhanh), không chờ.
+// - --statusline: lệnh statusLine, xem bên dưới.
 // Mọi lỗi (app tắt, app chết giữa chừng, socket cũ, hết giờ, JSON hỏng) → thoát 0 không in gì
 // = không quyết định, Claude Code giữ luồng hỏi quyền bình thường.
 // Không bao giờ được treo quá timeout của Claude Code (110 s): có watchdog SIGALRM chặn cứng.
@@ -24,9 +26,22 @@ let socketPath = env["ROOST_HOOK_SOCKET"].flatMap { $0.isEmpty ? nil : $0 }
 let parent = getppid()
 let claudePid = Int32(env["CLAUDE_PID"] ?? "") ?? parent
 
+// `roost-hook --statusline`: dùng làm lệnh statusLine của Claude Code. In dòng trạng thái ngắn
+// (mức dùng 5 giờ / tuần) và chuyển `rate_limits` cho app. Không bao giờ chờ quá 2 giây.
+let statusline = CommandLine.arguments.contains("--statusline")
+
 let input = FileHandle.standardInput.readDataToEndOfFile()
 guard let object = try? JSONSerialization.jsonObject(with: input) as? [String: Any] else { exit(0) }
-let event = object["hook_event_name"] as? String ?? "PermissionRequest"
+if statusline {
+    let limits = object["rate_limits"] as? [String: Any]
+    func pct(_ key: String) -> String? {
+        ((limits?[key] as? [String: Any])?["used_percentage"] as? NSNumber).map { "\(key == "five_hour" ? "5h" : "7d") \(Int($0.doubleValue.rounded()))%" }
+    }
+    let text = [pct("five_hour"), pct("seven_day")].compactMap { $0 }.joined(separator: "  ")
+    FileHandle.standardOutput.write(Data((text + "\n").utf8))
+    guard limits != nil else { exit(0) }
+}
+let event = statusline ? "Usage" : object["hook_event_name"] as? String ?? "PermissionRequest"
 let isRequest = event == "PermissionRequest"
 let deadline = started.addingTimeInterval(isRequest ? timeout : 2)
 if !isRequest { alarm(3) }
@@ -51,6 +66,11 @@ if isRequest {
     message = ["notch_event": event, "session_id": object["session_id"] ?? ""]
     if let tool = object["tool_name"] { message["tool_name"] = tool }
     if let toolInput = object["tool_input"] { message["tool_input"] = toolInput }
+    // Notification: phiên cần bạn (chờ nhập, xin quyền…). Usage: mức dùng từ statusline.
+    for key in ["message", "notification_type", "cwd", "rate_limits"] {
+        if let value = object[key] { message[key] = value }
+    }
+    if event == "Notification", let dir = env["CLAUDE_PROJECT_DIR"], !dir.isEmpty { message["project_dir"] = dir }
 }
 guard var line = try? JSONSerialization.data(withJSONObject: message) else { exit(0) }
 line.append(0x0A)

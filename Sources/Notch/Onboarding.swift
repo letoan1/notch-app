@@ -61,8 +61,8 @@ private struct OnboardingView: View {
     @StateObject private var state = OnboardingState()
 
     static let hookPath = "/Applications/Roost.app/Contents/MacOS/roost-hook"
-    /// PermissionRequest: hiện thẻ. Các event còn lại: báo app gỡ thẻ khi đã trả lời ở terminal
-    /// (hộp thoại terminal chạy song song với hook) — chạy vài ms, không in gì.
+    /// PermissionRequest: hiện thẻ. Notification: âm báo khi phiên chờ bạn. Các event còn lại: báo app gỡ
+    /// thẻ khi đã trả lời ở terminal (hộp thoại terminal chạy song song với hook), chạy vài ms, không in gì.
     static let hookConfig = """
     {
       "hooks": {
@@ -82,6 +82,9 @@ private struct OnboardingView: View {
           "hooks": [{ "type": "command", "command": "\(hookPath)", "timeout": 5 }]
         }],
         "SessionEnd": [{
+          "hooks": [{ "type": "command", "command": "\(hookPath)", "timeout": 5 }]
+        }],
+        "Notification": [{
           "hooks": [{ "type": "command", "command": "\(hookPath)", "timeout": 5 }]
         }]
       }

@@ -198,7 +198,7 @@ Kiểm bằng cách khởi động lại khoảng 10 lần trong buổi đo (pki
 | Tab bật/tắt | UserDefaults `tab.*` | Có |
 | Khay file | UserDefaults `trayItems` (bookmark) | Có. Đã kiểm: ghi lại, khởi động lại, item còn nguyên |
 | Lật gương | UserDefaults `mirrorFlip` | Có |
-| Mục Cài đặt đang mở | UserDefaults `settingsPane` | Có |
+| Mục Cài đặt đang mở | UserDefaults `settingsPaneID` | Có |
 | Cài đặt mở khoá bằng khuôn mặt | UserDefaults `faceUnlock.*` | Có |
 | Nhật ký mở khoá (50 dòng) | UserDefaults `faceUnlock.log` | Có |
 | Dữ liệu khuôn mặt, mật khẩu | Application Support/Roost/FaceUnlock, Keychain | Có (không đụng tới) |

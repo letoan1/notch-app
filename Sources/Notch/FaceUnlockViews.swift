@@ -245,7 +245,7 @@ struct FaceUnlockPane: View {
             if let service = controller.service {
                 form(service)
             } else {
-                ProgressView().frame(width: 520, height: 640)
+                ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         // Tạo service khi mở pane (tải model), không tạo trong lúc dựng view.
@@ -254,29 +254,29 @@ struct FaceUnlockPane: View {
 
     private func form(_ service: FaceUnlockService) -> some View {
         _ = refresh.wrappedValue
-        return Form {
-            Section {
-                Toggle(L("Hiệu ứng Face ID khi mở khoá", "Face ID effect on unlock"), isOn: $settings.unlockEffect)
-            } footer: {
-                Text(L("Chỉ là hiệu ứng, không cần bật tính năng bên dưới. Màn hình khoá có biểu tượng Face ID cạnh notch, và khi bạn mở khoá bằng bất kỳ cách nào (Touch ID, Apple Watch, mật khẩu), notch chạy hiệu ứng quét, hiện dấu ✓ rồi chào bạn.", "Just an effect; you don't need the feature below. The lock screen shows a Face ID glyph next to the notch, and when you unlock in any way (Touch ID, Apple Watch, password) the notch plays a scan, shows a ✓ and greets you."))
-                    .font(.caption).foregroundStyle(.secondary)
+        return SPage {
+            SSection(L("Hiệu ứng", "Effect"),
+                     note: L("Chỉ là hiệu ứng, không cần bật tính năng bên dưới. Khi bạn mở khoá bằng bất kỳ cách nào (Touch ID, Apple Watch, mật khẩu), notch chạy hiệu ứng quét, hiện dấu ✓ rồi chào bạn.",
+                             "Just an effect; you don't need the feature below. When you unlock in any way (Touch ID, Apple Watch, password), the notch plays a scan, shows a ✓ and greets you.")) {
+                SToggleRow(icon: "faceid", title: L("Hiệu ứng Face ID khi mở khoá", "Face ID effect on unlock"),
+                           divider: false, isOn: $settings.unlockEffect)
             }
 
-            Section {
-                Label {
-                    Text(L("Đây là tiện ích, không phải lớp bảo mật. Camera MacBook chỉ thấy ảnh 2D: bước kiểm tra người thật chặn được ảnh in và ảnh trên điện thoại, nhưng một video quay mặt bạn vẫn có thể qua được. Tính năng chỉ chạy khi bạn đã đăng nhập, không dùng được sau khi khởi động lại máy. App gõ mật khẩu đăng nhập đã lưu vào màn hình khoá nên cần quyền Trợ năng.", "This is a convenience, not a security layer. A MacBook camera only sees a flat image: the liveness check stops printed photos and photos on a phone, but a video of your face may still get through. It only works after you've logged in, not after a restart. Roost types your saved login password on the lock screen, so it needs Accessibility access."))
-                        .font(.callout)
-                        .fixedSize(horizontal: false, vertical: true)
-                } icon: {
-                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+            SSection(L("Mở khoá bằng khuôn mặt (Thử nghiệm)", "Face unlock (Experimental)")) {
+                SBlock(divider: false) {
+                    Label {
+                        Text(L("Đây là tiện ích, không phải lớp bảo mật. Camera MacBook chỉ thấy ảnh 2D: bước kiểm tra người thật chặn được ảnh in và ảnh trên điện thoại, nhưng một video quay mặt bạn vẫn có thể qua được. Tính năng chỉ chạy khi bạn đã đăng nhập, không dùng được sau khi khởi động lại máy. App gõ mật khẩu đăng nhập đã lưu vào màn hình khoá nên cần quyền Trợ năng.", "This is a convenience, not a security layer. A MacBook camera only sees a flat image: the liveness check stops printed photos and photos on a phone, but a video of your face may still get through. It only works after you've logged in, not after a restart. Roost types your saved login password on the lock screen, so it needs Accessibility access."))
+                            .font(.system(size: 12))
+                            .fixedSize(horizontal: false, vertical: true)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                    }
                 }
-            } header: {
-                Text(L("Mở khoá bằng khuôn mặt (Thử nghiệm)", "Face unlock (Experimental)"))
             }
 
-            Section(L("Thiết lập", "Setup")) {
+            SSection(L("Thiết lập", "Setup")) {
                 let camera = FaceUnlockService.cameraPermission == .granted
-                step(L("Quyền camera", "Camera access"), ok: camera) {
+                step("camera", L("Quyền camera", "Camera access"), ok: camera, divider: false) {
                     if FaceUnlockService.cameraPermission == .notDetermined {
                         Button(L("Cấp quyền", "Allow")) {
                             Task { _ = await FaceUnlockService.requestCameraAccess(); refresh.wrappedValue += 1 }
@@ -287,7 +287,7 @@ struct FaceUnlockPane: View {
                     }
                 }
                 let ax = FaceUnlockService.isAccessibilityTrusted
-                step(L("Quyền Trợ năng (để gõ mật khẩu)", "Accessibility (to type the password)"), ok: ax) {
+                step("accessibility", L("Quyền Trợ năng (để gõ mật khẩu)", "Accessibility (to type the password)"), ok: ax) {
                     if !ax {
                         Button(L("Mở Cài đặt hệ thống", "Open System Settings")) {
                             // Hộp thoại hệ thống chỉ hiện lần đầu: mở thẳng mục Trợ năng cho các lần sau.
@@ -296,7 +296,7 @@ struct FaceUnlockPane: View {
                         }
                     }
                 }
-                step(L("Phiên Touch ID", "Touch ID session"), ok: service.isSessionUnlocked,
+                step("touchid", L("Phiên Touch ID", "Touch ID session"), ok: service.isSessionUnlocked,
                      detail: L("Mở lại mỗi lần chạy app, tự khoá khi hết thời gian chờ", "Open it once per app launch; it locks itself after the idle limit")) {
                     if service.isSessionUnlocked {
                         Button(L("Khoá lại", "Lock")) { service.lockSession() }
@@ -306,31 +306,35 @@ struct FaceUnlockPane: View {
                         }
                     }
                 }
-                VStack(alignment: .leading, spacing: 6) {
-                    step(L("Mật khẩu đăng nhập", "Login password"), ok: service.hasStoredPassword) {
-                        if service.hasStoredPassword {
-                            Button(L("Xoá", "Delete")) { run { try service.deleteStoredPassword() } }
-                        }
+                step("key", L("Mật khẩu đăng nhập", "Login password"), ok: service.hasStoredPassword,
+                     detail: L("Mã hoá bằng một khoá chỉ mở sau Touch ID. Roost không biết mật khẩu đúng hay sai, hãy nhập cẩn thận.",
+                               "Encrypted with a key that only opens after Touch ID. Roost can't tell whether it is correct, so type it carefully.")) {
+                    if service.hasStoredPassword {
+                        Button(L("Xoá", "Delete")) { run { try service.deleteStoredPassword() } }
                     }
+                }
+                SBlock(padding: 12) {
                     HStack {
                         SecureField(L("Mật khẩu đăng nhập Mac", "Mac login password"), text: password.projectedValue)
+                            .labelsHidden()
                             .textFieldStyle(.roundedBorder)
                         Button(service.hasStoredPassword ? L("Thay (Touch ID)", "Replace (Touch ID)") : L("Lưu (Touch ID)", "Save (Touch ID)")) {
                             let pw = password.wrappedValue
                             password.wrappedValue = ""
                             run { try await service.storePassword(pw, reason: L("Lưu mật khẩu cho mở khoá bằng khuôn mặt", "Store your password for face unlock")) }
                         }
+                        .buttonStyle(SButtonStyle(.primary))
                         .disabled(password.wrappedValue.isEmpty)
                     }
-                    Text(L("Mật khẩu được mã hoá bằng một khoá chỉ mở sau khi xác thực Touch ID. Roost không biết mật khẩu bạn nhập đúng hay sai, nên hãy nhập cẩn thận.", "The password is encrypted with a key that only opens after Touch ID. Roost can't tell whether the password is correct, so type it carefully."))
-                        .font(.caption).foregroundStyle(.secondary)
+                    .padding(.leading, 40)
                 }
-                step(L("Khuôn mặt", "Face"), ok: !service.identities.isEmpty || service.hasEnrollmentData,
-                     detail: service.identities.first.map { "\($0.name) · \($0.sampleCount) " + L("mẫu", "samples") + ($0.isStale ? L(", cần quét lại", ", needs a rescan") : "") }) {
+                step("person.crop.circle", L("Khuôn mặt", "Face"), ok: !service.identities.isEmpty || service.hasEnrollmentData,
+                     detail: service.identities.first.map { "\($0.name), \($0.sampleCount) " + L("mẫu", "samples") + ($0.isStale ? L(", cần quét lại", ", needs a rescan") : "") }) {
                     HStack {
                         Button(service.identities.isEmpty ? L("Quét mặt…", "Enroll…") : L("Quét lại…", "Re-enroll…")) {
                             EnrollmentWindowController.shared.show(replacing: service.identities.first?.id)
                         }
+                        .buttonStyle(SButtonStyle(.primary))
                         .disabled(service.modelState != .ready || FaceUnlockService.cameraPermission != .granted)
                         if let first = service.identities.first {
                             Button(L("Xoá", "Delete")) { run { try service.deleteIdentity(id: first.id) } }
@@ -338,56 +342,52 @@ struct FaceUnlockPane: View {
                     }
                 }
                 if case .failed(let why) = service.modelState {
-                    Text(L("Không tải được model: ", "Model failed to load: ") + why).font(.caption).foregroundStyle(.red)
+                    SBlock { Text(L("Không tải được model: ", "Model failed to load: ") + why).font(.caption).foregroundStyle(.red) }
                 } else if service.modelState == .loading {
-                    Text(L("Đang tải model…", "Loading the model…")).font(.caption).foregroundStyle(.secondary)
+                    SBlock { Text(L("Đang tải model…", "Loading the model…")).font(.caption).foregroundStyle(.secondary) }
                 }
                 if let e = error.wrappedValue {
-                    Text(e).font(.caption).foregroundStyle(.red)
+                    SBlock { Text(e).font(.caption).foregroundStyle(.red) }
                 }
             }
 
-            Section {
-                Toggle(L("Bật mở khoá bằng khuôn mặt", "Enable face unlock"), isOn: Binding(
-                    get: { service.settings.isEnabled },
-                    set: { service.settings.isEnabled = $0 }))
-                if service.settings.isEnabled, let why = service.notReadyReason {
-                    Text(L("Chưa chạy được: ", "Can't run yet: ") + why).font(.caption).foregroundStyle(.orange)
+            SSection(L("Tuỳ chọn", "Options"),
+                     note: L("Roost quét mặt khi máy khoá hoặc thức dậy, và khi bạn rê chuột lên notch trên màn hình khoá. Sai \(FaceUnlockController.maxFailures) lần liên tiếp thì app ngừng quét, cho tới khi bạn mở khoá bằng cách khác. Chỉ dùng camera thật (tích hợp hoặc USB).",
+                             "Roost scans when the Mac locks or wakes, and when you hover the notch on the lock screen. After \(FaceUnlockController.maxFailures) failed tries in a row it stops until you unlock another way. Only real cameras (built-in or USB) are used.")) {
+                SRow("lock.open", L("Bật mở khoá bằng khuôn mặt", "Enable face unlock"),
+                     detail: service.settings.isEnabled ? service.notReadyReason.map { L("Chưa chạy được: ", "Can't run yet: ") + $0 } : nil,
+                     divider: false) {
+                    Toggle("", isOn: Binding(get: { service.settings.isEnabled }, set: { service.settings.isEnabled = $0 }))
+                        .toggleStyle(.switch).controlSize(.small).tint(SUI.accent)
                 }
-                Picker(L("Kiểm tra mặt thật", "Liveness check"), selection: Binding(
-                    get: { service.settings.livenessMode },
-                    set: { service.settings.livenessMode = $0 })) {
-                    Text(L("Nặng (khuyên dùng)", "Heavy (recommended)")).tag(FaceUnlockLivenessMode.heavy)
-                    Text(L("Nhẹ", "Light")).tag(FaceUnlockLivenessMode.light)
-                    Text(L("Tắt (ảnh chụp cũng qua)", "Off (a photo can pass)")).tag(FaceUnlockLivenessMode.off)
+                SRow("eye", L("Kiểm tra mặt thật", "Liveness check")) {
+                    SPicker(Binding(get: { service.settings.livenessMode }, set: { service.settings.livenessMode = $0 }),
+                            [(FaceUnlockLivenessMode.heavy, L("Nặng (khuyên dùng)", "Heavy (recommended)")),
+                             (.light, L("Nhẹ", "Light")),
+                             (.off, L("Tắt (ảnh chụp cũng qua)", "Off (a photo can pass)"))])
                 }
-                Picker(L("Phiên Touch ID tự khoá sau", "Touch ID session re-locks after"), selection: Binding(
-                    get: { service.settings.sessionIdleLimit ?? FaceUnlockController.defaultIdleLimit },
-                    set: { service.settings.sessionIdleLimit = $0 })) {
-                    ForEach(Self.idleOptions, id: \.self) { Text(Self.idleTitle($0)).tag($0) }
+                SRow("timer", L("Phiên Touch ID tự khoá sau", "Touch ID session re-locks after")) {
+                    SPicker(Binding(get: { service.settings.sessionIdleLimit ?? FaceUnlockController.defaultIdleLimit },
+                                    set: { service.settings.sessionIdleLimit = $0 }),
+                            Array(Self.idleOptions), title: { Self.idleTitle($0) })
                 }
                 let cameras = FaceUnlockService.availableCameras()
                 if cameras.count > 1 {
-                    Picker(L("Camera", "Camera"), selection: Binding(
-                        get: { service.settings.cameraDeviceID ?? "" },
-                        set: { service.settings.cameraDeviceID = $0.isEmpty ? nil : $0 })) {
-                        Text(L("Mặc định (camera tích hợp)", "Default (built-in)")).tag("")
-                        ForEach(cameras) { Text($0.name).tag($0.id) }
+                    SRow("web.camera", L("Camera", "Camera")) {
+                        SPicker(Binding(get: { service.settings.cameraDeviceID ?? "" },
+                                        set: { service.settings.cameraDeviceID = $0.isEmpty ? nil : $0 }),
+                                [("", L("Mặc định (camera tích hợp)", "Default (built-in)"))] + cameras.map { ($0.id, $0.name) })
                     }
                 }
-            } footer: {
-                Text(L("Roost quét mặt khi máy khoá hoặc thức dậy, và khi bạn rê chuột lên notch trên màn hình khoá. Sai \(FaceUnlockController.maxFailures) lần liên tiếp thì app ngừng quét, cho tới khi bạn mở khoá bằng cách khác. App chỉ dùng camera thật (tích hợp hoặc USB), không nhận camera ảo và Continuity Camera.",
-                       "Roost scans when the Mac locks or wakes, and when you hover the notch on the lock screen. After \(FaceUnlockController.maxFailures) failed tries in a row it stops scanning until you unlock another way. It only uses real cameras (built-in or USB); virtual cameras and Continuity Camera are ignored."))
-                    .font(.caption).foregroundStyle(.secondary)
             }
 
-            Section {
+            SSection(L("Nhật ký mở khoá", "Unlock log")) {
                 if controller.log.isEmpty {
-                    Text(L("Chưa có lần mở khoá nào", "No unlock attempts yet")).foregroundStyle(.secondary)
+                    SRow("list.bullet.rectangle", L("Chưa có lần mở khoá nào", "No unlock attempts yet"), divider: false) { EmptyView() }
                 } else {
-                    ScrollView {
+                    SBlock(divider: false) {
                         VStack(alignment: .leading, spacing: 4) {
-                            ForEach(controller.log) { entry in
+                            ForEach(controller.log.prefix(12)) { entry in
                                 HStack(alignment: .top, spacing: 6) {
                                     Image(systemName: entry.success ? "checkmark.circle.fill" : "xmark.circle.fill")
                                         .foregroundStyle(entry.success ? .green : .red)
@@ -397,44 +397,39 @@ struct FaceUnlockPane: View {
                                 .font(.caption)
                             }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(height: 110)
-                    Button(L("Xoá nhật ký", "Clear log")) { controller.clearLog() }
+                    SRow("trash", L("Xoá nhật ký", "Clear log")) {
+                        Button(L("Xoá", "Clear")) { controller.clearLog() }.controlSize(.small)
+                    }
                 }
-            } header: {
-                Text(L("Nhật ký mở khoá", "Unlock log"))
             }
 
-            Section {
-                Button(L("Xoá hết (mặt, mật khẩu, khoá phiên)…", "Reset everything (face, password, session key)…"), role: .destructive) {
-                    confirmReset.wrappedValue = true
-                }
-                .confirmationDialog(L("Xoá hết dữ liệu mở khoá bằng khuôn mặt?", "Delete all face-unlock data?"),
-                                    isPresented: confirmReset.projectedValue) {
-                    Button(L("Xoá hết", "Delete all"), role: .destructive) { run { try service.resetAll() } }
+            SSection(nil) {
+                SRow("exclamationmark.octagon", L("Xoá hết dữ liệu", "Delete all data"),
+                     detail: L("Khuôn mặt, mật khẩu và khoá phiên.", "Face, password and session key."), divider: false) {
+                    Button(L("Xoá hết…", "Delete all…"), role: .destructive) { confirmReset.wrappedValue = true }
+                        .controlSize(.small)
+                        .confirmationDialog(L("Xoá hết dữ liệu mở khoá bằng khuôn mặt?", "Delete all face-unlock data?"),
+                                            isPresented: confirmReset.projectedValue) {
+                            Button(L("Xoá hết", "Delete all"), role: .destructive) { run { try service.resetAll() } }
+                        }
                 }
             }
         }
-        .formStyle(.grouped)
-        .frame(width: 520, height: 640)
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
             refresh.wrappedValue += 1
         }
     }
 
     @ViewBuilder
-    private func step<Accessory: View>(_ title: String, ok: Bool, detail: String? = nil,
+    private func step<Accessory: View>(_ icon: String, _ title: String, ok: Bool, detail: String? = nil, divider: Bool = true,
                                        @ViewBuilder accessory: () -> Accessory) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Image(systemName: ok ? "checkmark.circle.fill" : "circle.dashed")
-                .foregroundStyle(ok ? .green : .secondary)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                if let detail { Text(detail).font(.caption).foregroundStyle(.secondary) }
+        SRow(icon, title, detail: detail, divider: divider) {
+            HStack(spacing: 8) {
+                accessory().controlSize(.small)
+                Image(systemName: ok ? "checkmark.circle.fill" : "circle.dashed")
+                    .foregroundStyle(ok ? .green : .secondary)
             }
-            Spacer()
-            accessory()
         }
     }
 

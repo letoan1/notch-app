@@ -37,7 +37,10 @@ final class ClaudeActivity: ObservableObject {
 
     private static let grantsKey = "claude.grants"
 
+    private static let projectsKey = "claude.knownProjects"
+
     private init() {
+        projects = UserDefaults.standard.stringArray(forKey: Self.projectsKey) ?? []
         if let data = UserDefaults.standard.data(forKey: Self.grantsKey),
            let saved = try? JSONDecoder().decode([Grant].self, from: data) {
             grants = saved
@@ -55,6 +58,8 @@ final class ClaudeActivity: ObservableObject {
         projects.removeAll { $0 == dir }
         projects.insert(dir, at: 0)
         if projects.count > 6 { projects.removeLast() }
+        // Nhớ qua các lần mở app, để tab Claude vẫn thấy hook ngay sau khi khởi động lại.
+        UserDefaults.standard.set(projects, forKey: Self.projectsKey)
     }
 
     /// Ghi lại luật vừa cấp. Luật lưu file: đọc lại file sau vài giây để lấy đúng chuỗi Claude Code đã ghi.

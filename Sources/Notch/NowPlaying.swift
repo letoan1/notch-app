@@ -64,6 +64,18 @@ struct Track: Equatable {
     }
 }
 
+enum RepeatMode: Equatable { case off, all, one }
+
+/// Chế độ trộn / lặp của bài đang phát. nil = nguồn không cho điều khiển (trình duyệt, Podcasts…).
+struct PlayModes: Equatable {
+    var shuffle: Bool
+    var repeatMode: RepeatMode
+    /// Spotify chỉ có lặp bật / tắt qua AppleScript, không có lặp một bài.
+    var supportsRepeatOne: Bool
+    /// Đọc / đặt qua MediaRemote (Music báo lên được); không thì qua AppleScript.
+    var viaAdapter: Bool
+}
+
 /// Apple event là IPC đồng bộ (~0.2s, lần đầu ~2s): chạy trên main sẽ làm khựng animation,
 /// nên mọi script đi qua một serial queue riêng.
 final class ScriptRunner: @unchecked Sendable {
@@ -84,6 +96,21 @@ final class ScriptRunner: @unchecked Sendable {
         var error: NSDictionary?
         let result = script.executeAndReturnError(&error)
         return error == nil ? result : nil
+    }
+
+    func fetchModes(_ player: Player) -> PlayModes? {
+        let src = player == .spotify
+            ? "tell application \"Spotify\" to return {shuffling, repeating}"
+            : "tell application \"Music\" to return {shuffle enabled, song repeat as string}"
+        guard let d = run(src), d.numberOfItems == 2 else { return nil }
+        let rep: RepeatMode
+        if player == .spotify {
+            rep = d.atIndex(2)?.booleanValue == true ? .all : .off
+        } else {
+            switch d.atIndex(2)?.stringValue { case "one": rep = .one; case "all": rep = .all; default: rep = .off }
+        }
+        return PlayModes(shuffle: d.atIndex(1)?.booleanValue ?? false, repeatMode: rep,
+                         supportsRepeatOne: player == .music, viaAdapter: false)
     }
 
     func fetch(_ player: Player) -> Track? {
@@ -222,6 +249,7 @@ final class NowPlaying: ObservableObject {
     /// Tua tới `seconds`.
     func seek(_ seconds: Double) {
         guard var t = track else { return }
+        pauseHold = nil  // tua lùi lúc đang dừng là cố ý
         t.position = seconds
         t.fetchedAt = Date()
         setTrack(t)
@@ -240,6 +268,105 @@ final class NowPlaying: ObservableObject {
             app.activate()
         } else if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundle) {
             NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+        }
+    }
+
+    // MARK: - Trộn / lặp
+
+    @Published private(set) var modes: PlayModes?
+    private var adapterModes: (bundle: String, shuffle: Int?, rep: Int?)?
+    private var modesKey = ""
+
+    /// Đọc lại chế độ trộn / lặp: khi đổi bài, đổi trạng thái phát, sau khi bấm, hoặc khi mở notch.
+    func refreshModes(force: Bool = false) {
+        guard let track else {
+            modesKey = ""
+            if modes != nil { modes = nil }
+            return
+        }
+        let key = "\(track.bundleID)|\(track.title)|\(track.isPlaying)"
+        guard force || key != modesKey else { return }
+        modesKey = key
+        // MediaRemote có báo (Music…): dùng luôn, đặt lại cũng qua MediaRemote.
+        if let m = adapterModes, m.bundle == track.bundleID, let sh = m.shuffle, let rp = m.rep, sh > 0, rp > 0 {
+            let next = PlayModes(shuffle: sh > 1, repeatMode: rp == 2 ? .one : rp == 3 ? .all : .off,
+                                 supportsRepeatOne: true, viaAdapter: true)
+            if modes != next { modes = next }
+            return
+        }
+        // Spotify / Music đang chạy: hỏi bằng AppleScript. Nguồn khác: ẩn nút.
+        guard let player = track.player,
+              !NSRunningApplication.runningApplications(withBundleIdentifier: player.bundleID).isEmpty
+        else {
+            if modes != nil { modes = nil }
+            return
+        }
+        let bundle = track.bundleID
+        runner.async { [weak self] r in
+            let m = r.fetchModes(player)
+            Task { @MainActor in
+                guard let self, self.track?.bundleID == bundle, self.modes != m else { return }
+                self.modes = m
+            }
+        }
+    }
+
+    func toggleShuffle() {
+        guard var m = modes else { return }
+        m.shuffle.toggle()
+        modes = m
+        if m.viaAdapter {
+            adapter?.setShuffle(m.shuffle ? 3 : 1)
+            confirmModes()
+            return
+        }
+        guard let player = track?.player else { return }
+        sendMode(player == .spotify ? "set shuffling to \(m.shuffle)" : "set shuffle enabled to \(m.shuffle)",
+                 player, want: m, shuffle: true)
+    }
+
+    /// Tắt → lặp danh sách → lặp một bài (nếu có) → tắt.
+    func cycleRepeat() {
+        guard var m = modes else { return }
+        switch m.repeatMode {
+        case .off: m.repeatMode = .all
+        case .all: m.repeatMode = m.supportsRepeatOne ? .one : .off
+        case .one: m.repeatMode = .off
+        }
+        modes = m
+        if m.viaAdapter {
+            adapter?.setRepeat(m.repeatMode == .one ? 2 : m.repeatMode == .all ? 3 : 1)
+            confirmModes()
+            return
+        }
+        guard let player = track?.player else { return }
+        let command = player == .spotify
+            ? "set repeating to \(m.repeatMode != .off)"
+            : "set song repeat to \(m.repeatMode == .one ? "one" : m.repeatMode == .all ? "all" : "off")"
+        sendMode(command, player, want: m, shuffle: false)
+    }
+
+    private func sendMode(_ command: String, _ player: Player, want: PlayModes, shuffle: Bool) {
+        runner.async { [weak self] r in
+            _ = r.run("tell application \"\(player.rawValue)\" to \(command)")
+            Thread.sleep(forTimeInterval: 0.4)
+            let got = r.fetchModes(player)
+            let applied = shuffle ? got?.shuffle == want.shuffle : got?.repeatMode == want.repeatMode
+            Task { @MainActor in
+                guard let self else { return }
+                // Vài bản Spotify nhận lệnh AppleScript mà không đổi gì: thử lệnh MediaRemote của app đang phát.
+                if !applied, self.adapterTrack?.bundleID == player.bundleID {
+                    if shuffle { self.adapter?.toggleShuffle() } else { self.adapter?.toggleRepeat() }
+                }
+                self.confirmModes()
+            }
+        }
+    }
+
+    /// Đọc lại sau khi bấm (player có thể từ chối, vd. tài khoản Spotify miễn phí).
+    private func confirmModes() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
+            MainActor.assumeIsolated { self?.refreshModes(force: true) }
         }
     }
 
@@ -314,7 +441,24 @@ final class NowPlaying: ObservableObject {
         }
     }
 
+    /// Vị trí lúc vừa dừng. Spotify / MediaRemote hay báo vị trí dừng cũ hơn vài giây, làm thanh giật lùi.
+    private var pauseHold: (title: String, position: Double, until: Date)?
+
     private func setTrack(_ next: Track?) {
+        var next = next
+        let now = Date()
+        if let cur = track, cur.isPlaying, let n = next, !n.isPlaying, n.title == cur.title {
+            pauseHold = (cur.title, cur.position(at: now), now.addingTimeInterval(4))
+        }
+        if let h = pauseHold, var n = next {
+            if n.isPlaying || n.title != h.title || now > h.until {
+                pauseHold = nil
+            } else if n.position < h.position, h.position - n.position < 6 {
+                n.position = h.position
+                n.fetchedAt = now
+                next = n
+            }
+        }
         let unchanged: Bool
         switch (track, next) {
         case (nil, nil): unchanged = true
@@ -322,6 +466,7 @@ final class NowPlaying: ObservableObject {
         default: unchanged = false
         }
         if !unchanged { track = next }
+        refreshModes()
     }
 
     private func updateArtwork(for track: Track?) {
@@ -367,6 +512,9 @@ final class NowPlaying: ObservableObject {
             return
         }
         let bundle = snap.parentBundleID ?? snap.bundleID
+        let newModes = (bundle: bundle, shuffle: snap.shuffleMode, rep: snap.repeatMode)
+        let modesChanged = adapterModes.map { $0.bundle != bundle || $0.shuffle != snap.shuffleMode || $0.rep != snap.repeatMode } ?? true
+        adapterModes = newModes
         let next = Track(
             bundleID: bundle,
             appName: appName(for: bundle),
@@ -386,6 +534,7 @@ final class NowPlaying: ObservableObject {
         }
         latestAdapter = next
         applyAdapter()
+        if modesChanged { refreshModes(force: true) }
     }
 
     /// Áp bài mới nhất từ MediaRemote, trừ khi nó còn mang trạng thái cũ ngay sau khi bấm / tua.

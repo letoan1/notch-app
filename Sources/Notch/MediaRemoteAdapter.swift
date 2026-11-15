@@ -18,6 +18,9 @@ final class MediaRemoteAdapter: @unchecked Sendable {
         /// Chỉ có khi ảnh bìa vừa đổi (base64 đã giải mã).
         var artwork: Data?
         var artworkChanged: Bool
+        /// Chế độ trộn / lặp nếu app có báo lên MediaRemote (Music có, Spotify thường không). 1 = tắt.
+        var shuffleMode: Int?
+        var repeatMode: Int?
     }
 
     private let script: String
@@ -69,6 +72,13 @@ final class MediaRemoteAdapter: @unchecked Sendable {
     func next() { run(["send", "4"]) }
     func previous() { run(["send", "5"]) }
     func seek(_ seconds: Double) { run(["seek", String(Int64(max(seconds, 0) * 1_000_000))]) }
+    /// Bật / tắt trộn (6) và đổi kiểu lặp (7) theo thứ tự của chính app đang phát.
+    func toggleShuffle() { run(["send", "6"]) }
+    func toggleRepeat() { run(["send", "7"]) }
+    /// 1 tắt, 2 trộn album, 3 trộn bài.
+    func setShuffle(_ mode: Int) { run(["shuffle", String(mode)]) }
+    /// 1 tắt, 2 lặp một bài, 3 lặp danh sách.
+    func setRepeat(_ mode: Int) { run(["repeat", String(mode)]) }
 
     // MARK: - Tiến trình
 
@@ -179,7 +189,9 @@ final class MediaRemoteAdapter: @unchecked Sendable {
             playing: state["playing"] as? Bool ?? false,
             hasArtwork: art != nil,
             artwork: changed ? art.flatMap { Data(base64Encoded: $0, options: .ignoreUnknownCharacters) } : nil,
-            artworkChanged: changed
+            artworkChanged: changed,
+            shuffleMode: (state["shuffleMode"] as? NSNumber)?.intValue,
+            repeatMode: (state["repeatMode"] as? NSNumber)?.intValue
         )
     }
 }
