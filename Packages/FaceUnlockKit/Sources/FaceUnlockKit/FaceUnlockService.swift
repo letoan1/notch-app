@@ -63,6 +63,7 @@ public final class FaceUnlockService: ObservableObject {
     @Published public private(set) var awaitingLiveness = false
     /// Notch port: thời gian từng bước của lần quét gần nhất (giây).
     public var lastScanTiming: (camera: Double, face: Double?, match: Double?, live: Double?, total: Double)? { coordinator.lastTiming }
+    public var lastBestSimilarity: Float? { coordinator.lastBestSimilarity }
     /// Non-nil while a guided enrollment is running (or completed, awaiting `finishEnrollment`).
     @Published public private(set) var enrollment: EnrollmentProgress?
     @Published public private(set) var identities: [FaceIdentitySummary] = []

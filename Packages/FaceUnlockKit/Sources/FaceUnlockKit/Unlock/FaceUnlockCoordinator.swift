@@ -81,6 +81,11 @@ final class FaceUnlockCoordinator {
     }
     /// Diagnostic detail of the last decision (similarity, liveness cue). Never contains secrets.
     private(set) var lastOutcome: String?
+    /// Điểm giống cao nhất của lần quét gần nhất (để chỉnh ngưỡng theo số liệu thật).
+    private(set) var lastBestSimilarity: Float?
+    /// Thấp hơn ngưỡng ít nhất chừng này mới coi là "người khác" và dừng sớm; hụt ít hơn thì quét tới hết giờ
+    /// (camera vừa thức còn đang chỉnh sáng, mặt nghiêng, mờ chuyển động).
+    private let wrongFaceMargin: Float = 0.2
 
     /// A wake often catches the owner still looking away; require a sustained non-match before failing.
     private let wrongFaceGraceDuration: Duration = .seconds(2)
@@ -380,6 +385,9 @@ final class FaceUnlockCoordinator {
         var liveAt: Double?
         defer { awaitingLiveness = false }
         var lastProcessedFrameID: UInt64?
+        var bestSimilarity: Float?
+        lastBestSimilarity = nil
+        defer { lastBestSimilarity = bestSimilarity }
 
         while Date() < deadline {
             guard !Task.isCancelled, generation == scanGeneration else { return .cancelled }
@@ -426,13 +434,20 @@ final class FaceUnlockCoordinator {
 
             // `activeIdentities`: someone switched off stays enrolled but must not unlock.
             let scored = pipeline.score(result.embedding, against: deps.store.activeIdentities)
-            let matched = pipeline.bestMatch(in: scored, threshold: deps.settings().matchThreshold)
+            let threshold = deps.settings().matchThreshold
+            let matched = pipeline.bestMatch(in: scored, threshold: threshold)
+            let similarity = scored.first.map { min($0.centroidSimilarity, $0.maxSampleSimilarity) }
+            if let similarity { bestSimilarity = max(bestSimilarity ?? similarity, similarity) }
 
             if firstFaceAt == nil { firstFaceAt = Self.seconds(ContinuousClock.now - scanStart) }
             if let matched {
                 wrongFaceStartedAt = nil
                 readyMatch = matched
                 if firstMatchAt == nil { firstMatchAt = Self.seconds(ContinuousClock.now - scanStart) }
+            } else if (similarity ?? 0) >= threshold - wrongFaceMargin {
+                // Hụt ngưỡng một chút: chưa kết luận, quét tiếp.
+                readyMatch = nil
+                wrongFaceStartedAt = nil
             } else {
                 readyMatch = nil
                 let started = wrongFaceStartedAt ?? .now
@@ -456,6 +471,11 @@ final class FaceUnlockCoordinator {
             }
 
             try? await Task.sleep(nanoseconds: 20_000_000)
+        }
+        // Hết giờ mà đã thấy mặt (chỉ hụt ngưỡng): là "không nhận ra", không phải "không thấy mặt".
+        if let bestSimilarity {
+            lastOutcome = "Best similarity \(String(format: "%.3f", bestSimilarity))."
+            return .consistentlyWrongFace
         }
         return .noResolution
     }

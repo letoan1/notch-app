@@ -168,7 +168,12 @@ final class FaceUnlockController: ObservableObject {
         case .unlocked:
             append(success: true, reason: L("Nhận ra khuôn mặt", "Face recognized") + Self.timingNote(service?.lastScanTiming))
         case .failed(let failure):
-            append(success: false, reason: Self.describe(failure))
+            var reason = Self.describe(failure)
+            if case .notRecognized = failure, let s = service?.lastBestSimilarity {
+                reason += L(" · giống nhất \(String(format: "%.2f", s)) / ngưỡng \(String(format: "%.2f", service?.settings.matchThreshold ?? 0))",
+                            " · best \(String(format: "%.2f", s)) / threshold \(String(format: "%.2f", service?.settings.matchThreshold ?? 0))")
+            }
+            append(success: false, reason: reason)
             guard Self.counts(failure), lockActive else { return }
             failures += 1
             if failures >= Self.maxFailures, !suspended {
