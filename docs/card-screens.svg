@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="640" height="380" viewBox="0 0 640 380">
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400">
 <defs>
 <linearGradient id="wallA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0f766e"/><stop offset="1" stop-color="#4338ca"/></linearGradient>
 <linearGradient id="wallB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9a3412"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
@@ -6,7 +6,7 @@
 <linearGradient id="shot" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#6366f1"/></linearGradient>
 <linearGradient id="shot2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34d399"/><stop offset="1" stop-color="#0ea5e9"/></linearGradient>
 <linearGradient id="shot3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f472b6"/><stop offset="1" stop-color="#f59e0b"/></linearGradient>
-<clipPath id="card"><rect width="640" height="380" rx="28"/></clipPath>
+<clipPath id="card"><rect width="640" height="400" rx="28"/></clipPath>
 <filter id="b60" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="60"/></filter>
 <filter id="b8" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter>
 </defs>
@@ -17,7 +17,7 @@ text { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe 
 @keyframes eq { from { transform: scaleY(.3); } to { transform: scaleY(1); } }
 .cur { animation: cur 3s ease-in-out infinite; } @keyframes cur { 0%,100% { transform: translate(0,0); } 50% { transform: translate(-6px,4px); } }
 </style>
-<g clip-path="url(#card)"><rect width="640" height="380" fill="#0d0d18"/>
+<g clip-path="url(#card)"><rect width="640" height="400" fill="#0d0d18"/>
 <circle cx="540" cy="90" r="170" fill="#7c3aed" opacity=".2" filter="url(#b60)"/>
 <text x="36" y="56" font-size="24" font-weight="800" fill="#fff">Mọi màn hình, cùng một notch</text>
 <text x="36" y="84" font-size="14" fill="#fff" opacity=".6">Nhạc, khay và lịch giống nhau trên mọi màn hình. Chỉ notch dưới con trỏ mở ra.</text>
@@ -25,9 +25,9 @@ text { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe 
 <rect x="44" y="126" width="234" height="14" fill="#fff" opacity=".15"/>
 <rect x="118.0" y="126" width="86.0" height="14" rx="9" fill="#ff7a59" opacity=".55" filter="url(#b8)"/>
 <path d="M113.0 126 Q118.0 126 118.0 131 V132 Q118.0 140 126.0 140 H196.0 Q204.0 140 204.0 132 V131 Q204.0 126 209.0 126 Z" fill="#000"/>
-<rect x="122.0" y="129" width="8" height="8" rx="3.5" fill="url(#art)"/><rect class="eq " x="191.0" y="130.5" width="2.5" height="11" rx="1.2" fill="#ffb347"/><rect class="eq e2" x="195.5" y="130.5" width="2.5" height="11" rx="1.2" fill="#ffb347"/><rect class="eq e3" x="200.0" y="130.5" width="2.5" height="11" rx="1.2" fill="#ffb347"/><rect class="eq e4" x="204.5" y="130.5" width="2.5" height="11" rx="1.2" fill="#ffb347"/>
+<rect x="122.0" y="129" width="8" height="8" rx="3.5" fill="url(#art)"/><rect class="eq " x="184.0" y="129.5" width="2.5" height="8" rx="1.2" fill="#ffb347"/><rect class="eq e2" x="188.5" y="129.5" width="2.5" height="8" rx="1.2" fill="#ffb347"/><rect class="eq e3" x="193.0" y="129.5" width="2.5" height="8" rx="1.2" fill="#ffb347"/><rect class="eq e4" x="197.5" y="129.5" width="2.5" height="8" rx="1.2" fill="#ffb347"/>
 <path d="M20 278 H302 L292 290 H30 Z" fill="#374151"/>
-<text x="161" y="314" font-size="12.5" fill="#fff" opacity=".7" text-anchor="middle">MacBook có notch thật</text>
+<text x="161" y="330" font-size="12.5" fill="#fff" opacity=".7" text-anchor="middle">MacBook có notch thật</text>
 <rect x="318" y="108" width="286" height="178" rx="10" fill="#1f2937"/><rect x="326" y="116" width="270" height="162" rx="5" fill="url(#wallB)"/>
 <rect x="326" y="116" width="270" height="14" fill="#fff" opacity=".15"/>
 <path d="M381 116 Q389 116 389 122 V178 Q389 190 401 190 H521 Q533 190 533 178 V122 Q533 116 541 116 Z" fill="#000"/>
@@ -36,10 +36,10 @@ text { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe 
 <rect x="444" y="168" width="80" height="3" rx="1.5" fill="#fff" opacity=".2"/><rect x="444" y="168" width="46" height="3" rx="1.5" fill="#ffb347"/>
 <g class="cur"><path d="M520 196 l0 16 l4 -4 l3 7 l3 -1.4 l-3 -7 l6 0 z" fill="#fff" stroke="#000" stroke-width="1"/></g>
 <rect x="452" y="286" width="20" height="16" fill="#374151"/><rect x="420" y="300" width="84" height="6" rx="3" fill="#374151"/>
-<text x="462" y="326" font-size="12.5" fill="#fff" opacity=".7" text-anchor="middle">Màn rời, notch vẽ đang mở</text>
-<text x="36" y="356" font-size="12.5" fill="#fff" opacity=".6">Kích thước khi mở</text>
-<rect x="150" y="340" width="60" height="24" rx="7" fill="#fff" opacity="0.07"/><text x="180" y="357" font-size="12" fill="#fff" text-anchor="middle">Gọn</text>
-<rect x="214" y="340" width="60" height="24" rx="7" fill="#fff" opacity="0.22"/><text x="244" y="357" font-size="12" fill="#fff" text-anchor="middle">Vừa</text>
-<rect x="278" y="340" width="60" height="24" rx="7" fill="#fff" opacity="0.07"/><text x="308" y="357" font-size="12" fill="#fff" text-anchor="middle">Rộng</text>
-<text x="604" y="357" font-size="12.5" fill="#fff" opacity=".6" text-anchor="end">Toàn màn hình thì notch tự thu gọn</text>
+<text x="462" y="330" font-size="12.5" fill="#fff" opacity=".7" text-anchor="middle">Màn rời, notch vẽ đang mở</text>
+<text x="36" y="372" font-size="12.5" fill="#fff" opacity=".6">Kích thước khi mở</text>
+<rect x="150" y="356" width="60" height="24" rx="7" fill="#fff" opacity="0.07"/><text x="180" y="373" font-size="12" fill="#fff" text-anchor="middle">Gọn</text>
+<rect x="214" y="356" width="60" height="24" rx="7" fill="#fff" opacity="0.22"/><text x="244" y="373" font-size="12" fill="#fff" text-anchor="middle">Vừa</text>
+<rect x="278" y="356" width="60" height="24" rx="7" fill="#fff" opacity="0.07"/><text x="308" y="373" font-size="12" fill="#fff" text-anchor="middle">Rộng</text>
+<text x="604" y="373" font-size="12.5" fill="#fff" opacity=".6" text-anchor="end">Toàn màn hình thì notch tự thu gọn</text>
 </g></svg>
