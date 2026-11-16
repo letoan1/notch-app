@@ -219,6 +219,8 @@ private struct DayCell: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // Bấm chọn ngày thì macOS vẽ vòng focus theo khung nút, lệch so với vòng tròn ngày.
+        .focusEffectDisabled()
         .onHover { hover.wrappedValue = $0 }
     }
 
