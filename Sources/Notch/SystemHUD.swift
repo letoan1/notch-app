@@ -53,8 +53,13 @@ final class SystemHUD {
     private func enable() {
         if let tap { CGEvent.tapEnable(tap: tap, enable: true); return }
         let mask = CGEventMask(1 << 14)  // NX_SYSDEFINED
-        guard let t = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap, options: .defaultTap,
-                                        eventsOfInterest: mask, callback: hudTapCallback, userInfo: nil) else { return }
+        // Tap mức HID chạy trước mọi tap mức session (BetterDisplay, MonitorControl… cũng bắt phím độ sáng
+        // và tự hiện OSD riêng). Không tạo được thì lùi về mức session như trước.
+        let make = { (point: CGEventTapLocation) in
+            CGEvent.tapCreate(tap: point, place: .headInsertEventTap, options: .defaultTap,
+                              eventsOfInterest: mask, callback: hudTapCallback, userInfo: nil)
+        }
+        guard let t = make(.cghidEventTap) ?? make(.cgSessionEventTap) else { return }
         let src = CFMachPortCreateRunLoopSource(nil, t, 0)
         CFRunLoopAddSource(CFRunLoopGetMain(), src, .commonModes)
         CGEvent.tapEnable(tap: t, enable: true)
@@ -106,6 +111,8 @@ final class SystemHUD {
 
     private func brightness(up: Bool, down: Bool, delta: Double) -> Bool {
         guard let display = DisplayBrightness.builtin, let current = DisplayBrightness.get(display) else { return false }
+        // Chuột đang ở màn ngoài: để hệ thống / app DDC (BetterDisplay…) chỉnh màn đó.
+        guard DisplayBrightness.mouseDisplay == display else { return false }
         guard down else { return false }
         let level = min(max(((current + (up ? delta : -delta)) / delta).rounded() * delta, 0), 1)
         DisplayBrightness.set(display, level)
@@ -159,6 +166,13 @@ enum DisplayBrightness {
         var count: UInt32 = 0
         guard CGGetOnlineDisplayList(16, &ids, &count) == .success else { return nil }
         return ids.prefix(Int(count)).first { CGDisplayIsBuiltin($0) != 0 && CGDisplayIsActive($0) != 0 }
+    }
+
+    /// Màn hình đang có con trỏ chuột.
+    static var mouseDisplay: CGDirectDisplayID? {
+        let p = NSEvent.mouseLocation
+        let screen = NSScreen.screens.first { NSMouseInRect(p, $0.frame, false) }
+        return (screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value
     }
 
     static func get(_ id: CGDirectDisplayID) -> Double? {
