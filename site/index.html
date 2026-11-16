@@ -1,0 +1,1560 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Roost: notch cho MacBook</title>
+<meta name="description" content="Roost biến notch MacBook thành chỗ cho nhạc, lịch, âm thanh, khay file, gương camera và yêu cầu của Claude Code. Miễn phí, mã nguồn mở, gần như 0% CPU.">
+<link rel="icon" href="assets/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,700;1,800&family=Caveat:wght@600;700&family=VT323&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#fbfaf8; --bg2:#f3f1ee; --card:#fff; --ink:#111114; --ink2:#55555e; --ink3:#8a8a94;
+  --line:rgba(17,17,20,.08);
+  --accent:#e8541c;--accent2:#ff7a3d;
+  --claude:#d97857; --calred:#ff453a; --blue:#0a85ff;
+  --r:28px; --max:1120px;
+  --sys:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);font-family:"Be Vietnam Pro",-apple-system,BlinkMacSystemFont,sans-serif;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+img{max-width:100%;display:block}
+.wrap{max-width:var(--max);margin:0 auto;padding:0 24px}
+.grad-text{color:var(--accent)}
+.i{width:1em;height:1em;fill:currentColor;flex:none;display:block}
+
+nav{position:sticky;top:0;z-index:50;transform:translateZ(0);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);background:rgba(251,250,248,.86);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;align-items:center;gap:28px;height:60px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px}
+.brand img{width:28px;height:28px}
+nav ul{display:flex;gap:22px;list-style:none;margin-left:auto;font-size:14px;color:var(--ink2)}
+nav ul a:hover{color:var(--ink)}
+.btn{display:inline-flex;align-items:center;gap:8px;border-radius:999px;font-weight:600;font-size:15px;padding:12px 22px;transition:transform .2s,box-shadow .2s,background .2s}
+.btn:active{transform:scale(.97)}
+.btn-dark{background:var(--ink);color:#fff}
+.btn-dark:hover{box-shadow:0 10px 24px -8px rgba(0,0,0,.35)}
+.btn-ghost{border:1px solid var(--line);background:var(--card)}
+.btn-ghost:hover{background:var(--bg2)}
+.btn-sm{padding:8px 16px;font-size:14px}
+.apple{width:15px;height:15px;fill:currentColor}
+
+.hero{text-align:center;padding:84px 0 40px}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink2);border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 14px;margin-bottom:28px}
+.eyebrow b{background:var(--accent);color:#fff;border-radius:999px;padding:2px 8px;font-size:11px}
+h1{font-size:clamp(44px,8vw,96px);line-height:1.02;letter-spacing:-.045em;font-weight:800}
+h1 .line{display:block}
+.hero p.lead{font-size:clamp(17px,2.2vw,21px);color:var(--ink2);max-width:880px;margin:30px auto 0;line-height:2.3}
+.lead-sub{display:block;line-height:1.5;margin-top:14px}
+.cta{display:flex;gap:12px;justify-content:center;margin-top:40px;flex-wrap:wrap}
+.meta{margin-top:18px;font-size:13px;color:var(--ink3)}
+
+/* ---------- Mô phỏng notch: kích thước theo point thật của app (NotchModel, NotchView) ---------- */
+.stage{margin:56px auto 0;max-width:980px}
+.screen{position:relative;aspect-ratio:16/9.6;overflow:hidden;background-clip:padding-box;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 1000' preserveAspectRatio='xMidYMid slice'%3E%3Cdefs%3E%3ClinearGradient id='s' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%234a8fd9'/%3E%3Cstop offset='.55' stop-color='%23a9cdee'/%3E%3Cstop offset='1' stop-color='%23f1dcc0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1600' height='1000' fill='url(%23s)'/%3E%3Cpath d='M0 560 C260 470 470 520 700 500 S1180 430 1600 520 V1000 H0Z' fill='%23d9a476'/%3E%3Cpath d='M0 650 C300 560 560 640 860 600 S1340 560 1600 610 V1000 H0Z' fill='%23c4834f'/%3E%3Cpath d='M0 760 C380 670 700 760 1000 720 S1420 680 1600 730 V1000 H0Z' fill='%23a8643a'/%3E%3Cpath d='M0 880 C420 800 820 880 1180 840 S1500 820 1600 850 V1000 H0Z' fill='%23834a2b'/%3E%3C/svg%3E") center/cover;
+  border:12px solid #050506;border-bottom-width:16px;border-radius:26px 26px 6px 6px;box-shadow:0 0 0 2px #b9b9be,0 0 0 3px #8a8a90,0 40px 70px -30px rgba(0,0,0,.45)}
+.menubar{position:absolute;top:0;left:0;right:0;height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font:500 12px/1 var(--sys);color:#1d1d1f;background:rgba(255,255,255,.38)}
+.base{height:18px;width:114%;margin-left:-7%;position:relative;background:linear-gradient(180deg,#f2f2f4 0,#d4d4d8 30%,#a7a7ad 80%,#8c8c92 100%);border-radius:3px 3px 26px 26px/3px 3px 16px 16px;box-shadow:0 1px 0 #fff inset}
+.base:after{content:"";position:absolute;left:50%;top:0;width:15%;height:7px;transform:translateX(-50%);background:linear-gradient(180deg,#9c9ca2,#c8c8cd);border-radius:0 0 12px 12px}
+.base:before{content:"";position:absolute;left:6%;right:6%;bottom:-12px;height:12px;background:radial-gradient(50% 100% at 50% 0,rgba(0,0,0,.28),transparent 70%)}
+
+.notch{position:absolute;left:50%;top:0;transform:translateX(-50%) scale(var(--s,1));transform-origin:top center;
+  width:286px;height:32px;background:#000;color:#fff;border-radius:0 0 12px 12px;overflow:hidden;cursor:pointer;z-index:5;
+  font-family:var(--sys);text-align:left;line-height:1.2;
+  transition:width .45s cubic-bezier(.3,1.25,.5,1),height .45s cubic-bezier(.3,1.25,.5,1),border-radius .35s}
+.notch.open{width:620px;height:186px;border-radius:0 0 26px 26px;cursor:default}
+.wings{position:absolute;inset:0;display:flex;align-items:center;justify-content:space-between;padding:0 12px;transition:opacity .15s}
+.notch.open .wings{opacity:0;pointer-events:none}
+.w-art{width:20px;height:20px;border-radius:5px;background:linear-gradient(135deg,#ffb347,#ff4f8b)}
+.spec{display:flex;gap:2px;align-items:center;height:14px}
+.spec i{width:3px;border-radius:2px;background:#ff8a5c;animation:wv 1s ease-in-out infinite}
+.spec i:nth-child(1){height:6px;animation-delay:-.2s}.spec i:nth-child(2){height:12px;animation-delay:-.5s}.spec i:nth-child(3){height:8px;animation-delay:-.1s}.spec i:nth-child(4){height:14px;animation-delay:-.7s}
+@keyframes wv{50%{transform:scaleY(.4)}}
+.panel{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .2s}
+.notch.open .panel{opacity:1;pointer-events:auto;transition:opacity .25s .12s}
+
+.hdr{height:32px;display:flex;align-items:center;gap:6px;padding:0 18px}
+.tp{all:unset;position:relative;display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;font-size:11px;color:rgba(255,255,255,.45);cursor:pointer}
+.tp.on{color:rgba(255,255,255,.95);background:rgba(255,255,255,.14)}
+.tp .badge{position:absolute;top:-3px;right:-3px;min-width:13px;height:13px;padding:0 3.5px;border-radius:7px;background:rgba(255,255,255,.9);color:#000;font:700 8px/13px var(--sys);text-align:center}
+.queue{display:none;align-items:center;gap:4px;margin-left:6px;font-size:10px;color:rgba(255,255,255,.55)}
+.queue b{background:var(--claude);color:#fff;border-radius:999px;padding:2px 6px;font-weight:700}
+.notch.asking .queue{display:flex}
+.sp{flex:1}
+.status{display:flex;align-items:center;gap:7px;height:22px;padding:0 7px;border-radius:11px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1)}
+.seg{display:flex;align-items:center;gap:4px;font-size:10px;color:rgba(255,255,255,.5)}
+.seg b{font-size:11px}
+.ring{width:11px;height:11px}
+.gear{width:24px;height:22px;display:grid;place-items:center;font-size:12px;color:rgba(255,255,255,.55)}
+
+.body{position:relative;height:154px}
+.v{position:absolute;inset:0;display:none}
+.v.on{display:flex;animation:fade .3s}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}}
+
+.player{width:350px;display:flex;align-items:center;gap:20px;padding:0 20px 12px;flex:none}
+.art{position:relative;width:104px;height:104px;border-radius:18px;flex:none;background:linear-gradient(135deg,#ffb347,#ff4f8b);box-shadow:0 8px 28px rgba(255,90,120,.45)}
+.src{position:absolute;right:-7px;bottom:-7px;width:22px;height:22px;border-radius:6px;background:#000;display:grid;place-items:center;box-shadow:0 1px 3px rgba(0,0,0,.5)}
+.src i{display:none}
+.src svg{width:16px;height:16px;fill:#1ed760}
+.player{position:relative}
+.lyr{position:absolute;top:4px;right:4px;width:24px;height:22px;border-radius:7px;background:rgba(255,255,255,.1);display:grid;place-items:center;font-size:12px;color:rgba(255,255,255,.75)}
+.ctrl .mode{font-size:13px;color:rgba(255,255,255,.55)}
+.ctrl{gap:4px;justify-content:space-between}
+.pinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
+.pt{font-size:17px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pa{display:flex;align-items:center;gap:8px;font-size:14px;color:rgba(255,255,255,.6);margin-top:3px}
+.eq{display:flex;gap:1.5px;align-items:flex-end;height:12px}
+.eq i{width:3px;background:#ff7a6b;border-radius:1px;animation:wv .9s ease-in-out infinite;transform-origin:bottom}
+.eq i:nth-child(1){height:7px}.eq i:nth-child(2){height:12px;animation-delay:-.3s}.eq i:nth-child(3){height:9px;animation-delay:-.6s}
+.prog{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:500;color:rgba(255,255,255,.55);font-variant-numeric:tabular-nums}
+.rail{flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.2);overflow:hidden}
+.rail b{display:block;height:100%;width:38%;border-radius:3px;background:#ff7a6b}
+.ctrl{display:flex;justify-content:center;align-items:center;gap:14px;color:#fff}
+.sep{width:1px;background:rgba(255,255,255,.08);margin-bottom:16px;flex:none}
+.cal{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;padding:0 14px 12px}
+.ch{display:flex;align-items:center;gap:4px;padding-left:4px;font-size:12px;font-weight:700;color:rgba(255,255,255,.85)}
+.ch .sp{flex:1}
+.nb{width:20px;height:18px;display:grid;place-items:center;font-size:10px;color:rgba(255,255,255,.55)}
+.week{display:flex;gap:2px}
+.day{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:2px 0}
+.day small{font-size:9px;font-weight:500;color:rgba(255,255,255,.45)}
+.day.we small{color:rgba(255,255,255,.3)}
+.day span{width:22px;height:22px;border-radius:11px;display:grid;place-items:center;font-size:13px;color:rgba(255,255,255,.8);font-variant-numeric:tabular-nums}
+.day.we span{color:rgba(255,255,255,.5)}
+.day.today span{background:var(--calred);color:#fff;font-weight:600}
+.day i{width:3px;height:3px;border-radius:50%;background:transparent}
+.day.busy i{background:rgba(255,255,255,.55)}
+.ev{display:flex;align-items:center;gap:7px;padding-left:4px}
+.ev .bar{width:3px;height:26px;border-radius:1.5px;flex:none}
+.ev .t{flex:1;min-width:0}
+.ev .t b{display:block;font-size:12px;color:rgba(255,255,255,.9);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev .t span{font-size:11px;color:rgba(255,255,255,.5);font-variant-numeric:tabular-nums}
+.join{display:inline-flex;align-items:center;gap:3px;background:var(--blue);color:#fff;font-size:10px;font-weight:600;border-radius:999px;padding:3px 7px;flex:none}
+
+.sound{flex-direction:column;gap:6px;padding:2px 20px 10px}
+.dev{display:inline-flex;align-items:center;gap:5px;align-self:flex-start;font-size:11px;font-weight:600;color:rgba(255,255,255,.85);background:rgba(255,255,255,.08);border-radius:999px;padding:3px 9px}
+.cols{flex:1;display:flex;gap:14px;min-height:0}
+.col{min-width:40px;display:flex;flex-direction:column;align-items:center;gap:5px}
+.tile{width:26px;height:22px;border-radius:7px;background:rgba(255,255,255,.1);display:grid;place-items:center;font-size:11px;color:#fff}
+.vbar{flex:1;width:30px;border-radius:9px;background:rgba(255,255,255,.12);position:relative;overflow:hidden}
+.vbar b{position:absolute;left:0;right:0;bottom:0;background:rgba(255,255,255,.85);border-radius:0 0 9px 9px}
+.col small{font-size:10.5px;font-weight:700;color:rgba(255,255,255,.8);font-variant-numeric:tabular-nums}
+.vsep{width:1px;background:rgba(255,255,255,.12);margin:6px 0}
+.appic{width:22px;height:22px;border-radius:6px}
+
+.trayv{gap:16px;padding:6px 20px 16px;align-items:stretch}
+.files{flex:1;display:flex;gap:14px;align-items:center}
+.f{width:80px;display:flex;flex-direction:column;align-items:center;gap:8px;font-size:11px;color:rgba(255,255,255,.85);text-align:center}
+.f span{width:80px;white-space:nowrap;overflow:hidden}
+.thumb{width:72px;height:55px;border-radius:6px;border:1px solid rgba(255,255,255,.25);box-shadow:0 3px 6px rgba(0,0,0,.4);background:linear-gradient(135deg,#60a5fa,#a78bfa)}
+.glyph{position:relative;width:40px;height:55px;border-radius:4px;background:var(--c);clip-path:polygon(0 0,70% 0,100% 22%,100% 100%,0 100%);filter:drop-shadow(0 0 8px var(--c))}
+.glyph:before{content:"";position:absolute;right:0;top:0;width:30%;height:22%;background:rgba(255,255,255,.45)}
+.glyph:after{content:attr(data-ext);position:absolute;left:0;right:0;bottom:12px;font:800 9px var(--sys);color:#fff;text-align:center}
+.drop{width:150px;flex:none;border-radius:14px;border:1.6px dashed rgba(255,255,255,.6);background:rgba(255,255,255,.07);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:12px;font-weight:700;color:rgba(255,255,255,.85)}
+.files{align-items:center}
+.drop .i{font-size:22px;color:#fff}
+
+.mirror{gap:16px;padding:0 14px 12px}
+.notch.open.tall{height:222px}
+.notch.tall .body{height:190px}
+.cam{width:300px;flex:none;border-radius:18px;border:1px solid rgba(255,255,255,.15);position:relative;overflow:hidden;background:#1c1a19}
+.cam-art{position:absolute;inset:0;width:100%;height:100%}
+.mside{flex:1;display:flex;flex-direction:column;gap:8px;padding:4px 0}
+.mside h5{font-size:15px;font-weight:700}
+.mbtn{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;color:rgba(255,255,255,.9);background:rgba(255,255,255,.1);border-radius:999px;padding:6px 12px}
+.mbtn .i{font-size:13px}
+
+.pc{flex-direction:column;gap:6px;padding:4px 20px 12px}
+.pc-h{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;white-space:nowrap}
+.kind{width:18px;height:16px;border-radius:4px;background:var(--claude);display:grid;place-items:center;font-size:11px;color:#000}
+.cd{display:inline-flex;align-items:center;gap:5px}
+.cd .i{font-size:13px;color:var(--claude)}
+.sum small{display:block;font:10.5px var(--sys);color:rgba(255,255,255,.55);margin-top:2px}
+.pc.done .cd{visibility:hidden}
+.pc.done .sum{opacity:.5}
+.chip{font-size:10px;font-weight:700;color:var(--claude);background:rgba(217,120,87,.18);border-radius:999px;padding:1.5px 6px}
+.cd{margin-left:auto;font-size:11px;font-weight:600;color:rgba(255,255,255,.5);font-variant-numeric:tabular-nums}
+.cd.urgent{color:#ff9f0a}
+.origin{display:flex;align-items:center;gap:10px;font-size:10.5px;color:rgba(255,255,255,.55);white-space:nowrap;overflow:hidden}
+.origin span{display:inline-flex;align-items:center;gap:4px}
+.origin .i{font-size:9px;color:rgba(217,120,87,.85)}
+.origin b{color:rgba(255,255,255,.85)}
+.vsc{width:13px;height:13px;border-radius:3px;background:#0a7ad4;display:inline-block}
+.sum{font:11px ui-monospace,Menlo,monospace;color:rgba(255,255,255,.92);background:rgba(255,255,255,.06);border-radius:7px;padding:5px 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.scope{margin-top:auto;font-size:10px;color:rgba(255,255,255,.55);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px}
+.scope code{font:10px ui-monospace,Menlo,monospace}
+.acts{display:flex;align-items:center;gap:8px}
+.pb{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;padding:5px 12px;border-radius:999px;background:rgba(255,255,255,.1);color:#fff;transition:opacity .15s,transform .1s}
+.pb:active{transform:scale(.96);opacity:.7}
+.pb.host{background:rgba(255,255,255,.08);color:rgba(255,255,255,.65)}
+.pb.deny{color:rgba(255,255,255,.8)}
+.pb.allow{background:var(--claude)}
+.banner{display:none;align-items:center;gap:5px;font-size:12px;font-weight:600;margin-left:auto}
+.pc.done .pb:not(.host){display:none}
+.pc.done .banner{display:flex}
+.pc.done .scope{visibility:hidden}
+
+.demo-ctl{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:22px}
+.demo-ctl button{all:unset;cursor:pointer;font-size:13px;font-weight:600;color:var(--ink2);padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);transition:.2s}
+.demo-ctl button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.hint{margin-top:12px;font-size:13px;color:var(--ink3)}
+
+.marquee{overflow:hidden;padding:56px 0 8px;mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
+.track{display:flex;gap:12px;width:max-content;animation:slide 45s linear infinite;will-change:transform}
+.idle,.idle *{animation-play-state:paused!important}
+.mchip{white-space:nowrap;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:10px 18px;font-size:14px;font-weight:500;color:var(--ink2)}
+@keyframes slide{to{transform:translateX(-50%)}}
+
+section{padding:110px 0 0}
+.kicker{font-size:14px;font-weight:700;letter-spacing:.02em;margin-bottom:14px}
+h2{font-size:clamp(34px,5.2vw,60px);line-height:1.06;letter-spacing:-.035em;font-weight:800}
+.sec-lead{font-size:clamp(16px,1.9vw,19px);color:var(--ink2);max-width:600px;margin-top:18px}
+.center{text-align:center}.center .sec-lead{margin-left:auto;margin-right:auto}
+.split{display:grid;grid-template-columns:1fr 1.15fr;gap:56px;align-items:center;margin-top:56px}
+.split.rev{grid-template-columns:1.15fr 1fr}
+.split.rev>:first-child{order:2}
+.points{list-style:none;display:grid;gap:18px;margin-top:8px}
+.points li{padding-left:18px;border-left:2px solid var(--line)}
+.points b{display:block;font-size:16px;margin-bottom:2px}
+.points span{color:var(--ink2);font-size:15px}
+.frame{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;box-shadow:0 30px 60px -40px rgba(30,10,60,.35)}
+.frame img{border-radius:18px;width:100%}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:48px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:28px;overflow:hidden}
+.card h3{font-size:22px;letter-spacing:-.02em;margin-bottom:6px}
+.card p{color:var(--ink2);font-size:15px;margin-bottom:20px}
+.card img{border-radius:16px}
+.more{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px}
+.more .card{padding:22px}
+.more h3{font-size:16px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.more h3 .i{font-size:18px;color:#9333ea}
+.more p{font-size:14px;margin:0}
+
+/* Thẻ Claude cỡ lớn ở mục Claude Code: cùng bố cục với PermissionCard, phóng 1,3 lần cho dễ đọc */
+.bigcard{position:relative;width:100%;background:#000;border-radius:0 0 36px 36px;box-shadow:0 40px 80px -40px rgba(217,120,87,.55);overflow:hidden}
+.bigcard .inner{position:absolute;left:0;top:0;width:620px;transform-origin:top left}
+.split>*{min-width:0}
+.bigcard .hdr{padding-top:0}
+
+.theme-tabs{display:inline-flex;gap:4px;background:var(--bg2);border-radius:999px;padding:5px;margin-top:36px;flex-wrap:wrap;justify-content:center}
+.theme-tabs button{all:unset;cursor:pointer;padding:9px 18px;border-radius:999px;font-weight:600;font-size:14px;color:var(--ink2);transition:.2s}
+.theme-tabs button.on{background:var(--card);color:var(--ink);box-shadow:0 2px 10px rgba(0,0,0,.08)}
+.theme-view{margin-top:28px}
+.theme-view img{border-radius:18px;width:100%}
+.theme-copy{max-width:720px;margin:22px auto 0;color:var(--ink2);text-align:center;min-height:3em}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:48px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:28px 24px}
+.stat b{display:block;font-size:clamp(34px,4.2vw,48px);letter-spacing:-.04em;font-weight:800;line-height:1}
+.stat span{display:block;margin-top:10px;color:var(--ink2);font-size:14px}
+
+.priv{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:48px}
+.priv .card{padding:24px}
+.priv .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--bg2);font-size:20px;margin-bottom:14px}
+.priv h3{font-size:17px}
+.priv p{margin:0;font-size:14px}
+
+.faq{max-width:780px;margin:44px auto 0}
+details{border-bottom:1px solid var(--line);padding:20px 4px}
+summary{cursor:pointer;list-style:none;font-weight:600;font-size:17px;display:flex;justify-content:space-between;gap:20px}
+summary::-webkit-details-marker{display:none}
+summary:after{content:"+";font-size:22px;font-weight:400;color:var(--ink3);transition:transform .2s}
+details[open] summary:after{transform:rotate(45deg)}
+details p{color:var(--ink2);margin-top:10px;font-size:15px}
+
+.final{margin:120px 0 0;padding:90px 24px;text-align:center;border-radius:40px;color:#fff;position:relative;overflow:hidden;
+  background:#141416}
+.final img{width:96px;height:96px;margin:0 auto 22px;filter:drop-shadow(0 20px 40px rgba(0,0,0,.4))}
+.final h2{color:#fff}
+.final p{color:rgba(255,255,255,.75);margin-top:14px}
+.final .btn-dark{background:#fff;color:#111;margin-top:28px}
+footer{padding:48px 0 60px;color:var(--ink3);font-size:13px}
+footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
+footer a:hover{color:var(--ink)}
+
+/* ---------- Kiểu chữ ---------- */
+.hand{font-family:"Caveat",cursive;font-weight:700;font-size:30px;line-height:1;color:var(--accent);display:inline-block;transform:rotate(-3deg);margin-bottom:12px;letter-spacing:.01em}
+.hand.orange{color:#c2410c}.hand.violet{color:#2563eb}.hand.light{color:#ffd1a8}
+.mark{position:relative;z-index:0;white-space:nowrap}
+.mark:before{content:"";position:absolute;z-index:-1;left:-.1em;right:-.12em;bottom:.04em;height:.42em;background:var(--mc,#fbbf24);opacity:.85;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 40' preserveAspectRatio='none'%3E%3Cpath d='M3 15 C30 7 70 11 110 8 S175 6 198 11 L196 18 L199 24 L194 31 C160 35 120 30 80 34 S20 36 5 31 L2 24 L6 20 Z'/%3E%3C/svg%3E") 0 0/100% 100% no-repeat;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 40' preserveAspectRatio='none'%3E%3Cpath d='M3 15 C30 7 70 11 110 8 S175 6 198 11 L196 18 L199 24 L194 31 C160 35 120 30 80 34 S20 36 5 31 L2 24 L6 20 Z'/%3E%3C/svg%3E") 0 0/100% 100% no-repeat;
+  transform:rotate(-1deg)}
+.sel{position:relative;font-style:italic;color:#2563eb;background:rgba(37,99,235,.09);outline:2px solid #2563eb;outline-offset:2px;padding:0 .12em;white-space:nowrap}
+.sel i{position:absolute;width:10px;height:10px;background:#fff;border:2px solid #2563eb;border-radius:2px}
+.sel i:nth-child(1){left:-8px;top:-8px}.sel i:nth-child(2){right:-8px;top:-8px}.sel i:nth-child(3){left:-8px;bottom:-8px}.sel i:nth-child(4){right:-8px;bottom:-8px}
+.nw{display:inline-block;position:relative;background:#000;color:#fff;border-radius:0 0 .3em .3em;padding:0 .2em .06em;line-height:1.05}
+.nw b{font-weight:inherit;color:var(--accent2)}
+.tiny{font-size:.42em;letter-spacing:0;vertical-align:.12em;color:var(--ink3)}
+.fade{background:linear-gradient(90deg,var(--ink) 30%,rgba(17,17,20,.12) 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.px{font-family:"VT323",monospace;font-weight:400;font-size:1.22em;color:#16a34a;letter-spacing:.02em;line-height:.8}
+.scrib{position:relative;white-space:nowrap}
+.scrib:after{content:"";position:absolute;left:-.22em;right:-.22em;top:-.12em;bottom:-.16em;pointer-events:none;
+  background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 100' preserveAspectRatio='none'%3E%3Cpath d='M40 18 C110 2 250 4 288 40 C306 70 240 96 140 94 C50 92 4 74 10 46 C15 24 70 10 160 9' fill='none' stroke='%23fb923c' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E") 0 0/100% 100% no-repeat}
+.claudeword{color:var(--claude)}
+.gradw{color:var(--accent)}
+
+/* ---------- Lưới tính năng ---------- */
+.bento{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:52px}
+.bx{background:var(--card);border:1px solid var(--line);border-radius:26px;padding:22px 22px 20px;display:flex;flex-direction:column;min-height:270px;position:relative;overflow:hidden;transition:transform .25s,box-shadow .25s}
+.bx:hover{transform:translateY(-3px);box-shadow:0 24px 40px -28px rgba(40,20,80,.35)}
+.bx.w{grid-column:span 2;flex-direction:row;gap:18px}
+.bx.w .vis{background:var(--bg2);border-radius:18px;padding:14px;overflow:hidden}
+.bx .bt{display:flex;flex-direction:column;flex:1;min-width:0}
+.bx.w .bt{flex:0 0 46%}
+.bx .vis{flex:1;min-width:0;display:flex;align-items:center;justify-content:center}
+.fit{width:max-content;display:flex;flex-direction:column;align-items:center;gap:10px}
+.lyr-vis{font-size:15px!important}
+.ico{--c:#888;width:46px;height:46px;border-radius:13px;display:grid;place-items:center;color:#fff;font-size:22px;flex:none;margin-bottom:44px;background:linear-gradient(180deg,color-mix(in srgb,var(--c) 70%,#fff) 0%,var(--c) 55%,color-mix(in srgb,var(--c) 85%,#000) 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -1px 0 rgba(0,0,0,.12),0 8px 16px -8px var(--c)}
+.ico .i{filter:drop-shadow(0 1px 1px rgba(0,0,0,.18))}
+.bx h3{font-size:21px;letter-spacing:-.02em;margin-bottom:8px;line-height:1.2}
+.bx p{color:var(--ink2);font-size:14.5px;line-height:1.55}
+.dlink{all:unset;cursor:pointer;margin-top:auto;padding-top:18px;color:#2563eb;font-size:14.5px;font-weight:500;display:inline-flex;align-items:center;gap:6px}
+.dlink:hover{text-decoration:underline}
+/* notch nhỏ trong thẻ: cùng cấu trúc với các *Wings của app */
+.mn{--w:64px;width:calc(190px + var(--w) * 2);height:32px;background:#000;color:#fff;border-radius:0 0 12px 12px;display:flex;align-items:center;font:600 11px/1 var(--sys);box-shadow:0 14px 30px -14px rgba(0,0,0,.6);flex:none}
+.mn>span{width:var(--w);display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;overflow:hidden}
+.mn>.m{flex:1;width:auto}
+.mn .i{font-size:13px}
+.hudbar{width:22px;height:4px;border-radius:2px;background:rgba(255,255,255,.22);position:relative;overflow:hidden;display:inline-block}
+.hudbar b{position:absolute;inset:0 auto 0 0;background:#fff;border-radius:2px;transition:width .2s}
+.batt{width:24px;height:12px;border:1.5px solid currentColor;border-radius:3.5px;position:relative;display:inline-block;padding:1.5px}
+.batt:after{content:"";position:absolute;right:-4px;top:3px;width:1.5px;height:4px;background:currentColor;border-radius:1px}
+.batt b{display:block;height:100%;border-radius:1.5px;background:currentColor}
+.acard{width:400px;max-width:100%;background:#000;color:#fff;border-radius:0 0 26px 26px;padding:38px 26px 10px;display:flex;align-items:center;gap:14px;font-family:var(--sys);box-shadow:0 14px 30px -14px rgba(0,0,0,.6)}
+.acard .ai{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:19px;flex:none}
+.acard b{display:block;font-size:14px}
+.acard small{display:block;font-size:11.5px;color:rgba(255,255,255,.62);margin-top:3px;line-height:1.35}
+.lyr-vis{width:100%;height:100%;min-height:200px;border-radius:18px;padding:22px;background:linear-gradient(160deg,#4a3527,#1d1a19 70%);transform:rotate(-4deg) translateX(14px);display:flex;flex-direction:column;justify-content:center;gap:10px;font:700 17px/1.25 var(--sys);color:rgba(255,255,255,.35);box-shadow:0 20px 40px -20px rgba(0,0,0,.5)}
+.lyr-vis .on{color:#fff;font-size:20px}
+
+.mini-sound{display:flex;gap:10px;align-items:flex-end;height:120px;padding:14px 18px;background:#000;border-radius:18px}
+.mini-sound span{width:26px;border-radius:8px;background:rgba(255,255,255,.12);position:relative;height:100%;overflow:hidden}
+.mini-sound b{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:0 0 8px 8px;animation:lvl 2.4s ease-in-out infinite alternate}
+@keyframes lvl{from{transform:translateY(18%)}to{transform:translateY(0)}}
+.big-pill{display:flex;gap:16px;align-items:center;padding:12px 18px;border-radius:18px;background:#000;color:#fff;font:600 15px var(--sys)}
+.big-pill span{display:flex;align-items:center;gap:7px;color:rgba(255,255,255,.55)}
+.big-pill b{font-size:18px;color:#30d158}
+
+/* ---------- Hộp demo ---------- */
+dialog.demo{border:none;padding:28px 28px 22px;border-radius:32px;width:min(1080px,calc(100vw - 24px));max-width:none;max-height:calc(100vh - 24px);overflow:auto;background:var(--bg);color:var(--ink);box-shadow:0 40px 120px -20px rgba(20,10,40,.55);margin:auto}
+dialog.demo::backdrop{background:rgba(12,10,24,.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.dx{all:unset;cursor:pointer;position:absolute;top:14px;right:14px;width:40px;height:40px;border-radius:50%;background:var(--bg2);display:grid;place-items:center;font-size:22px;color:var(--ink2);z-index:5}
+.dx:hover{background:#e9e6e2}
+.mbp{width:min(calc(100% / 1.16),calc((100vh - 310px) * 1.6),860px);margin:18px auto 26px}
+.mscreen{background:#050506;border-radius:26px 26px 6px 6px;padding:12px 12px 16px;box-shadow:0 0 0 2px #b9b9be,0 0 0 3px #8a8a90}
+.mbase{height:18px;width:114%;margin-left:-7%;position:relative;background:linear-gradient(180deg,#f2f2f4 0,#d4d4d8 30%,#a7a7ad 80%,#8c8c92 100%);border-radius:3px 3px 26px 26px/3px 3px 16px 16px;box-shadow:0 1px 0 #fff inset}
+.mbase:after{content:"";position:absolute;left:50%;top:0;width:15%;height:7px;transform:translateX(-50%);background:linear-gradient(180deg,#9c9ca2,#c8c8cd);border-radius:0 0 12px 12px}
+.mbase:before{content:"";position:absolute;left:6%;right:6%;bottom:-12px;height:12px;background:radial-gradient(50% 100% at 50% 0,rgba(0,0,0,.28),transparent 70%)}
+.dstage{position:relative;aspect-ratio:16/10;border-radius:8px 8px 2px 2px;overflow:hidden;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 1000' preserveAspectRatio='xMidYMid slice'%3E%3Cdefs%3E%3ClinearGradient id='s' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%234a8fd9'/%3E%3Cstop offset='.55' stop-color='%23a9cdee'/%3E%3Cstop offset='1' stop-color='%23f1dcc0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1600' height='1000' fill='url(%23s)'/%3E%3Cpath d='M0 560 C260 470 470 520 700 500 S1180 430 1600 520 V1000 H0Z' fill='%23d9a476'/%3E%3Cpath d='M0 650 C300 560 560 640 860 600 S1340 560 1600 610 V1000 H0Z' fill='%23c4834f'/%3E%3Cpath d='M0 760 C380 670 700 760 1000 720 S1420 680 1600 730 V1000 H0Z' fill='%23a8643a'/%3E%3Cpath d='M0 880 C420 800 820 880 1180 840 S1500 820 1600 850 V1000 H0Z' fill='%23834a2b'/%3E%3C/svg%3E") center/cover}
+.win{position:absolute;background:#fff;border-radius:12px;box-shadow:0 20px 50px -20px rgba(0,0,0,.55);font-family:var(--sys);color:#1d1d1f;overflow:hidden;transition:opacity .4s}
+.win .bar{height:28px;display:flex;align-items:center;gap:6px;padding:0 10px;border-bottom:1px solid #eee}
+.win .bar i{width:10px;height:10px;border-radius:50%}
+.win .bar i:nth-child(1){background:#ff5f57}.win .bar i:nth-child(2){background:#febc2e}.win .bar i:nth-child(3){background:#28c840}
+.win .bar span{margin-left:auto;margin-right:auto;font-size:11px;font-weight:600;color:#6e6e73;transform:translateX(-20px)}
+.win .doc{padding:14px 18px;font-size:12px;line-height:1.6;color:#3a3a3c}
+.win .doc b{display:block;font-size:17px;color:#1d1d1f;margin-bottom:6px}
+.win .doc i{display:block;height:7px;border-radius:4px;background:#ececf0;margin:8px 0}
+.dstage.locked .win{opacity:0}
+.dmenu{position:absolute;top:0;left:0;right:0;height:32px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font:500 12px var(--sys);color:#1d1d1f;background:rgba(255,255,255,.32);transition:opacity .3s}
+.dstage.locked .dmenu{opacity:0}
+.dwrap{position:absolute;top:0;left:50%;transform:translateX(-50%) scale(var(--ds,1));transform-origin:top center;z-index:3}
+.dn{width:286px;height:32px;background:#000;border-radius:0 0 12px 12px;overflow:hidden;position:relative;font-family:var(--sys);color:#fff;
+  transition:width .42s cubic-bezier(.3,1.25,.5,1),height .42s cubic-bezier(.3,1.25,.5,1),border-radius .3s}
+.dn .row{position:absolute;top:0;left:0;right:0;height:32px;display:flex;align-items:center;transition:opacity .18s}
+.dn .row>span{display:flex;align-items:center;justify-content:center;gap:5px;font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;flex:none}
+.dn .row>.m{flex:1}
+.dn .row .i{font-size:13px}
+.dn .content{position:absolute;inset:0;opacity:0;transition:opacity .2s}
+.dn.big .row{opacity:0}
+.dn.big .content{opacity:1;transition:opacity .25s .15s}
+.orb{position:absolute;top:4px;width:34px;height:34px;border-radius:50%;background:#1c1c22;border:1px solid rgba(255,255,255,.12);display:grid;place-items:center;color:#fff;font-size:15px;opacity:0;transform:scale(.6);transition:.35s cubic-bezier(.3,1.4,.5,1)}
+.orbs-on .orb{opacity:1;transform:none}
+.orb.l1{right:calc(100% + 10px)}.orb.l2{right:calc(100% + 10px);top:46px}
+.orb.r1{left:calc(100% + 10px)}.orb.r2{left:calc(100% + 10px);top:46px}
+.lockui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding-top:9%;opacity:0;transition:opacity .4s;pointer-events:none;color:#fff;font-family:var(--sys);overflow:hidden}
+.lockbg{position:absolute;inset:-30px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 1000' preserveAspectRatio='xMidYMid slice'%3E%3Cdefs%3E%3ClinearGradient id='s' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%234a8fd9'/%3E%3Cstop offset='.55' stop-color='%23a9cdee'/%3E%3Cstop offset='1' stop-color='%23f1dcc0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1600' height='1000' fill='url(%23s)'/%3E%3Cpath d='M0 560 C260 470 470 520 700 500 S1180 430 1600 520 V1000 H0Z' fill='%23d9a476'/%3E%3Cpath d='M0 650 C300 560 560 640 860 600 S1340 560 1600 610 V1000 H0Z' fill='%23c4834f'/%3E%3Cpath d='M0 760 C380 670 700 760 1000 720 S1420 680 1600 730 V1000 H0Z' fill='%23a8643a'/%3E%3Cpath d='M0 880 C420 800 820 880 1180 840 S1500 820 1600 850 V1000 H0Z' fill='%23834a2b'/%3E%3C/svg%3E") center/cover;filter:blur(16px) brightness(.72) saturate(1.1);z-index:-1}
+.dstage.locked .lockui{opacity:1}
+.lockui .date{font-size:15px;font-weight:600;color:rgba(255,255,255,.85);text-shadow:0 1px 6px rgba(0,0,0,.25)}
+.lockui .clock{font-size:86px;font-weight:700;line-height:1;letter-spacing:-.02em;color:rgba(255,255,255,.93);margin:2px 0 18px;text-shadow:0 2px 14px rgba(0,0,0,.2)}
+.lmusic{width:360px;height:104px;border-radius:22px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.14);display:flex;align-items:center;gap:14px;padding:0 16px;color:#fff;flex:none}
+.lmusic .la{position:relative;width:72px;height:72px;border-radius:12px;background:linear-gradient(135deg,#ffb347,#ff4f8b);flex:none}
+.lmusic .la .src{right:-6px;bottom:-6px}
+.lm-t{flex:1;min-width:0;display:flex;flex-direction:column;gap:5px}
+.lm-title{font-size:14px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lm-artist{font-size:12px;color:rgba(255,255,255,.65)}
+.lm-prog{display:flex;align-items:center;gap:7px}
+.lm-prog .lp{flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,.2);overflow:hidden}
+.lm-prog .lp i{display:block;height:100%;width:38%;background:#ff7a6b;border-radius:2px}
+.lm-time{font-size:10px;font-weight:500;color:rgba(255,255,255,.55);font-variant-numeric:tabular-nums}
+.lmusic .lc{display:flex;align-items:center;gap:10px;margin-top:1px;color:#fff}
+.lmusic .lc .i{width:28px;height:13px}.lmusic .lc .p{height:17px}.lmusic .lc .m{height:12px;color:rgba(255,255,255,.6)}
+.lockuser{position:absolute;bottom:9%;display:flex;flex-direction:column;align-items:center;gap:6px}
+.lockuser .av{width:48px;height:48px;border-radius:50%;overflow:hidden;box-shadow:0 0 0 2px rgba(255,255,255,.5),0 6px 16px -6px rgba(0,0,0,.5);background:#3b3530}
+.lockuser .av svg{width:100%;height:100%}
+.lockuser b{font-size:13px}
+.lockuser .pw{font-size:11px;color:rgba(255,255,255,.6);background:rgba(255,255,255,.18);border-radius:999px;padding:4px 14px}
+/* Demo mở khoá bằng khuôn mặt: notch trên màn hình khoá (LockOverlayView). */
+.dstage.fu .lmusic{opacity:0}
+.fu-g{position:relative;width:18px;height:18px;display:grid;place-items:center;font-size:15px;color:#fff;transition:color .25s}
+.fu-g.scan:after{content:"";position:absolute;inset:-4px;border-radius:50%;border:1.6px solid transparent;border-top-color:rgba(255,255,255,.9);animation:fuSpin .9s linear infinite}
+.fu-g.ok{color:#4dd966}
+@keyframes fuSpin{to{transform:rotate(360deg)}}
+.fu-msg{position:absolute;left:0;right:0;top:30px;text-align:center;font-size:11px;font-weight:600;color:rgba(255,255,255,.75)}
+.lockuser .pw.typed{color:#fff;letter-spacing:2px}
+.dinfo{padding:26px 4px 0;display:flex;gap:18px;align-items:center;max-width:900px;margin:0 auto}
+.dinfo .ico{margin:0}
+.dinfo h3{font-size:20px;margin-bottom:4px}
+.dinfo p{font-size:14.5px;color:var(--ink2);max-width:560px}
+.dtext{flex:1;min-width:0}
+.dinfo .acts2{margin-left:auto;display:flex;gap:8px;flex:none}
+.dbtn{all:unset;cursor:pointer;font:600 14px var(--sys);padding:10px 16px;border-radius:999px;background:var(--card);border:1px solid var(--line);color:var(--ink)}
+.dbtn:hover{background:var(--bg2)}
+.dbtn.pri{background:var(--ink);color:#fff;border-color:var(--ink)}
+.dcap{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);font:600 12px var(--sys);color:#fff;background:rgba(0,0,0,.45);padding:5px 12px;border-radius:999px;white-space:nowrap}
+.dcap:empty{display:none}
+.lyrics{padding:0 18px 10px;display:flex;flex-direction:column;gap:6px;height:154px}
+.lhead{display:flex;align-items:center;gap:8px}
+.lhead .la{width:26px;height:26px;border-radius:6px;background:linear-gradient(135deg,#ffb347,#ff4f8b)}
+.lhead b{display:block;font-size:12px}.lhead small{display:block;font-size:10.5px;color:rgba(255,255,255,.5)}
+.lhead .sp{flex:1}
+.lhead .lb{width:24px;height:22px;display:grid;place-items:center;font-size:11px;color:rgba(255,255,255,.75)}
+.llines{flex:1;overflow:hidden;position:relative}
+.llines .track2{display:flex;flex-direction:column;gap:7px;transition:transform .5s cubic-bezier(.3,1,.4,1)}
+.llines div{font-size:15px;font-weight:700;color:rgba(255,255,255,.3);transition:color .3s}
+.llines div.on{color:#fff}
+
+/* ---------- Góp ý ---------- */
+.feedback{display:grid;grid-template-columns:1.2fr 1fr;gap:40px;align-items:center;margin-top:0}
+.feedback h2{font-size:clamp(38px,5vw,62px)}
+.feedback p{color:var(--ink2);font-size:17px;margin-bottom:22px}
+
+
+/* ---------- Hướng dẫn Cài đặt: dựng lại cửa sổ Cài đặt của app ---------- */
+.sw{margin:48px auto 0;max-width:1000px;display:grid;grid-template-columns:250px 1fr;gap:10px;padding:10px;background:#1c1c1e;border-radius:24px;box-shadow:0 40px 80px -40px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.4);font-family:var(--sys);color:#f2f2f7;text-align:left;height:620px}
+.sw-side{background:#262628;border-radius:16px;padding:16px 10px;overflow:auto}
+.sw-tl{display:flex;gap:8px;padding:0 10px 16px}.sw-tl i{width:12px;height:12px;border-radius:50%}
+.sw-tl i:nth-child(1){background:#ff5f57}.sw-tl i:nth-child(2){background:#febc2e}.sw-tl i:nth-child(3){background:#28c840}
+.sw-g{font-size:12px;font-weight:600;color:#8e8e93;padding:14px 10px 6px}
+.sw-it{all:unset;box-sizing:border-box;width:100%;cursor:pointer;display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:9px;font-size:14px;color:#f2f2f7}
+.sw-it:hover{background:rgba(255,255,255,.06)}
+.sw-it.on{background:#6b52c9}
+.sw-ic{width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font-size:13px;color:#fff;flex:none}
+.sw-main{padding:22px 26px;overflow:auto}
+.sw-main h4{font-size:26px;font-weight:700;margin-bottom:18px}
+.sw-sec{font-size:15px;font-weight:600;margin:20px 0 10px;display:flex;justify-content:space-between}
+.sw-box{background:#2a2a2d;border-radius:14px;border:1px solid rgba(255,255,255,.06)}
+.sw-row{display:flex;align-items:center;gap:12px;padding:11px 16px}
+.sw-row+.sw-row{border-top:1px solid rgba(255,255,255,.07)}
+.sw-row .ri{width:26px;height:26px;color:#aeaeb2;flex:none;display:grid;place-items:center}
+.sw-row .ri svg{display:block}
+.sw-box>.chips+.sw-row{border-top:1px solid rgba(255,255,255,.07)}
+.sw-row .rt{flex:1;min-width:0}
+.sw-row .rt b{display:block;font-size:13.5px;font-weight:500}
+.sw-row .rt small{display:block;font-size:12px;color:#8e8e93;margin-top:2px;line-height:1.35}
+.sw-foot{font-size:12px;color:#8e8e93;margin:8px 4px 0;line-height:1.45}
+.tg{all:unset;cursor:pointer;width:38px;height:22px;border-radius:11px;background:#48484a;position:relative;flex:none;transition:background .2s}
+.tg:after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:transform .2s}
+.tg.on{background:#5e4bc4}.tg.on:after{transform:translateX(16px)}
+.pk{all:unset;cursor:pointer;font-size:12.5px;color:#f2f2f7;background:#3a3a3c;border-radius:7px;padding:5px 10px;white-space:nowrap;flex:none;transition:background .15s}
+.pk:hover{background:#48484a}
+.pk:after{content:"⌄";margin-left:7px;color:#8e8e93;font-size:11px;position:relative;top:-2px}
+.sw{position:relative;z-index:0;isolation:isolate}
+.sw-side,.sw-main{transform:translateZ(0)}
+.sw-menu{position:absolute;z-index:5;min-width:180px;background:rgba(44,44,46,.98);border:1px solid rgba(255,255,255,.12);border-radius:10px;padding:5px;box-shadow:0 18px 40px -12px rgba(0,0,0,.6);display:none;font-size:13px}
+.sw-menu.on{display:block;animation:menuIn .14s ease-out}
+@keyframes menuIn{from{opacity:0;transform:translateY(-4px)}}
+.sw-menu div{padding:6px 12px 6px 26px;border-radius:6px;cursor:pointer;position:relative;white-space:nowrap}
+.sw-menu div:hover{background:#0a84ff}
+.sw-menu .cur:before{content:"✓";position:absolute;left:9px}
+.kb{font:600 12px var(--sys);background:#3a3a3c;border:1px solid #545456;border-radius:6px;padding:3px 8px;flex:none}
+.sg{display:flex;background:#3a3a3c;border-radius:8px;padding:2px;flex:none}
+.sg span{font-size:12px;padding:4px 10px;border-radius:6px;color:#d1d1d6;cursor:pointer}
+.sg span.on{background:#636366;color:#fff}
+.lnk{font-size:13px;color:#a78bfa;flex:none}
+.thm{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:14px}
+.thm div{border-radius:10px;overflow:hidden;border:2px solid transparent;font-size:12px;text-align:center;color:#d1d1d6;cursor:pointer}
+.thm div.on{border-color:#6b52c9}
+.thm i{display:block;height:54px}
+.chips{display:flex;gap:8px;padding:12px 16px;flex-wrap:wrap}
+.chips span{font-size:12.5px;background:#3a3a3c;border-radius:999px;padding:5px 12px;display:flex;align-items:center;gap:6px}
+.chips span:before{content:"";width:8px;height:8px;border-radius:50%;background:#30d158}
+.tips{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:22px;max-width:1000px;margin-left:auto;margin-right:auto;text-align:left}
+.tip{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px;cursor:pointer;transition:transform .2s}
+.tip:hover{transform:translateY(-3px)}
+.tip em{font:700 26px "Caveat",cursive;color:var(--accent);font-style:normal}
+.tip b{display:block;font-size:16px;margin:2px 0 4px}
+.tip span{font-size:14px;color:var(--ink2)}
+.tip code{font-size:12.5px;background:var(--bg2);padding:1px 6px;border-radius:5px}
+
+
+/* câu dẫn: mỗi mục là một notch mini đang chạy */
+.lead-row{display:flex;flex-wrap:wrap;justify-content:center;gap:16px 28px;width:min(1200px,calc(100vw - 32px));margin:34px 0 0 calc(50% - min(600px, 50vw - 16px));font-size:clamp(17px,1.9vw,21px);font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.li{display:inline-flex;align-items:center;gap:12px;opacity:0;transform:translateY(-18px) scale(.92)}
+.go .li{animation:liDrop .7s cubic-bezier(.2,1.45,.4,1) forwards;animation-delay:calc(1.15s + var(--i) * 150ms)}
+@keyframes liDrop{to{opacity:1;transform:none}}
+.chipn{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 11px;background:#000;color:#fff;border-radius:0 0 13px 13px;font:600 11px/1 var(--sys);box-shadow:0 10px 20px -12px rgba(0,0,0,.6);white-space:nowrap}
+.chipn .w-art{width:18px;height:18px;border-radius:5px}
+.chipn b{font-variant-numeric:tabular-nums}
+.mjoin{display:inline-flex;align-items:center;gap:3px;background:var(--blue);border-radius:999px;padding:3px 7px;font-size:10px}
+.mjoin .i{font-size:10px}
+.mglyph{font-style:normal;font-size:8px;font-weight:800;width:16px;height:20px;border-radius:3px;background:#ff453a;display:grid;place-items:end center;padding-bottom:2px;clip-path:polygon(0 0,68% 0,100% 24%,100% 100%,0 100%);animation:fileIn 2.4s ease-in-out infinite}
+@keyframes fileIn{0%,100%{transform:translateY(0)}40%{transform:translateY(-3px) rotate(-6deg)}60%{transform:translateY(1px)}}
+.mtray{display:inline-flex;align-items:center;gap:4px;color:rgba(255,255,255,.8)}
+.mtray .i{font-size:10px}
+.mclaude{font-size:15px;color:#d97757;animation:spin 6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.mwait{display:inline-flex;align-items:center;gap:5px;color:rgba(255,255,255,.8)}
+.mwait i{width:6px;height:6px;border-radius:50%;background:#d97757;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25;transform:scale(.7)}}
+.hero p.lead.lead-sub{margin-top:22px;line-height:1.5}
+/* ---------- Hiệu ứng mở trang ---------- */
+.intro{position:fixed;inset:0;z-index:100;overflow:hidden;cursor:pointer}
+.iris{position:absolute;top:0;left:50%;width:170px;height:32px;transform:translateX(-50%);border-radius:0 0 16px 16px;background:#000;box-shadow:0 0 0 200vmax #141417,0 0 0 1px rgba(255,255,255,.06);
+  transition:width .55s cubic-bezier(.3,1.35,.5,1),height .55s cubic-bezier(.3,1.35,.5,1),border-radius .5s,background-color .35s}
+.iris-in{height:100%;display:flex;align-items:center;justify-content:center;gap:12px;color:#fff;font:700 22px var(--sys);letter-spacing:-.01em;opacity:0;transition:opacity .25s}
+.iris-in img{width:34px;height:34px;border-radius:9px}
+.flyicon{position:absolute;left:50%;top:50%;width:112px;height:112px;margin:-56px 0 0 -56px;border-radius:26px;opacity:0;transform:scale(.7);
+  transition:transform .7s cubic-bezier(.6,0,.2,1),opacity .4s;box-shadow:0 0 80px 10px rgba(255,140,60,.35)}
+.intro.p0 .flyicon{opacity:1;transform:scale(1);transition:transform .6s cubic-bezier(.2,1.4,.4,1),opacity .4s}
+.intro.p1 .flyicon{opacity:0;transform:translateY(calc(-50vh + 40px)) scale(.3)}
+.intro.p1 .iris{width:min(360px,80vw);height:78px;border-radius:0 0 30px 30px;transition-delay:.35s}
+.intro.p1 .iris-in{opacity:1;transition-delay:.6s}
+.intro.p2 .iris{width:100vw;height:100vh;border-radius:0 0 0 0;background-color:transparent;transition:width .85s cubic-bezier(.7,0,.15,1),height .85s cubic-bezier(.7,0,.15,1),border-radius .85s,background-color .45s .15s}
+.intro.p2 .iris-in{opacity:0;transition-delay:0s}
+.intro .skip{position:absolute;right:20px;bottom:20px;font:500 12px var(--sys);color:rgba(255,255,255,.45)}
+.intro.p2 .skip{opacity:0}
+/* chữ rơi ra từ notch */
+.fall .lt{display:inline-block;opacity:0;transform:translateY(-.7em) scale(.9)}
+.go .fall .lt{animation:chDrop .7s cubic-bezier(.2,1.4,.4,1) forwards;animation-delay:calc(var(--i) * 38ms + .1s)}
+@keyframes chDrop{to{opacity:1;transform:none}}
+.nw{transition:clip-path .7s cubic-bezier(.3,1.2,.5,1)}
+.pre .nw{clip-path:inset(0 50% 100% 50% round 0 0 .3em .3em)}
+.go .nw{clip-path:inset(0 0 0 0 round 0 0 .3em .3em);transition-delay:.75s}
+.nw .cyc{display:inline-grid;justify-items:start;vertical-align:bottom;transition:width .35s cubic-bezier(.3,1.3,.5,1)}
+.nw .cyc>*{white-space:nowrap}
+.nw .cyc>*{grid-area:1/1;transition:transform .35s cubic-bezier(.3,1.3,.5,1),opacity .25s}
+.nw .cyc>.out{transform:translateY(-.9em);opacity:0}
+.nw .cyc>.wait{transform:translateY(.9em);opacity:0}
+.lead .pill{display:inline-flex;align-items:center;gap:.35em;padding:.12em .6em;margin:.28em .1em;border-radius:999px;background:var(--card);border:1px solid var(--line);color:var(--ink);font-weight:500;white-space:nowrap;opacity:0;transform:translateY(8px) scale(.96)}
+.lead .pill .i{font-size:.85em}
+.go .lead .pill{animation:pillIn .5s cubic-bezier(.2,1.3,.4,1) forwards;animation-delay:calc(1.2s + var(--i) * 120ms)}
+@keyframes pillIn{to{opacity:1;transform:none}}
+.pre .eyebrow,.pre .cta,.pre .meta,.pre .stage,.pre .demo-ctl,.pre .hint,.pre .lead{opacity:0;transform:translateY(16px)}
+.go .eyebrow,.go .cta,.go .meta,.go .stage,.go .demo-ctl,.go .hint,.go .lead{transition:opacity .7s,transform .8s cubic-bezier(.2,1,.3,1)}
+.go .eyebrow{transition-delay:.05s}.go .lead{transition-delay:1.05s}.go .cta{transition-delay:1.5s}.go .meta{transition-delay:1.6s}.go .stage{transition-delay:1.75s}.go .demo-ctl,.go .hint{transition-delay:2s}
+/* tiêu đề mục: từng từ hiện lên */
+h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opacity .5s,transform .6s cubic-bezier(.2,1.2,.4,1);transition-delay:calc(var(--i) * 50ms)}
+.in h2 .wd,h2.in .wd{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.intro{display:none}.li,.fall .lt,.lead .pill,h2 .wd{opacity:1!important;transform:none!important;filter:none!important;animation:none!important}.pre .nw{clip-path:none}.pre *{opacity:1!important;transform:none!important}}
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .7s,transform .7s}
+.reveal.in{opacity:1;transform:none}
+
+@media (max-width:860px){
+  nav ul{display:none}
+  .brand{margin-right:auto}
+  .split,.split.rev,.grid2{grid-template-columns:1fr;gap:28px}
+  .split.rev>:first-child{order:0}
+  .stats{grid-template-columns:1fr 1fr}
+  .priv,.more,.feedback,.tips{grid-template-columns:1fr}
+  .sw{grid-template-columns:1fr;height:auto}
+  .sw-side{display:flex;gap:6px;overflow-x:auto;padding:10px}
+  .sw-side .sw-g,.sw-side .sw-tl{display:none}
+  .sw-it{width:auto;flex:none}
+  .sw-main{max-height:560px}
+  .bento{grid-template-columns:1fr}
+  .bx.w{grid-column:auto;flex-direction:column}
+  .bx.w .bt{flex:none}
+  .bx .vis{overflow:hidden}
+  .ico{margin-bottom:28px}
+  .dinfo{flex-wrap:wrap}
+  .dinfo .acts2{margin-left:0}
+  dialog.demo{padding:52px 12px 16px;border-radius:24px}
+  .dtext{flex:1 1 calc(100% - 60px)}
+  .dinfo .acts2{width:100%;justify-content:center}
+  .win{display:none}
+  .dmenu{font-size:8px;height:16px;padding:0 8px}
+  .dcap{font-size:10px;bottom:6px}
+  .mscreen{padding:6px 6px 0;border-radius:14px 14px 4px 4px}
+  .mbase,.base{height:10px;width:104%;margin-left:-2%}
+  .wrap{padding:0 16px}
+  .screen{border-width:6px;border-bottom-width:8px;border-radius:14px 14px 4px 4px;aspect-ratio:4/3}
+  .menubar{font-size:10px;height:22px}
+  .menubar span:last-child{display:none}
+  .final{border-radius:28px;padding:64px 20px}
+}
+@media (min-width:861px) and (max-width:1100px){
+  .bento{grid-template-columns:repeat(2,1fr)}
+}
+@media (prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<!-- Icon nét đơn giản thay cho SF Symbols mà app dùng -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-music" viewBox="0 0 24 24"><path d="M19 3v12.5a3.5 3.5 0 1 1-2-3.16V7.3l-8 2V18a3.5 3.5 0 1 1-2-3.16V6.5L19 3z"/></symbol>
+  <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM16 8.5a5 5 0 0 1 0 7l-1.4-1.4a3 3 0 0 0 0-4.2zM18.8 5.7a9 9 0 0 1 0 12.6l-1.4-1.4a7 7 0 0 0 0-9.8z"/></symbol>
+  <symbol id="i-tray" viewBox="0 0 24 24"><path d="M3 13l2.5-8h13L21 13v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1zm2.2 0H9a3 3 0 0 0 6 0h3.8l-1.8-6H7zM8 8h8v1.6H8zm-.6 2.4h9.2V12H7.4z"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M8.5 5l1.5-2h4l1.5 2H20a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zM12 17.5a5 5 0 1 0 0-10 5 5 0 0 0 0 10z"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><path d="M10.3 2h3.4l.5 2.6 1.9.8 2.2-1.5 2.4 2.4-1.5 2.2.8 1.9 2.6.5v3.4l-2.6.5-.8 1.9 1.5 2.2-2.4 2.4-2.2-1.5-1.9.8-.5 2.6h-3.4l-.5-2.6-1.9-.8-2.2 1.5-2.4-2.4 1.5-2.2-.8-1.9L1.4 13.7v-3.4l2.6-.5.8-1.9L3.3 5.7l2.4-2.4 2.2 1.5 1.9-.8zM12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="M15.5 4.5L8 12l7.5 7.5-1.6 1.6L4.8 12l9.1-9.1z"/></symbol>
+  <symbol id="i-right" viewBox="0 0 24 24"><path d="M8.5 4.5L16 12l-7.5 7.5 1.6 1.6 9.1-9.1-9.1-9.1z"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M11 6v12L2 12zm10 0v12l-9-6z"/></symbol>
+  <symbol id="i-fwd" viewBox="0 0 24 24"><path d="M13 6v12l9-6zM3 6v12l9-6z"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M6 4h4v16H6zm8 0h4v16h-4z"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></symbol>
+  <symbol id="i-term" viewBox="0 0 24 24"><path d="M3 4h18a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1zm3.4 4L5 9.4 7.6 12 5 14.6 6.4 16l4-4zM12 14v2h6v-2z"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M2 5a1 1 0 0 1 1-1h6l2 2h10a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-bubble" viewBox="0 0 24 24"><path d="M4 3h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-8l-5 4v-4H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm3 5v2h10V8zm0 4v2h7v-2z"/></symbol>
+  <symbol id="i-open" viewBox="0 0 24 24"><path d="M5 5h6v2H7v10h10v-4h2v6H5zm9-2h7v7h-2V6.4l-7.3 7.3-1.4-1.4L17.6 5H14z"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M5 2h9l5 5v6h-2V8h-4V4H7v16h5v2H5zm12.5 13l.4 1.3 1.3.4-1.3.4-.4 1.4-.4-1.4-1.3-.4 1.3-.4zM16 14h3v6h-3z"/></symbol>
+  <symbol id="i-video" viewBox="0 0 24 24"><path d="M3 6h12a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1zm14 4l5-3v10l-5-3z"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M11 3h2v11.2l4.3-4.3 1.4 1.4L12 18l-6.7-6.7 1.4-1.4 4.3 4.3zM4 19h16v2H4z"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3zM6 11h2a4 4 0 0 0 8 0h2a6 6 0 0 1-5 5.9V20h3v2H8v-2h3v-3.1A6 6 0 0 1 6 11z"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 1 4 12.7V17H8v-2.3A7 7 0 0 1 12 2zM9 19h6v2H9z"/></symbol>
+  <symbol id="i-flip" viewBox="0 0 24 24"><path d="M11 3h2v18h-2zM9 7v10l-6-5zm6 0l6 5-6 5z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-1.3 13.6l6.2-6.2-1.4-1.4-4.8 4.8-2.3-2.3-1.4 1.4z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm3.5 5.1L12 10.6 8.5 7.1 7.1 8.5l3.5 3.5-3.5 3.5 1.4 1.4 3.5-3.5 3.5 3.5 1.4-1.4-3.5-3.5 3.5-3.5z"/></symbol>
+  <symbol id="i-laptop" viewBox="0 0 24 24"><path d="M4 5h16v10H4zm-2 12h20v2H2z"/></symbol>
+  <symbol id="i-lyrics" viewBox="0 0 24 24"><path d="M3 5h14v2H3zm0 4h10v2H3zm0 4h7v2H3zm15-5v7.5a2.5 2.5 0 1 1-2-2.45V8z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V11a1 1 0 0 1 1-1zm2 0h6V7a3 3 0 0 0-6 0z"/></symbol>
+  <symbol id="i-cup" viewBox="0 0 24 24"><path d="M4 8h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5zm13 1h1.5a2.5 2.5 0 0 1 0 5H17v-2h1.5a.5.5 0 0 0 0-1H17zM3 20h16v2H3zM8 2h2v4H8zm4 1h2v3h-2z"/></symbol>
+  <symbol id="i-keyboard" viewBox="0 0 24 24"><path d="M2 6h20v12H2zm3 3v2h2V9zm4 0v2h2V9zm4 0v2h2V9zm4 0v2h2V9zM7 13v2h10v-2z"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><path d="M12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10zM11 1h2v3h-2zm0 19h2v3h-2zM1 11h3v2H1zm19 0h3v2h-3zM4.2 2.8l2.1 2.1-1.4 1.4-2.1-2.1zm14.9 14.9 2.1 2.1-1.4 1.4-2.1-2.1zM2.8 19.8l2.1-2.1 1.4 1.4-2.1 2.1zM17.7 4.9l2.1-2.1 1.4 1.4-2.1 2.1z"/></symbol>
+  <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M17 3l4 4-4 4V8h-2.2l-8 9H3v-2h3l8-9H17zm0 10l4 4-4 4v-3h-3l-2.6-2.9 1.3-1.5L14.9 16H17zM3 7h3.8l2.6 2.9-1.3 1.5L6 9H3z"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M17 1l4 4-4 4V6H6v5H4V4h13zM7 23l-4-4 4-4v3h11v-5h2v7H7z"/></symbol>
+  <symbol id="i-quote" viewBox="0 0 24 24"><path d="M4 3h16a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-7l-5 4v-4H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm3.5 5A1.5 1.5 0 0 0 6 9.5V12h2.2l-.8 2h1.6l1-2.5V8zm6 0A1.5 1.5 0 0 0 12 9.5V12h2.2l-.8 2H15l1-2.5V8z"/></symbol>
+  <symbol id="i-ring" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zm0 2.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13z"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></symbol>
+  <symbol id="i-phones" viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 1 9 9v6a3 3 0 0 1-3 3h-2v-8h3v-1a7 7 0 0 0-14 0v1h3v8H6a3 3 0 0 1-3-3v-6a9 9 0 0 1 9-9z"/></symbol>
+  <symbol id="i-caps" viewBox="0 0 24 24"><path d="M12 3l9 9h-5v5H8v-5H3zm-4 16h8v2H8z"/></symbol>
+  <symbol id="i-caps-o" viewBox="0 0 24 24"><path d="M12 3l9 9h-5v5H8v-5H3zm0 2.8L7.8 10H10v5h4v-5h2.2zM8 19h8v2H8z"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M12 18a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM12 4c4.2 0 8 1.7 10.8 4.4l-1.6 1.6A13 13 0 0 0 12 6 13 13 0 0 0 2.8 10L1.2 8.4A15 15 0 0 1 12 4zm0 5c2.8 0 5.3 1.1 7.2 3l-1.6 1.6A8 8 0 0 0 12 11a8 8 0 0 0-5.6 2.6L4.8 12A10 10 0 0 1 12 9zm0 5c1.4 0 2.6.6 3.5 1.5L13.9 17a2.7 2.7 0 0 0-3.8 0l-1.6-1.5A5 5 0 0 1 12 14z"/></symbol>
+  <symbol id="i-face" viewBox="0 0 24 24"><path d="M3 3h5v2H5v3H3zm13 0h5v5h-2V5h-3zM3 16h2v3h3v2H3zm16 0h2v5h-5v-2h3zM8 8h2v3H8zm6 0h2v3h-2zm-2 0h1v5h-2v-1h1zm-3.5 7.2 1.4-1.4a3 3 0 0 0 4.2 0l1.4 1.4a5 5 0 0 1-7 0z"/></symbol>
+  <symbol id="i-power" viewBox="0 0 24 24"><path d="M11 2h2v10h-2zM6.3 5.3l1.4 1.4a7 7 0 1 0 8.6 0l1.4-1.4A9 9 0 1 1 6.3 5.3z"/></symbol>
+  <symbol id="i-shot" viewBox="0 0 24 24"><path d="M3 3h6v2H5v4H3zm12 0h6v6h-2V5h-4zM3 15h2v4h4v2H3zm16 0h2v6h-6v-2h4zM12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8z"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path d="M12 2c.6 4.7 2.9 8 9 10-6.1 2-8.4 5.3-9 10-.6-4.7-2.9-8-9-10 6.1-2 8.4-5.3 9-10z"/></symbol>
+  <symbol id="i-ccw" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm0 4a6 6 0 0 0-5.2 3H5v4h4v-2H8.6A4 4 0 1 1 8 13H6a6 6 0 1 0 6-7z"/></symbol>
+  <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zm11.6.2 1.4-1.4 2 2 2-2 1.4 1.4-2 2 2 2-1.4 1.4-2-2-2 2-1.4-1.4 2-2z"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M4 4h7v2H7.4l4.3 4.3-1.4 1.4L6 7.4V11H4zm16 16h-7v-2h3.6l-4.3-4.3 1.4-1.4 4.3 4.3V13h2z"/></symbol>
+  <symbol id="i-airpods" viewBox="0 0 24 24"><path d="M6.5 4a3.5 3.5 0 0 1 3.5 3.5V9a2 2 0 0 1-2 2v8.5a1.5 1.5 0 0 1-3 0V11A3.5 3.5 0 0 1 3 7.5 3.5 3.5 0 0 1 6.5 4zm11 0A3.5 3.5 0 0 1 21 7.5 3.5 3.5 0 0 1 19 11v8.5a1.5 1.5 0 0 1-3 0V11a2 2 0 0 1-2-2V7.5A3.5 3.5 0 0 1 17.5 4z"/></symbol>
+  <symbol id="i-claude" viewBox="0 0 24 24"><path d="m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M12 2a6 6 0 0 1 6 6v4.5l2 3.5H4l2-3.5V8a6 6 0 0 1 6-6zm-2.5 16h5a2.5 2.5 0 0 1-5 0z"/></symbol>
+  <symbol id="i-paw" viewBox="0 0 24 24"><path d="M12 11c3 0 6 3.6 6 6.3 0 1.9-1.5 2.7-3 2.7-1.2 0-2-.6-3-.6s-1.8.6-3 .6c-1.5 0-3-.8-3-2.7C6 14.6 9 11 12 11zM5 7.5a2 2.5 0 1 1 0 5 2 2.5 0 0 1 0-5zm14 0a2 2.5 0 1 1 0 5 2 2.5 0 0 1 0-5zM9 3a2 2.5 0 1 1 0 5 2 2.5 0 0 1 0-5zm6 0a2 2.5 0 1 1 0 5 2 2.5 0 0 1 0-5z"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><path d="M7 2h2v2h6V2h2v2h2a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2zM5 9v10h14V9zm2 2h3v3H7z"/></symbol>
+  <symbol id="i-spotify" viewBox="0 0 24 24"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></symbol>
+  <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M12 3a10 10 0 0 1 10 10c0 2.4-.9 4.7-2.3 6.4l-1.5-1.3A8 8 0 1 0 4 13c0 1.9.7 3.7 1.8 5.1l-1.5 1.3A10 10 0 0 1 12 3zm4.6 4.6 1.4 1.4-4.6 5A2 2 0 1 1 12 11z"/></symbol>
+</svg>
+
+<nav>
+  <div class="wrap">
+    <a class="brand" href="#"><img src="assets/icon.png" alt="">Roost</a>
+    <ul>
+      <li><a href="#claude">Claude Code</a></li>
+      <li><a href="#features">Tính năng</a></li>
+      <li><a href="#themes">Giao diện</a></li>
+      <li><a href="#settings">Cài đặt</a></li>
+      <li><a href="#privacy">Riêng tư</a></li>
+      <li><a href="#faq">Hỏi đáp</a></li>
+    </ul>
+    <a class="btn btn-dark btn-sm dl" href="https://github.com/letoan1/notch-app/releases/latest/download/Roost-1.0.0.dmg">
+      <svg class="apple" viewBox="0 0 384 512"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
+      Tải về
+    </a>
+  </div>
+</nav>
+
+<div class="intro" id="intro" aria-hidden="true"><div class="iris"><div class="iris-in"><img src="assets/icon.png" alt=""><span>Roost</span></div></div><img class="flyicon" src="assets/icon.png" alt=""><span class="skip">Bấm để bỏ qua</span></div>
+<header class="hero wrap pre" id="hero">
+  <span class="eyebrow"><b>Mới</b> Duyệt yêu cầu Claude Code ngay trên notch</span>
+  <h1><span class="line fall" data-split>Notch nhỏ.</span><span class="line"><span class="fall" data-split>Việc gì cũng có</span> <span class="nw"><b class="cyc"><span class="wait">nhạc</span><span class="wait">lịch</span><span class="wait">khay</span><span class="wait">Claude</span><span class="wait">chỗ.</span></b></span></span></h1>
+  <div class="lead lead-row">
+    <span class="li" style="--i:0"><span class="chipn"><span class="w-art"></span><span class="spec"><i></i><i></i><i></i><i></i></span></span>Bài đang nghe</span>
+    <span class="li" style="--i:1"><span class="chipn"><b>10:00</b><span class="mjoin"><svg class="i"><use href="#i-video"/></svg>Meet</span></span>Cuộc họp sắp tới</span>
+    <span class="li" style="--i:2"><span class="chipn"><i class="mglyph">PDF</i><span class="mtray"><svg class="i"><use href="#i-tray"/></svg>Vào khay</span></span>File vừa kéo</span>
+    <span class="li" style="--i:3"><span class="chipn"><svg class="i mclaude"><use href="#i-claude"/></svg><span class="mwait"><i></i>Đang chờ bạn</span></span>Claude đang hỏi</span>
+  </div>
+  <p class="lead lead-sub">Roost đặt tất cả ở mép trên màn hình. Rê chuột lên là thấy.</p>
+  <div class="cta">
+    <a class="btn btn-dark dl" href="https://github.com/letoan1/notch-app/releases/latest/download/Roost-1.0.0.dmg">
+      <svg class="apple" viewBox="0 0 384 512"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
+      Tải cho Mac
+    </a>
+    <!-- Tạm ẩn: <a class="btn btn-ghost" href="https://github.com/letoan1/notch-app">Mã nguồn trên GitHub</a> -->
+  </div>
+  <p class="meta">Miễn phí, mã nguồn mở MIT &nbsp;·&nbsp; macOS 14 trở lên &nbsp;·&nbsp; Apple Silicon và Intel</p>
+
+  <div class="stage">
+    <div class="screen" id="screen">
+      <div class="menubar"><span>Finder&nbsp;&nbsp;&nbsp;File&nbsp;&nbsp;&nbsp;Edit&nbsp;&nbsp;&nbsp;View</span><span>T2 16 thg 11&nbsp;&nbsp;9:41</span></div>
+      <div class="notch" id="notch" tabindex="0" aria-label="Notch Roost">
+        <div class="wings"><span class="w-art"></span><span class="spec"><i></i><i></i><i></i><i></i></span></div>
+        <div class="panel">
+          <div class="hdr">
+            <button class="tp on" data-v="media" title="Nhạc và lịch"><svg class="i"><use href="#i-music"/></svg></button>
+            <button class="tp" data-v="sound" title="Âm thanh"><svg class="i"><use href="#i-speaker"/></svg></button>
+            <button class="tp" data-v="tray" title="Khay file"><svg class="i"><use href="#i-tray"/></svg><span class="badge">3</span></button>
+            <button class="tp" data-v="mirror" title="Gương camera"><svg class="i"><use href="#i-camera"/></svg></button>
+            <span class="queue"><svg class="i"><use href="#i-left"/></svg><b>1/2</b><svg class="i"><use href="#i-right"/></svg></span>
+            <span class="sp"></span>
+            <span class="status" title="Mức dùng Claude">
+              <span class="seg"><svg class="ring" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2"/><circle cx="6" cy="6" r="5" fill="none" stroke="#30d158" stroke-width="2" stroke-dasharray="25.4 31.4" transform="rotate(-90 6 6)"/></svg>5h<b style="color:#30d158">81%</b></span>
+              <span class="seg"><svg class="ring" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2"/><circle cx="6" cy="6" r="5" fill="none" stroke="#30d158" stroke-width="2" stroke-dasharray="18.8 31.4" transform="rotate(-90 6 6)"/></svg>7d<b style="color:#30d158">60%</b></span>
+            </span>
+            <span class="gear" title="Cài đặt"><svg class="i"><use href="#i-gear"/></svg></span>
+          </div>
+          <div class="body">
+            <!-- Nhạc và lịch: trình phát 350pt | lịch -->
+            <div class="v on" data-v="media">
+              <div class="player">
+                <div class="art"><span class="src"><svg><use href="#i-spotify"/></svg></span></div>
+                <div class="pinfo">
+                  <div><div class="pt">Chiều hôm ấy</div><div class="pa">Lofi Sài Gòn <span class="eq"><i></i><i></i><i></i></span></div></div>
+                  <div class="prog"><span>1:24</span><span class="rail"><b></b></span><span>3:41</span></div>
+                  <div class="ctrl"><svg class="i mode"><use href="#i-shuffle"/></svg><svg class="i" style="font-size:18px"><use href="#i-back"/></svg><svg class="i" style="font-size:24px"><use href="#i-pause"/></svg><svg class="i" style="font-size:18px"><use href="#i-fwd"/></svg><svg class="i mode"><use href="#i-repeat"/></svg></div>
+                </div>
+                <span class="lyr" title="Lời bài hát"><svg class="i"><use href="#i-quote"/></svg></span>
+              </div>
+              <div class="sep"></div>
+              <div class="cal">
+                <div class="ch">Tháng 11, 2026<span class="sp"></span><span class="nb"><svg class="i"><use href="#i-left"/></svg></span><span class="nb"><svg class="i"><use href="#i-right"/></svg></span></div>
+                <!-- Dải 7 ngày lấy hôm nay làm giữa (CalendarStore.weekDays: -3...3) -->
+                <div class="week">
+                  <div class="day"><small>T6</small><span>13</span><i></i></div>
+                  <div class="day we"><small>T7</small><span>14</span><i></i></div>
+                  <div class="day we busy"><small>CN</small><span>15</span><i></i></div>
+                  <div class="day today busy"><small>T2</small><span>16</span><i></i></div>
+                  <div class="day busy"><small>T3</small><span>17</span><i></i></div>
+                  <div class="day"><small>T4</small><span>18</span><i></i></div>
+                  <div class="day"><small>T5</small><span>19</span><i></i></div>
+                </div>
+                <div class="ev"><span class="bar" style="background:#7fd6dc"></span><span class="t"><b>Demo sprint</b><span>17:00 – 18:00</span></span><span class="join"><svg class="i"><use href="#i-video"/></svg>Meet</span></div>
+              </div>
+            </div>
+            <!-- Âm thanh: thiết bị, loa, mic, từng app -->
+            <div class="v sound" data-v="sound">
+              <span class="dev"><svg class="i"><use href="#i-laptop"/></svg>Loa MacBook Air</span>
+              <div class="cols">
+                <div class="col"><span class="tile"><svg class="i"><use href="#i-speaker"/></svg></span><span class="vbar"><b style="height:62%"></b></span><small>62%</small></div>
+                <div class="col"><span class="tile"><svg class="i"><use href="#i-mic"/></svg></span><span class="vbar"><b style="height:75%"></b></span><small>75%</small></div>
+                <span class="vsep"></span>
+                <div class="col"><span class="appic" style="background:#1ed760"></span><span class="vbar"><b style="height:100%"></b></span><small>100%</small></div>
+                <div class="col"><span class="appic" style="background:conic-gradient(#ea4335 0 33%,#fbbc05 0 66%,#34a853 0)"></span><span class="vbar"><b style="height:45%"></b></span><small>45%</small></div>
+                <div class="col"><span class="appic" style="background:#5b5fc7"></span><span class="vbar"><b style="height:80%"></b></span><small>80%</small></div>
+              </div>
+            </div>
+            <!-- Khay file -->
+            <div class="v trayv" data-v="tray">
+              <div class="files">
+                <div class="f"><i class="glyph" style="--c:#ff453a" data-ext="PDF"></i><span>hop-…ng.pdf</span></div>
+                <div class="f"><i class="glyph" style="--c:#0a84ff" data-ext="TXT"></i><span>ghi-…hu.txt</span></div>
+                <div class="f"><i class="thumb"></i><span>Ảnh…9.40.png</span></div>
+              </div>
+              <div class="drop"><svg class="i"><use href="#i-down"/></svg>Thả vào khay</div>
+            </div>
+            <!-- Gương camera -->
+            <div class="v mirror" data-v="mirror">
+              <div class="cam"><svg class="cam-art" viewBox="0 0 300 190" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  
+  <rect width="300" height="190" fill="#2d2826"/>
+  <rect x="214" y="18" width="62" height="78" rx="4" fill="#6f665c" opacity=".55"/><path d="M245 18v78M214 57h62" stroke="#3b3530" stroke-width="3"/>
+  
+  <rect x="22" y="42" width="34" height="58" rx="3" fill="#2a2623"/><rect x="26" y="50" width="26" height="6" rx="2" fill="#7d5a3c"/><rect x="26" y="60" width="20" height="6" rx="2" fill="#4f6b5a"/><rect x="26" y="70" width="24" height="6" rx="2" fill="#8a3f3a"/>
+  <path d="M70 190c4-34 34-52 80-52s76 18 80 52z" fill="#3f5c80"/>
+  <path d="M136 132h28v14c0 6-28 6-28 0z" fill="#d9a37f"/>
+  <path d="M128 146c6 10 38 10 44 0" fill="none" stroke="#e8eef5" stroke-width="4" opacity=".6"/>
+  <ellipse cx="150" cy="96" rx="31" ry="38" fill="#ecbf9c"/>
+  <ellipse cx="119.5" cy="100" rx="5" ry="8" fill="#e2b08c"/><ellipse cx="180.5" cy="100" rx="5" ry="8" fill="#e2b08c"/>
+  <path d="M118 92c-2-26 12-42 33-42 22 0 35 15 32 40-6-12-15-19-27-21-10 9-24 15-38 23z" fill="#2b211c"/>
+  <path d="M137 102c2 2 6 2 8 0M155 102c2 2 6 2 8 0" stroke="#3a2a22" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <path d="M143 118c4 3 10 3 14 0" stroke="#b9715c" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <ellipse cx="134" cy="112" rx="5" ry="3" fill="#ef9a8a" opacity=".35"/><ellipse cx="166" cy="112" rx="5" ry="3" fill="#ef9a8a" opacity=".35"/>
+</svg></div>
+              <div class="mside">
+                <h5>Sẵn sàng họp?</h5>
+                <div class="ev" style="padding-left:0"><span class="bar" style="background:#7fd6dc"></span><span class="t"><b>Demo sprint</b><span>17:00 – 18:00</span></span><span class="join"><svg class="i"><use href="#i-video"/></svg>Meet</span></div>
+                <span class="sp"></span>
+                <span class="mbtn"><svg class="i"><use href="#i-flip"/></svg>Lật: gương</span>
+                <span class="mbtn"><svg class="i"><use href="#i-bulb"/></svg>Đèn viền</span>
+              </div>
+            </div>
+            <!-- Thẻ xin quyền của Claude (thay nội dung tab khi có yêu cầu) -->
+            <div class="v pc" data-v="claude" id="heroCard"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="base"></div>
+  </div>
+  <div class="demo-ctl" id="demoCtl">
+    <button class="on" data-v="media">Nhạc và lịch</button>
+    <button data-v="sound">Âm thanh</button>
+    <button data-v="tray">Khay file</button>
+    <button data-v="mirror">Gương camera</button>
+    <button data-v="claude">Claude xin quyền</button>
+  </div>
+  <p class="hint">Rê chuột lên notch, hoặc chọn một mục ở trên. Bố cục và chữ lấy theo giao diện Mặc định của app.</p>
+</header>
+
+<div class="marquee" aria-hidden="true"><div class="track" id="track"></div></div>
+
+<section id="claude">
+  <div class="wrap">
+    <div class="split">
+      <div class="reveal">
+        <span class="hand orange">Claude Code</span>
+        <h2>Claude <span class="claudeword">hỏi.</span><br>Bạn trả lời, <span class="mark" style="--mc:#fdba74">không rời mắt</span>.</h2>
+        <p class="sec-lead">Khi Claude Code xin chạy lệnh, sửa file hay hỏi bạn một câu, notch tự mở và hiện thẻ. Duyệt xong là quay lại việc đang làm.</p>
+        <ul class="points" style="margin-top:28px">
+          <li><b>Biết rõ ai đang hỏi</b><span>Project, phiên, app đang chạy Claude và đồng hồ đếm ngược tới lúc Claude thôi chờ.</span></li>
+          <li><b>Nhiều phiên, một hàng đợi</b><span>Hàng tab hiện 1/2, 1/3; trả lời thẻ này không đụng thẻ khác.</span></li>
+          <li><b>Cho phép hẹp nhất có thể</b><span>Luôn cho phép chỉ áp đúng quy tắc Claude gợi ý, ghi rõ nơi lưu, thu hồi được trong Cài đặt.</span></li>
+          <li><b>Không bao giờ làm treo Claude</b><span>Tắt Roost thì hook trả về ngay, terminal hỏi bạn như bình thường.</span></li>
+        </ul>
+      </div>
+      <div class="reveal">
+        <div class="bigcard" id="bigWrap"><div class="inner" id="bigInner"><div class="v pc on" id="bigCard" style="position:static;height:154px"></div></div></div>
+        <p class="hint" style="text-align:center">Bấm thử một nút. Bố cục và chữ giống thẻ trong app.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="wrap">
+    <div class="center reveal">
+      <span class="hand">Mỗi ngày</span>
+      <h2>Những việc <span class="tiny">nhỏ</span>.<br>Chung một <span class="sel">góc quen<i></i><i></i><i></i><i></i></span>.</h2>
+      <p class="sec-lead">Liếc lên là thấy, kéo xuống là dùng. Không cửa sổ mới, không đổi app.</p>
+    </div>
+
+    <div class="split rev">
+      <div class="reveal">
+        <span class="hand violet" style="font-size:26px">Nhạc và lịch</span>
+        <h2 style="font-size:clamp(28px,3.6vw,42px)">Bài đang nghe.<br>Cuộc họp sắp tới.</h2>
+        <ul class="points" style="margin-top:24px">
+          <li><b>Mọi app phát nhạc</b><span>Spotify, Apple Music, YouTube trên trình duyệt, Podcasts. Bấm ảnh bìa để mở app đang phát.</span></li>
+          <li><b>Thu gọn mà vẫn sống động</b><span>Ảnh bìa và sóng nhạc ở hai cánh notch, viền sáng theo màu ảnh bìa.</span></li>
+          <li><b>Một nút vào họp</b><span>Dải 7 ngày, vuốt trackpad để đổi tuần, nút vào thẳng Meet, Zoom hay Teams.</span></li>
+        </ul>
+      </div>
+      <div class="frame reveal"><img src="assets/card-glance.svg" alt="Sóng nhạc và báo pin khi notch thu gọn" loading="lazy"></div>
+    </div>
+
+    <div class="grid2">
+      <div class="card reveal">
+        <h3>Khay file kéo thả</h3>
+        <p>Cất tạm file, kéo ra thả vào app khác. Phím cách mở Quick Look, chuột phải để AirDrop.</p>
+        <img src="assets/card-tray.svg" alt="Khay kéo thả file" loading="lazy">
+      </div>
+      <div class="card reveal">
+        <h3>Ảnh chụp màn hình tự vào khay</h3>
+        <p>Chụp xong là thấy ngay trên notch, kể cả khi chụp vào clipboard.</p>
+        <img src="assets/card-shots.svg" alt="Ảnh chụp màn hình tự vào khay" loading="lazy">
+      </div>
+      <div class="card reveal">
+        <h3>Thú cưng trên cánh notch</h3>
+        <p>Nhảy theo nhạc, nhìn theo con trỏ, đeo tai nghe khi âm thanh ra AirPods.</p>
+        <img src="assets/card-pets.svg" alt="Bốn thú cưng của Roost" loading="lazy">
+      </div>
+      <div class="card reveal">
+        <h3>Có notch hay không</h3>
+        <p>Màn hình rời được vẽ thêm notch hoặc kiểu viên nổi. Toàn màn hình thì notch thu về tối giản.</p>
+        <img src="assets/card-screens.svg" alt="Notch trên nhiều màn hình" loading="lazy">
+      </div>
+    </div>
+
+    <div class="split" style="margin-top:80px">
+      <div class="reveal">
+        <span class="hand violet" style="font-size:26px">Gương camera</span>
+        <h2 style="font-size:clamp(28px,3.6vw,42px)">Soi một chút<br>trước khi vào họp.</h2>
+        <ul class="points" style="margin-top:24px">
+          <li><b>Kèm cuộc họp sắp tới</b><span>Soi xong bấm luôn nút vào họp.</span></li>
+          <li><b>Nhắc khung hình</b><span>Lệch khung, ngồi quá gần hay quá xa đều được nhắc.</span></li>
+          <li><b>Đèn viền</b><span>Thiếu sáng thì bật viền trắng ấm quanh màn hình: Dịu, Vừa, Mạnh.</span></li>
+        </ul>
+      </div>
+      <div class="frame reveal"><img src="assets/card-mirror.svg" alt="Soi gương camera và đèn viền trước khi họp" loading="lazy"></div>
+    </div>
+
+  </div>
+</section>
+
+<section id="more">
+  <div class="wrap">
+    <div class="center reveal">
+      <span class="hand">Tính năng</span>
+      <h2>Nhạc, lịch, pin và hơn thế.<br>Chỉ <span class="gradw">một cái liếc mắt</span>.</h2>
+      <p class="sec-lead">Mỗi thẻ có một demo nhỏ, vẽ theo đúng giao diện Mặc định của app.</p>
+    </div>
+    <div class="bento">
+      <div class="bx w reveal">
+        <div class="bt"><span class="ico" style="--c:#f5b301"><svg class="i"><use href="#i-sun"/></svg></span>
+          <h3>HUD âm lượng, độ sáng</h3><p>Bấm phím âm lượng, độ sáng hay đèn bàn phím, giá trị hiện ở hai cánh notch thay cho HUD của macOS.</p>
+          <button class="dlink" data-demo="hud">Xem demo →</button></div>
+        <div class="vis">
+          <div class="mn" style="--w:64px"><span><svg class="i"><use href="#i-speaker"/></svg></span><span class="m"></span><span><i class="hudbar"><b style="width:62%"></b></i>62%</span></div>
+          <div class="mn" style="--w:64px"><span><svg class="i"><use href="#i-sun"/></svg></span><span class="m"></span><span><i class="hudbar"><b style="width:80%"></b></i>80%</span></div>
+          <div class="mn" style="--w:64px"><span style="opacity:.5"><svg class="i"><use href="#i-mute"/></svg></span><span class="m"></span><span><i class="hudbar"><b style="width:0"></b></i>Tắt</span></div>
+        </div>
+      </div>
+      <div class="bx w reveal">
+        <div class="bt"><span class="ico" style="--c:#ff375f"><svg class="i"><use href="#i-quote"/></svg></span>
+          <h3>Lời bài hát</h3><p>Lời chạy theo nhạc ngay trong notch với Spotify và Apple Music. Có thể mở toàn màn hình.</p>
+          <button class="dlink" data-demo="lyrics">Xem demo →</button></div>
+        <div class="vis"><div class="lyr-vis"><span>Phố đã lên đèn từ lúc nào</span><span class="on">Notch nhỏ thôi mà đủ chỗ</span><span>cho cả một buổi chiều</span></div></div>
+      </div>
+
+      <div class="bx w reveal">
+        <div class="bt"><span class="ico" style="--c:#22c55e"><svg class="i"><use href="#i-bolt"/></svg></span>
+          <h3>Pin và sạc</h3><p>Cắm sạc là hai cánh notch báo phần trăm. Pin yếu thì notch thả xuống một thẻ nhắc.</p>
+          <button class="dlink" data-demo="charge">Xem demo →</button></div>
+        <div class="vis">
+          <div class="mn" style="--w:80px"><span style="color:#4dd966"><svg class="i"><use href="#i-bolt"/></svg><em style="font-style:normal;color:rgba(255,255,255,.85)">Đang sạc</em></span><span class="m"></span><span style="color:#4dd966;font-size:12px">82% <i class="batt"><b style="width:82%"></b></i></span></div>
+          <div class="acard" style="width:330px"><span class="ai" style="background:rgba(255,69,58,.16);color:#ff453a"><i class="batt" style="transform:scale(.85)"><b style="width:12%"></b></i></span><span><b>Pin yếu <span style="color:#ff453a">10%</span></b><small>Bật Chế độ nguồn điện thấp hoặc cắm sạc.</small></span></div>
+        </div>
+      </div>
+      <div class="bx reveal"><span class="ico" style="--c:#3d8bff"><svg class="i"><use href="#i-airpods"/></svg></span>
+        <h3>Tai nghe kết nối</h3><p>AirPods hay tai nghe Bluetooth vừa kết nối, notch thả xuống thẻ có tên thiết bị và phần trăm pin.</p>
+        <button class="dlink" data-demo="audio">Xem demo →</button></div>
+      <div class="bx reveal"><span class="ico" style="--c:#7c5cff"><svg class="i"><use href="#i-caps"/></svg></span>
+        <h3>Chỉ báo Caps Lock</h3><p>Bật hay tắt Caps Lock, notch hiện ON hoặc OFF trong chốc lát.</p>
+        <button class="dlink" data-demo="caps">Xem demo →</button></div>
+
+      <div class="bx w reveal">
+        <div class="bt"><span class="ico" style="--c:#48484e"><svg class="i"><use href="#i-speaker"/></svg></span>
+          <h3>Âm thanh từng app</h3><p>Chọn loa, mic, chỉnh âm lượng tổng và riêng từng app đang phát. Cần macOS 14.2 trở lên.</p>
+          <button class="dlink" data-demo="sound">Xem demo →</button></div>
+        <div class="vis"><div class="mini-sound"><span><b style="height:62%"></b></span><span><b style="height:75%;animation-delay:-.6s"></b></span><span style="background:none;width:1px;border-left:1px solid rgba(255,255,255,.15)"></span><span><b style="height:100%;animation-delay:-1.2s"></b></span><span><b style="height:45%;animation-delay:-.3s"></b></span><span><b style="height:80%;animation-delay:-1.8s"></b></span></div></div>
+      </div>
+      <div class="bx reveal"><span class="ico" style="--c:#0ea5e9"><svg class="i"><use href="#i-shot"/></svg></span>
+        <h3>Ảnh chụp vào khay</h3><p>Chụp màn hình xong, ảnh bay vào khay và notch báo "Vào khay".</p>
+        <button class="dlink" data-demo="shot">Xem demo →</button></div>
+      <div class="bx reveal"><span class="ico" style="--c:#6366f1"><svg class="i"><use href="#i-lock"/></svg></span>
+        <h3>Nhạc trên màn hình khoá</h3><p>Ảnh bìa, tiến độ và nút điều khiển ngay dưới đồng hồ khi máy đang khoá.</p>
+        <button class="dlink" data-demo="lock">Xem demo →</button></div>
+
+      <div class="bx reveal"><span class="ico" style="--c:#d97757"><svg class="i"><use href="#i-claude"/></svg></span>
+        <h3>Claude đang chờ bạn</h3><p>Claude làm xong và chờ bạn nhập tiếp, notch nhắc tên project, kèm âm báo nếu bạn bật.</p>
+        <button class="dlink" data-demo="claudewait">Xem demo →</button></div>
+      <div class="bx w reveal">
+        <div class="bt"><span class="ico" style="--c:#16a34a"><svg class="i"><use href="#i-gauge"/></svg></span>
+          <h3>Mức dùng Claude</h3><p>Hạn mức 5 giờ và 7 ngày ngay trên hàng tab; hạn mức đặt lại thì notch báo. Bạn tự bật, chỉ gọi api.anthropic.com.</p>
+          <button class="dlink" data-demo="usage">Xem demo →</button></div>
+        <div class="vis"><div class="big-pill"><span><svg width="18" height="18" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2"/><circle cx="6" cy="6" r="5" fill="none" stroke="#30d158" stroke-width="2" stroke-dasharray="25.4 31.4" transform="rotate(-90 6 6)"/></svg>5h <b>81%</b></span><span><svg width="18" height="18" viewBox="0 0 12 12"><circle cx="6" cy="6" r="5" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="2"/><circle cx="6" cy="6" r="5" fill="none" stroke="#30d158" stroke-width="2" stroke-dasharray="18.8 31.4" transform="rotate(-90 6 6)"/></svg>7d <b>60%</b></span></div></div>
+      </div>
+      <div class="bx reveal"><span class="ico" style="--c:#ec4899"><svg class="i"><use href="#i-face"/></svg></span>
+        <h3>Mở khoá bằng khuôn mặt</h3><p>Nhìn vào camera, chớp mắt nhẹ là Mac mở khoá. Mở bằng Touch ID hay mật khẩu thì notch vẫn chào bạn.</p>
+        <button class="dlink" data-demo="faceunlock">Xem demo →</button>
+        <button class="dlink" data-demo="unlock" style="padding-top:6px">Chỉ lời chào →</button></div>
+
+      <div class="bx reveal"><span class="ico" style="--c:#f59e0b"><svg class="i"><use href="#i-cup"/></svg></span>
+        <h3>Giữ máy thức</h3><p>Giữ Mac và màn hình thức theo giờ. Sắp hết giờ thì notch nhắc, bấm để thêm 15 phút.</p>
+        <button class="dlink" data-demo="awake">Xem demo →</button></div>
+      <div class="bx reveal"><span class="ico" style="--c:#2563eb"><svg class="i"><use href="#i-keyboard"/></svg></span>
+        <h3>Lau phím</h3><p>Khoá bàn phím để lau. Bấm Esc 5 lần để mở, tự mở sau 3 phút.</p>
+        <button class="dlink" data-demo="clean">Xem demo →</button></div>
+      <div class="bx reveal"><span class="ico" style="--c:#ef4444"><svg class="i"><use href="#i-wifi"/></svg></span>
+        <h3>Báo mất mạng</h3><p>Mất Internet hay có mạng lại, notch thả xuống một thẻ ngắn.</p>
+        <button class="dlink" data-demo="network">Xem demo →</button></div>
+      <div class="bx reveal"><span class="ico" style="--c:#64748b"><svg class="i"><use href="#i-gear"/></svg></span>
+        <h3>Bố cục notch</h3><p>Khi notch mở, hai bên có thể thêm tối đa 3 nút tròn mỗi bên: tai nghe, lau phím, giữ máy thức…</p>
+        <button class="dlink" data-demo="layout">Xem demo →</button></div>
+    </div>
+  </div>
+</section>
+
+<dialog class="demo" id="demo">
+  <button class="dx" id="dclose" aria-label="Đóng">×</button>
+  <div class="mbp"><div class="mscreen">
+  <div class="dstage" id="dstage">
+    <div class="dmenu"><span>Finder&nbsp;&nbsp;&nbsp;File&nbsp;&nbsp;&nbsp;Edit</span><span>T2 16 thg 11&nbsp;&nbsp;9:41</span></div>
+    <div class="win" style="left:7%;top:26%;width:40%;height:52%"><div class="bar"><i></i><i></i><i></i><span>Ghi chú</span></div>
+      <div class="doc"><b>Kế hoạch tuần</b>Demo sprint lúc 17:00<br>Gửi bản thiết kế notch<i style="width:86%"></i><i style="width:64%"></i><i style="width:72%"></i></div></div>
+    <div class="win" style="left:52%;top:31%;width:41%;height:50%"><div class="bar"><i></i><i></i><i></i><span>Terminal</span></div>
+      <div class="doc" id="dterm" style="background:#1e1e22;height:100%;color:#c7c7cc;font:11px/1.7 ui-monospace,Menlo,monospace"></div></div>
+    <div class="lockui"><div class="lockbg"></div><div class="date">Thứ Hai, 16 tháng 11</div><div class="clock">9:41</div>
+      <div class="lmusic"><div class="la"><span class="src"><svg><use href="#i-spotify"/></svg></span></div><div class="lm-t"><b class="lm-title">Chiều hôm ấy</b><span class="lm-artist">Lofi Sài Gòn</span>
+        <div class="lm-prog"><span class="lp"><i></i></span><span class="lm-time">1:24</span></div>
+        <div class="lc"><svg class="i m"><use href="#i-shuffle"/></svg><svg class="i"><use href="#i-back"/></svg><svg class="i p"><use href="#i-pause"/></svg><svg class="i"><use href="#i-fwd"/></svg><svg class="i m"><use href="#i-repeat"/></svg></div></div></div>
+      <div class="lockuser"><span class="av"><svg viewBox="108 50 84 84" preserveAspectRatio="xMidYMid slice">
+  
+  <rect width="300" height="190" fill="#2d2826"/>
+  <rect x="214" y="18" width="62" height="78" rx="4" fill="#6f665c" opacity=".55"/><path d="M245 18v78M214 57h62" stroke="#3b3530" stroke-width="3"/>
+  
+  <rect x="22" y="42" width="34" height="58" rx="3" fill="#2a2623"/><rect x="26" y="50" width="26" height="6" rx="2" fill="#7d5a3c"/><rect x="26" y="60" width="20" height="6" rx="2" fill="#4f6b5a"/><rect x="26" y="70" width="24" height="6" rx="2" fill="#8a3f3a"/>
+  <path d="M70 190c4-34 34-52 80-52s76 18 80 52z" fill="#3f5c80"/>
+  <path d="M136 132h28v14c0 6-28 6-28 0z" fill="#d9a37f"/>
+  <path d="M128 146c6 10 38 10 44 0" fill="none" stroke="#e8eef5" stroke-width="4" opacity=".6"/>
+  <ellipse cx="150" cy="96" rx="31" ry="38" fill="#ecbf9c"/>
+  <ellipse cx="119.5" cy="100" rx="5" ry="8" fill="#e2b08c"/><ellipse cx="180.5" cy="100" rx="5" ry="8" fill="#e2b08c"/>
+  <path d="M118 92c-2-26 12-42 33-42 22 0 35 15 32 40-6-12-15-19-27-21-10 9-24 15-38 23z" fill="#2b211c"/>
+  <path d="M137 102c2 2 6 2 8 0M155 102c2 2 6 2 8 0" stroke="#3a2a22" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <path d="M143 118c4 3 10 3 14 0" stroke="#b9715c" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <ellipse cx="134" cy="112" rx="5" ry="3" fill="#ef9a8a" opacity=".35"/><ellipse cx="166" cy="112" rx="5" ry="3" fill="#ef9a8a" opacity=".35"/>
+</svg></span><b>Toản</b><span class="pw">Nhập mật khẩu</span></div>
+    </div>
+    <div class="dwrap" id="dwrap">
+      <div class="dn" id="dn"><div class="row" id="drow"></div><div class="content" id="dcontent"></div></div>
+      <span class="orb l1"><svg class="i"><use href="#i-phones"/></svg></span><span class="orb l2"><svg class="i"><use href="#i-keyboard"/></svg></span>
+      <span class="orb r1"><svg class="i"><use href="#i-power"/></svg></span><span class="orb r2"><svg class="i"><use href="#i-cup"/></svg></span>
+    </div>
+    <div class="dcap" id="dcap"></div>
+  </div>
+  </div><div class="mbase"></div></div>
+  <div class="dinfo">
+    <span class="ico" id="dico"></span>
+    <div class="dtext"><h3 id="dtitle"></h3><p id="ddesc"></p></div>
+    <div class="acts2"><button class="dbtn" id="dprev" aria-label="Demo trước">←</button><button class="dbtn" id="dreplay">Phát lại</button><button class="dbtn pri" id="dnext" aria-label="Demo sau">→</button></div>
+  </div>
+</dialog>
+
+<section id="themes">
+  <div class="wrap center">
+    <div class="reveal">
+      <span class="hand">Giao diện</span>
+      <h2>Bốn giao diện.<br>Bốn <span class="px">câu</span> <span class="mark" style="--mc:#fde047">chuyện</span>.</h2>
+      <p class="sec-lead">Không chỉ đổi màu. Mỗi tab sống theo câu chuyện của theme, kèm hiệu ứng chuyển cảnh riêng.</p>
+    </div>
+    <div class="theme-tabs" role="tablist">
+      <button class="on" data-t="all">Tất cả</button>
+      <button data-t="pixel">Pixel 8-bit</button>
+      <button data-t="cassette">Cassette</button>
+      <button data-t="vangogh">Van Gogh</button>
+    </div>
+    <div class="theme-view frame reveal"><img id="themeImg" src="assets/gallery.svg" alt="Bốn giao diện của Roost"></div>
+    <p class="theme-copy" id="themeCopy"></p>
+  </div>
+</section>
+
+<section id="settings">
+  <div class="wrap center">
+    <div class="reveal">
+      <span class="hand">Cài đặt</span>
+      <h2>Mỗi chi tiết,<br><span class="mark" style="--mc:#c4b5fd">theo ý bạn</span>.</h2>
+      <p class="sec-lead">Bấm bánh răng ở góc phải notch đang mở để vào Cài đặt; chuột phải vào nó để thoát Roost. Chọn một mục bên dưới để xem trong đó có gì.</p>
+    </div>
+    <div class="sw reveal" id="sw">
+      <nav class="sw-side" id="swSide"><div class="sw-tl"><i></i><i></i><i></i></div></nav>
+      <div class="sw-main" id="swMain"></div>
+    </div>
+    <div class="tips">
+      <div class="tip reveal" data-pane="chung"><em>1</em><b>Chọn cách mở notch</b><span>Chung › Mở notch khi: <code>Rê chuột vào</code> hoặc <code>Bấm vào notch</code>. Phím tắt mặc định ⌥ Space.</span></div>
+      <div class="tip reveal" data-pane="claude"><em>2</em><b>Nối Claude Code</b><span>Claude Code › Kết nối: bấm <code>Kiểm tra</code> để chắc hook đã nằm trong ~/.claude/settings.json.</span></div>
+      <div class="tip reveal" data-pane="giaodien"><em>3</em><b>Đổi giao diện</b><span>Giao diện › chọn Mặc định, Pixel 8-bit, Cassette hoặc Van Gogh. Notch đổi ngay.</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="perf">
+  <div class="wrap">
+    <div class="center reveal">
+      <span class="hand orange">Hiệu năng</span>
+      <h2>Nhẹ tới mức<br><span class="fade">quên</span> là nó đang chạy.</h2>
+      <p class="sec-lead">Không vòng lặp nền. Roost chỉ thức dậy khi có sự kiện; mọi hiệu ứng chạy bằng Core Animation.</p>
+    </div>
+    <div class="stats">
+      <div class="stat reveal"><b class="grad-text">0,01%</b><span>CPU khi notch thu gọn, máy rảnh</span></div>
+      <div class="stat reveal"><b>0,35%</b><span>CPU khi thu gọn và đang phát nhạc</span></div>
+      <div class="stat reveal"><b>30 MB</b><span>RAM lúc vừa mở app</span></div>
+      <div class="stat reveal"><b>0</b><span>chỗ rò bộ nhớ theo <code>leaks</code></span></div>
+    </div>
+    <p class="hint center" style="margin-top:18px">Đo ngày 14/11/2026 trên MacBook Air M2, macOS 27, trung bình 20 giây mỗi mốc.</p>
+  </div>
+</section>
+
+<section id="privacy">
+  <div class="wrap">
+    <div class="center reveal">
+      <span class="hand violet">Riêng tư</span>
+      <h2>Ở lại trên <span class="mark" style="--mc:#86efac">máy bạn</span>.</h2>
+      <p class="sec-lead">Không analytics, không theo dõi. Roost chỉ ra Internet cho hai việc bạn chủ động dùng: tải lời bài hát và đọc mức dùng Claude.</p>
+    </div>
+    <div class="priv">
+      <div class="card reveal"><div class="ic">📅</div><h3>Lịch, camera</h3><p>Chỉ xin quyền khi bạn mở tab cần tới. Ảnh chỉ lưu khi bạn bấm chụp.</p></div>
+      <div class="card reveal"><div class="ic">🎧</div><h3>Âm thanh hệ thống</h3><p>Chỉ cho sóng nhạc thật và âm lượng từng app. Không ghi, không lưu âm thanh.</p></div>
+      <div class="card reveal"><div class="ic">🖥️</div><h3>Không cần ghi màn hình</h3><p>Nhận biết toàn màn hình qua khung cửa sổ.</p></div>
+      <div class="card reveal"><div class="ic">🎵</div><h3>Lời bài hát</h3><p>Lấy từ LRCLIB (lrclib.net) khi bạn mở lời, lưu đệm trên máy.</p></div>
+      <div class="card reveal"><div class="ic">🔑</div><h3>Claude Code</h3><p>Hook nói chuyện với app qua Unix socket cục bộ. Mức dùng là tuỳ chọn, chỉ gửi tới api.anthropic.com.</p></div>
+      <div class="card reveal"><div class="ic">📖</div><h3>Mã nguồn mở</h3><p>Đọc từng dòng, tự build bằng Command Line Tools.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <div class="center reveal"><span class="hand">Hỏi nhanh</span><h2>Câu hỏi thường gặp</h2></div>
+    <div class="faq">
+      <details><summary>Roost có mất phí không?</summary><p>Không. Roost miễn phí và mã nguồn mở theo giấy phép MIT.</p></details>
+      <details><summary>Máy không có tai thỏ dùng được không?</summary><p>Được. Roost vẽ một notch giả ở giữa mép trên màn hình, hoặc bạn chọn kiểu viên nổi trong Cài đặt.</p></details>
+      <details><summary>Sao macOS cảnh báo khi mở lần đầu?</summary><p>Roost chưa ký Developer ID và chưa notarize. Vào System Settings › Privacy &amp; Security, bấm Open Anyway một lần. Toàn bộ mã nguồn công khai để bạn kiểm tra.</p></details>
+      <details><summary>Tắt Roost thì Claude Code có bị treo không?</summary><p>Không. Hook trả về ngay mà không quyết định gì, Claude Code hỏi bạn trong terminal như bình thường.</p></details>
+      <details><summary>Sao không có trên Mac App Store?</summary><p>Roost dùng API riêng của Apple để đọc bài đang phát và hiện trên màn hình khoá, điều App Store không cho phép.</p></details>
+      <details><summary>Roost có giao diện tiếng Anh không?</summary><p>Có. Chọn Tiếng Việt hoặc English trong Cài đặt.</p></details>
+    </div>
+  </div>
+</section>
+
+<section id="feedback">
+  <div class="wrap feedback">
+    <div class="reveal">
+      <span class="hand orange">Góp ý</span>
+      <h2>Tìm thấy <span class="mark" style="--mc:#fca5a5">lỗi</span>?<br>Có ý tưởng <span class="mark" style="--mc:#fcd34d">mới</span>?</h2>
+    </div>
+    <div class="reveal">
+      <p>Roost là mã nguồn mở. Mở một issue trên GitHub, kèm ảnh chụp notch nếu được; mọi góp ý đều được đọc.</p>
+      <div class="cta" style="justify-content:flex-start;margin-top:0">
+        <a class="btn btn-dark" href="https://github.com/letoan1/notch-app/issues/new">Báo lỗi</a>
+        <a class="btn btn-ghost" href="https://github.com/letoan1/notch-app/issues">Xem các ý tưởng</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="final reveal">
+    <img src="assets/icon.png" alt="">
+    <h2>Cho notch của bạn<br><span class="scrib">một việc</span> để làm.</h2>
+    <p>macOS 14 trở lên. Một file cho cả Apple Silicon và Intel.</p>
+    <a class="btn btn-dark dl" href="https://github.com/letoan1/notch-app/releases/latest/download/Roost-1.0.0.dmg">
+      <svg class="apple" viewBox="0 0 384 512"><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>
+      Tải Roost miễn phí
+    </a>
+  </div>
+</div>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Roost. Mã nguồn mở theo giấy phép MIT.</span>
+    <span><a href="https://github.com/letoan1/notch-app">GitHub</a> &nbsp;·&nbsp; <a href="https://github.com/letoan1/notch-app/releases">Bản phát hành</a> &nbsp;·&nbsp; <a href="https://github.com/letoan1/notch-app/blob/main/docs/INSTALL.md">Hướng dẫn cài</a></span>
+  </div>
+</footer>
+
+<script>
+// Thẻ xin quyền: cùng cấu trúc với PermissionCard (giao diện Mặc định).
+const CARD = `
+  <div class="pc-h"><span class="kind"><svg class="i"><use href="#i-term"/></svg></span>Claude muốn chạy lệnh<span class="chip">Bash</span><span class="cd"><svg class="i"><use href="#i-ring"/></svg><span>còn 98 giây</span></span></div>
+  <div class="origin"><span><svg class="i"><use href="#i-folder"/></svg><b>notch-app</b></span><span><svg class="i"><use href="#i-bubble"/></svg>Thêm trang giới thiệu</span><span><i class="vsc"></i>VS Code</span></div>
+  <div class="sum">./build.sh install<small>Build rồi cài vào Applications</small></div>
+  <div class="scope"><svg class="i"><use href="#i-doc"/></svg>Luôn cho phép: <code>Bash(./build.sh:*)</code>, lưu vào .claude/settings.local.json của notch-app</div>
+  <div class="acts"><button class="pb host"><svg class="i"><use href="#i-open"/></svg>Mở VS Code</button><span class="sp"></span>
+    <button class="pb deny" data-r="deny">Từ chối</button><button class="pb" data-r="always">Luôn cho phép</button><button class="pb allow" data-r="allow">Cho phép</button>
+    <span class="banner"></span></div>`;
+const STATES = {
+  allow:['i-check','#30d158','Đã cho phép'],
+  always:['i-check','#30d158','Đã cho phép luôn'],
+  deny:['i-x','#ff453a','Đã từ chối']
+};
+function mountCard(el, onDone){
+  el.innerHTML = CARD;
+  const cdBox = el.querySelector('.cd'), cd = cdBox.querySelector('span'); let left = 98, t;
+  const tick = () => { cd.textContent = left > 0 ? `còn ${left} giây` : 'hết giờ'; cdBox.classList.toggle('urgent', left <= 15); };
+  const start = () => { clearInterval(t); left = 98; tick(); t = setInterval(() => { left = Math.max(0, left - 1); tick(); }, 1000); };
+  el.querySelectorAll('[data-r]').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    const [ic, color, txt] = STATES[b.dataset.r];
+    const ban = el.querySelector('.banner');
+    ban.innerHTML = `<svg class="i"><use href="#${ic}"/></svg>${txt}`; ban.style.color = color;
+    el.classList.add('done'); clearInterval(t);
+    setTimeout(() => { el.classList.remove('done'); start(); onDone && onDone(); }, 1800);
+  }));
+  el.querySelector('.host').addEventListener('click', e => e.stopPropagation());
+  start();
+}
+
+// Notch ở hero.
+const notch = document.getElementById('notch');
+const tabs = [...notch.querySelectorAll('.tp')];
+const views = [...notch.querySelectorAll('.v')];
+const ctl = [...document.querySelectorAll('#demoCtl button')];
+const ORDER = ['media','sound','tray','mirror','claude'];
+let cur = 'media', cycle = null, pinned = false;
+function show(v){
+  cur = v;
+  notch.classList.toggle('asking', v === 'claude');
+  notch.classList.toggle('tall', v === 'mirror');  // tab Gương dùng mirrorBodyHeight 190pt
+  tabs.forEach(t => t.classList.toggle('on', t.dataset.v === v));
+  views.forEach(x => x.classList.toggle('on', x.dataset.v === v));
+  ctl.forEach(b => b.classList.toggle('on', b.dataset.v === v));
+}
+function open(){ notch.classList.add('open'); if (!pinned && !cycle) cycle = setInterval(() => show(ORDER[(ORDER.indexOf(cur) + 1) % ORDER.length]), 3200); }
+function close(){ notch.classList.remove('open'); clearInterval(cycle); cycle = null; }
+mountCard(document.getElementById('heroCard'), () => { if (cur === 'claude') show('media'); });
+const hoverable = matchMedia('(hover:hover)').matches;
+if (hoverable){ notch.addEventListener('mouseenter', open); notch.addEventListener('mouseleave', () => { if (!pinned) close(); }); }
+notch.addEventListener('click', () => { if (!notch.classList.contains('open')) open(); });
+notch.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); notch.classList.contains('open') ? close() : open(); }});
+tabs.forEach(t => t.addEventListener('click', e => { e.stopPropagation(); pinned = true; clearInterval(cycle); cycle = null; show(t.dataset.v); }));
+ctl.forEach(b => b.addEventListener('click', () => { pinned = true; clearInterval(cycle); cycle = null; show(b.dataset.v); notch.classList.add('open'); }));
+setTimeout(() => { open(); setTimeout(() => { if (!pinned && !notch.matches(':hover')) close(); }, 7000); }, 2900);
+
+// Notch giữ đúng kích thước point; màn hẹp thì thu nhỏ cả khối.
+const screenEl = document.getElementById('screen');
+function fit(){ notch.style.setProperty('--s', Math.min(1, (screenEl.clientWidth - 12) / 620)); }
+addEventListener('resize', fit); fit();
+
+// Thẻ cỡ lớn ở mục Claude Code.
+const bigWrap = document.getElementById('bigWrap'), bigInner = document.getElementById('bigInner');
+mountCard(document.getElementById('bigCard'));
+function fitBig(){ const s = bigWrap.clientWidth / 620; bigInner.style.transform = `scale(${s})`; bigWrap.style.height = (154 + 8) * s + 'px'; }
+addEventListener('resize', fitBig); fitBig();
+
+const chips = ['Nhạc mọi app','Lời bài hát','Sóng nhạc thật','Lịch 7 ngày','Vào họp một chạm','Âm thanh từng app','Khay file','Ảnh chụp màn hình','AirDrop','Gương camera','Đèn viền','Duyệt Claude Code','Mức dùng Claude','HUD âm lượng','Giữ máy thức','Lau phím','Nhạc trên màn hình khoá','Thú cưng','Pixel 8-bit','Cassette','Van Gogh','Nhiều màn hình','Tiếng Việt và English','0,01% CPU'];
+document.getElementById('track').innerHTML = [...chips, ...chips].map(c => `<span class="mchip">${c}</span>`).join('');
+
+const T = {
+  all:['gallery.svg','Bốn giao diện: Mặc định, Pixel 8-bit, Cassette và Van Gogh. Đổi trong Cài đặt, notch đổi ngay.'],
+  pixel:['pixel.svg','Máy game thùng. Thanh tiến độ là thanh EXP, nghe hết bài là LEVEL UP. Khay trống là rương kho báu, Claude hỏi bằng hộp thoại game nhập vai.'],
+  cassette:['cassette.svg','Góc bàn thập niên 80. Kéo thân băng để tua, lịch bloc xé tờ, ảnh trong khay là Polaroid. Claude in yêu cầu lên tờ telex có con dấu.'],
+  vangogh:['vangogh.svg','Xưởng vẽ sơn dầu. Hoạ sĩ tí hon đi trên vệt cọ, ngày có họp mọc hoa hướng dương, Claude gửi lá thư viết tay.']
+};
+const tImg = document.getElementById('themeImg'), tCopy = document.getElementById('themeCopy');
+document.querySelectorAll('.theme-tabs button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.theme-tabs button').forEach(x => x.classList.toggle('on', x === b));
+  const [src, txt] = T[b.dataset.t]; tImg.src = 'assets/' + src; tCopy.textContent = txt;
+}));
+tCopy.textContent = T.all[1];
+
+// ---------- Demo tính năng ----------
+// Cánh notch theo NotchModel.Peek.wing: charge/screenshot 80, unlocked 96, capsLock 46, hud 64, audio 118, claude 120. Notch thật rộng 190pt.
+const NOTCH_W = 190;
+const ic = (id, style = '') => `<svg class="i" style="${style}"><use href="#${id}"/></svg>`;
+const hudR = (lv, muted) => `<i class="hudbar"><b style="width:${muted ? 0 : lv}%"></b></i><span style="width:30px;text-align:right">${muted ? 'Tắt' : lv + '%'}</span>`;
+const GREEN = '#4dd966', ORANGE = 'var(--claude)';
+const P = {
+  music: () => [48, `<span class="w-art"></span>`, `<span class="spec"><i></i><i></i><i></i><i></i></span>`],
+  hud: (sym, lv, muted) => [64, `<span style="opacity:${muted ? .5 : .95}">${ic(sym)}</span>`, hudR(lv, muted), {lj:'flex-start', lp:12, rj:'flex-end', rp:8}],
+  charge: pct => [80, `${ic('i-bolt', 'color:' + GREEN)}<span style="color:rgba(255,255,255,.85)">Đang sạc</span>`, `<span style="color:${GREEN};font-size:12px">${pct}%</span><i class="batt" style="color:${GREEN}"><b style="width:${pct}%"></b></i>`],
+  caps: on => [46, ic(on ? 'i-caps' : 'i-caps-o', 'color:' + (on ? GREEN : 'rgba(255,255,255,.6)')), `<span style="font-size:12px;font-weight:700;color:${on ? GREEN : 'rgba(255,255,255,.6)'}">${on ? 'ON' : 'OFF'}</span>`],
+  shot: () => [80, `<i style="width:36px;height:22px;border-radius:4px;border:1px solid rgba(255,255,255,.5);background:linear-gradient(135deg,#60a5fa,#a78bfa)"></i>`, `${ic('i-tray', 'font-size:10px')}<span style="color:rgba(255,255,255,.8)">Vào khay</span>`],
+  unlock: done => [96, ic(done ? 'i-check' : 'i-face', 'font-size:16px;color:' + (done ? GREEN : '#fff')), `<span style="font-size:12px;color:rgba(255,255,255,.9)">Chào Toản</span>`],
+  claude: (reset, title) => [120, `${ic(reset ? 'i-ccw' : 'i-spark', 'color:' + (reset ? GREEN : ORANGE))}<span style="color:rgba(255,255,255,.85)">${title}</span>`, `<i style="width:6px;height:6px;border-radius:50%;background:${reset ? GREEN : ORANGE}"></i><span style="color:rgba(255,255,255,.8)">${reset ? 'Đã đặt lại' : 'Đang chờ bạn'}</span>`, {lp:8}]
+};
+// Thẻ thả xuống (AlertCard.standardBody): icon tròn nền màu nhạt, tiêu đề + phần nhấn, dòng phụ.
+const ALERT = (icon, color, title, hl, sub, act) => `<div class="acontent" style="display:flex;align-items:center;gap:14px;padding:38px 26px 10px">
+  <span class="ai" style="width:40px;height:40px;border-radius:50%;display:grid;place-items:center;flex:none;background:${color}29;color:${color};font-size:19px">${icon}</span>
+  <span style="text-align:left"><b style="display:block;font-size:14px">${title}${hl ? ` <span style="color:${color}">${hl}</span>` : ''}</b><small style="display:block;font-size:11.5px;color:rgba(255,255,255,.62);margin-top:3px;line-height:1.35">${sub}</small></span>${act ? `<span style="margin-left:auto;padding-left:10px;color:rgba(255,255,255,.35);font-size:11px">${ic('i-right')}</span>` : ''}</div>`;
+const DEVICE = (name, level) => `<div style="display:flex;align-items:center;padding:34px 24px 6px;height:78px">
+  <span style="width:36px;height:36px;display:grid;place-items:center;font-size:24px;color:rgba(255,255,255,.8)">${ic('i-airpods')}</span>
+  <span style="flex:1;text-align:center"><small style="display:block;font-size:11.5px;font-weight:600;color:rgba(255,255,255,.44)">Đã kết nối</small><b style="display:block;font-size:14px;color:rgba(255,255,255,.8);margin-top:3px">${name}</b></span>
+  <span style="width:36px;height:36px;display:grid;place-items:center;position:relative"><svg width="30" height="30" viewBox="0 0 30 30"><circle cx="15" cy="15" r="13.5" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="3"/><circle cx="15" cy="15" r="13.5" fill="none" stroke="${level <= 20 ? '#ff4545' : '#4dd966'}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(level / 100 * 84.8).toFixed(1)} 84.8" transform="rotate(-90 15 15)"/></svg><b style="position:absolute;font-size:11px;color:${level <= 20 ? '#ff4545' : '#4dd966'}">${level}</b></span></div>`;
+const LYR = ['Phố đã lên đèn từ lúc nào', 'Mình vẫn ngồi đây, chờ một bài hát cũ', 'Notch nhỏ thôi mà đủ chỗ', 'cho cả một buổi chiều', 'Để mai mình kể nhau nghe'];
+
+const dlg = document.getElementById('demo'), dn = document.getElementById('dn'), drow = document.getElementById('drow'),
+      dcontent = document.getElementById('dcontent'), dwrap = document.getElementById('dwrap'), dstage = document.getElementById('dstage'), dcap = document.getElementById('dcap');
+let runId = 0;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const dterm = document.getElementById('dterm');
+const TERM_IDLE = `~/notch-app $ claude<br><span style="color:#d97757">✻</span> Thêm trang giới thiệu cho Roost<br><span style="color:#8e8e93">✻ Đang viết site/index.html…</span>`;
+const TERM_WAIT = `~/notch-app $ claude<br><span style="color:#d97757">✻</span> Thêm trang giới thiệu cho Roost<br><span style="color:#30d158">⏺</span> Xong: đã tạo site/index.html<br><br><span style="color:#fff">&gt;</span> <span style="background:#c7c7cc;color:#1e1e22">&nbsp;</span>`;
+function setRow([w, l, r, o = {}]){ dn.classList.remove('big'); dn.style.height = '32px'; dn.style.borderRadius = '0 0 12px 12px'; dn.style.width = (NOTCH_W + w * 2) + 'px';
+  drow.innerHTML = `<span style="width:${w}px;justify-content:${o.lj || 'center'};padding-left:${o.lp || 0}px;box-sizing:border-box">${l}</span><span class="m"></span><span style="width:${w}px;justify-content:${o.rj || 'center'};padding-right:${o.rp || 0}px;box-sizing:border-box">${r}</span>`; }
+function setBig(html, w, h, radius = 26){ dcontent.innerHTML = html; dn.classList.add('big'); dn.style.width = w + 'px';
+  // Thẻ thông báo: ít nhất 32 + 62pt như app, cao thêm nếu dòng phụ xuống 2 dòng.
+  const a = dcontent.querySelector('.acontent'); if (a) { a.style.width = w + 'px'; h = Math.max(h, a.offsetHeight); }
+  dn.style.height = h + 'px'; dn.style.borderRadius = `0 0 ${radius}px ${radius}px`; }
+const cap = t => { dcap.textContent = t; };
+function fitDemo(){ const w = dstage.clientWidth; dwrap.style.setProperty('--ds', Math.min(w / 860, (w - 16) / 620)); }
+
+const DEMOS = {
+  hud: { t:'HUD âm lượng, độ sáng', c:'#f5b301', i:'i-sun', d:'Phím âm lượng, độ sáng và đèn bàn phím hiện ở hai cánh notch thay cho HUD của macOS. Cần quyền Trợ năng.',
+    run: async ok => { for (const v of [50, 56, 62, 69, 75]) { if (!ok()) return; setRow(P.hud('i-speaker', v)); cap('Bấm phím tăng âm lượng'); await sleep(420); }
+      await sleep(700); for (const v of [70, 75, 81]) { if (!ok()) return; setRow(P.hud('i-sun', v)); cap('Độ sáng màn hình'); await sleep(450); }
+      await sleep(700); if (!ok()) return; setRow(P.hud('i-mute', 0, true)); cap('Tắt tiếng'); await sleep(1500); } },
+  lyrics: { t:'Lời bài hát', c:'#ff375f', i:'i-quote', d:'Lời đồng bộ theo nhạc, lấy từ LRCLIB, chỉ với Spotify và Apple Music. Nút mũi tên mở lời toàn màn hình.',
+    run: async ok => { setBig(document.querySelector('#notch .hdr').outerHTML + `<div class="body"><div class="v on" style="position:absolute;inset:0">
+      <div class="lyrics" style="width:350px;flex:none"><div class="lhead"><span class="la"></span><span><b>Chiều hôm ấy</b><small>Lofi Sài Gòn</small></span><span class="sp"></span><span class="lb">${ic('i-expand')}</span><span class="lb" style="background:#fff;color:#000;border-radius:50%;width:24px;height:24px">${ic('i-quote')}</span></div>
+      <div class="llines"><div class="track2">${LYR.map(l => `<div>${l}</div>`).join('')}</div></div></div>
+      <div class="sep"></div>${document.querySelector('#notch .v[data-v=media] .cal').outerHTML}</div></div>`, 620, 186);
+      dcontent.querySelectorAll('.tp').forEach(t => t.classList.toggle('on', t.dataset.v === 'media')); cap('Lời thay chỗ trình phát, lịch vẫn ở bên phải');
+      const tr = () => dcontent.querySelector('.track2');
+      for (let k = 0; k < LYR.length; k++) { if (!ok()) return; const t = tr(); t.querySelectorAll('div').forEach((d, j) => d.classList.toggle('on', j === k)); t.style.transform = `translateY(${-Math.max(0, k - 1) * 25}px)`; await sleep(1300); } } },
+  charge: { t:'Pin và sạc', c:'#22c55e', i:'i-bolt', d:'Cắm sạc thì hai cánh notch báo "Đang sạc" và phần trăm pin. Pin yếu thì notch thả xuống thẻ nhắc.',
+    run: async ok => { setRow(P.charge(82)); cap('Vừa cắm sạc'); await sleep(2400); if (!ok()) return;
+      setRow(P.music()); await sleep(700); if (!ok()) return;
+      setBig(ALERT(`<i class="batt"><b style="width:12%"></b></i>`, '#ff453a', 'Pin yếu', '10%', 'Bật Chế độ nguồn điện thấp hoặc cắm sạc.'), 420, 94); cap('Pin còn 10%'); await sleep(2800); } },
+  audio: { t:'Tai nghe kết nối', c:'#3d8bff', i:'i-airpods', d:'Tai nghe Bluetooth vừa kết nối, notch thả xuống thẻ có tên thiết bị và vòng pin (nếu đọc được) trong 3,5 giây.',
+    run: async ok => { setBig(DEVICE('AirPods Pro của Toản', 85), 420, 78); cap('AirPods vừa kết nối'); await sleep(3500); } },
+  caps: { t:'Chỉ báo Caps Lock', c:'#7c5cff', i:'i-caps', d:'Bật hay tắt Caps Lock, notch hiện ON hoặc OFF.',
+    run: async ok => { setRow(P.caps(true)); cap('Bật Caps Lock'); await sleep(1800); if (!ok()) return; setRow(P.music()); await sleep(800); if (!ok()) return; setRow(P.caps(false)); cap('Tắt Caps Lock'); await sleep(1800); } },
+  sound: { t:'Âm thanh từng app', c:'#48484e', i:'i-speaker', d:'Tab Âm thanh: chọn loa và mic, âm lượng tổng, mic, và một thanh dọc cho mỗi app đang phát. Để đúng 100% thì Roost không chạm vào âm thanh của app đó.',
+    run: async ok => { const hdr = document.querySelector('#notch .hdr').outerHTML;
+      setBig(hdr + `<div class="body"><div class="v sound on" style="position:absolute;inset:0">${document.querySelector('#notch .v[data-v=sound]').innerHTML}</div></div>`, 620, 186);
+      dcontent.querySelectorAll('.tp').forEach(t => t.classList.toggle('on', t.dataset.v === 'sound')); cap('Kéo từng thanh để chỉnh riêng mỗi app');
+      const bars = [...dcontent.querySelectorAll('.vbar b')], labs = [...dcontent.querySelectorAll('.col small')];
+      for (const v of [100, 85, 70, 55, 40]) { if (!ok()) return; bars[3].style.height = v + '%'; labs[3].textContent = v + '%'; await sleep(450); } await sleep(1400); } },
+  shot: { t:'Ảnh chụp vào khay', c:'#0ea5e9', i:'i-shot', d:'Chụp màn hình, kể cả chụp vào clipboard, ảnh tự vào khay để bạn kéo đi.',
+    run: async ok => { setRow(P.shot()); cap('Vừa chụp màn hình'); await sleep(2800); } },
+  lock: { t:'Nhạc trên màn hình khoá', c:'#6366f1', i:'i-lock', d:'Khi máy khoá, widget nhạc nằm dưới đồng hồ với ảnh bìa, tiến độ và nút điều khiển. Chỉ với Spotify và Apple Music.',
+    run: async ok => { dstage.classList.add('locked'); setRow([0, '', '']); cap(''); await sleep(4600); } },
+  claudewait: { t:'Claude đang chờ bạn', c:'#d97757', i:'i-claude', d:'Claude Code làm xong và chờ bạn nhập tiếp (sự kiện Notification của hook): notch nhắc tên project vài giây, kèm âm báo nếu bạn bật. Khi Claude xin quyền thì hiện thẻ duyệt thay vì lời nhắc này.',
+    run: async ok => { cap('Claude đang làm việc'); await sleep(900); if (!ok()) return;
+      dterm.innerHTML = TERM_WAIT; setRow(P.claude(false, 'notch-app')); cap('Xong việc, Claude chờ bạn nhập'); await sleep(3600); } },
+  usage: { t:'Mức dùng Claude', c:'#16a34a', i:'i-gauge', d:'Hạn mức 5 giờ và 7 ngày nằm trên hàng tab khi notch mở; hạn mức đặt lại thì notch báo. Bạn tự bật trong Cài đặt.',
+    run: async ok => { setRow(P.claude(true, '5 giờ')); cap('Hạn mức 5 giờ vừa đặt lại'); await sleep(2600); if (!ok()) return;
+      setBig(document.querySelector('#notch .hdr').outerHTML + `<div class="body"><div class="v on" style="position:absolute;inset:0">${document.querySelector('#notch .v[data-v=media]').innerHTML}</div></div>`, 620, 186);
+      dcontent.querySelectorAll('.tp').forEach(t => t.classList.toggle('on', t.dataset.v === 'media')); cap('Mở notch: viên mức dùng ở góc phải hàng tab'); await sleep(3200); } },
+  faceunlock: { t:'Mở khoá bằng khuôn mặt', c:'#ec4899', i:'i-face', d:'Tính năng thử nghiệm. Máy khoá hay vừa thức dậy, Roost quét mặt bằng camera, đòi chớp mắt để chắc là người thật, rồi gõ mật khẩu đăng nhập đã lưu (mã hoá, chỉ mở sau Touch ID). Đây là tiện ích, không phải lớp bảo mật: camera MacBook chỉ thấy ảnh 2D.',
+    run: async ok => {
+      const pw = document.querySelector('.lockuser .pw'), W = 42;
+      const lockN = (g, msg) => setBig(`<div class="row" style="opacity:1"><span style="width:${W}px">${ic('i-lock', 'font-size:11px;opacity:.8')}</span><span class="m"></span><span style="width:${W}px"><i class="fu-g ${g}">${ic(g === 'ok' ? 'i-check' : 'i-face')}</i></span></div>${msg ? `<div class="fu-msg">${msg}</div>` : ''}`, NOTCH_W + W * 2, msg ? 54 : 32, msg ? 14 : 12);
+      dstage.classList.add('locked', 'fu'); lockN('', ''); cap('Mac đang khoá'); await sleep(1200); if (!ok()) return;
+      lockN('scan', ''); cap('Mở máy lên, camera bắt đầu quét'); await sleep(1600); if (!ok()) return;
+      lockN('scan', 'Chớp mắt nhẹ để xác nhận'); cap('Đã nhận ra mặt, chờ dấu hiệu người thật'); await sleep(2000); if (!ok()) return;
+      lockN('ok', ''); cap('Khớp'); await sleep(700); if (!ok()) return;
+      pw.classList.add('typed'); pw.textContent = '••••••••'; cap('Roost gõ mật khẩu đã lưu'); await sleep(1100); if (!ok()) return;
+      dstage.classList.remove('locked', 'fu'); setRow(P.unlock(true)); cap('Đã mở khoá'); await sleep(2600); } },
+  unlock: { t:'Chào khi mở khoá', c:'#ec4899', i:'i-face', d:'Mở khoá bằng Touch ID, Apple Watch hay mật khẩu, notch chạy hiệu ứng quét rồi chào bạn. Phần này không dùng camera.',
+    run: async ok => { setRow(P.unlock(false)); cap('Vừa mở khoá'); await sleep(800); if (!ok()) return; setRow(P.unlock(true)); await sleep(2200); } },
+  awake: { t:'Giữ máy thức', c:'#f59e0b', i:'i-cup', d:'Giữ Mac và màn hình thức theo giờ, tự tắt khi pin còn 10% hoặc khi gập máy. Sắp hết giờ thì notch nhắc.',
+    run: async ok => { setBig(ALERT(ic('i-cup'), '#ffd60a', 'Sắp hết giữ máy thức', '2 phút', 'Bấm vào đây để thêm 15 phút.', true), 420, 94); cap('Còn 2 phút'); await sleep(3200); } },
+  clean: { t:'Lau phím', c:'#2563eb', i:'i-keyboard', d:'Bàn phím bị khoá để bạn lau. Bấm thẻ hoặc Esc 5 lần để mở, tự mở sau 3 phút.',
+    run: async ok => { setBig(ALERT(ic('i-keyboard'), '#0a84ff', 'Đang lau bàn phím', '', 'Bấm vào đây hoặc Esc 5 lần để mở. Tự mở sau 3 phút.', true), 420, 94); cap('Phím đang bị khoá'); await sleep(3400); } },
+  network: { t:'Báo mất mạng', c:'#ef4444', i:'i-wifi', d:'Mất Internet hay có mạng lại, notch thả xuống một thẻ ngắn. Tắt được trong Cài đặt.',
+    run: async ok => { setBig(ALERT(ic('i-wifi'), '#ff453a', 'Mất kết nối Internet', '', 'Kết nối Wi-Fi, Ethernet hoặc Personal Hotspot để tiếp tục.'), 420, 94); cap('Wi-Fi rớt'); await sleep(2600); if (!ok()) return;
+      setRow(P.music()); await sleep(700); if (!ok()) return;
+      setBig(ALERT(ic('i-wifi'), '#30d158', 'Đã có mạng lại', '', 'Đang dùng Wi-Fi.'), 420, 94); cap('Có mạng lại'); await sleep(2400); } },
+  layout: { t:'Bố cục notch', c:'#64748b', i:'i-gear', d:'Cài đặt › Giao diện › Bố cục notch: đặt tối đa 3 nút tròn mỗi bên notch và vài nút trên hàng tab.',
+    run: async ok => { setBig(document.querySelector('#notch .hdr').outerHTML + `<div class="body"><div class="v on" style="position:absolute;inset:0">${document.querySelector('#notch .v[data-v=media]').innerHTML}</div></div>`, 620, 186);
+      dcontent.querySelectorAll('.tp').forEach(t => t.classList.toggle('on', t.dataset.v === 'media')); cap('Notch mở: nút tròn hai bên'); dwrap.style.setProperty('--ds', Math.min(dstage.clientWidth / 860, (dstage.clientWidth - 16) / 716));
+      await sleep(450); if (!ok()) return; dwrap.classList.add('orbs-on'); await sleep(3200); } }
+};
+async function play(key){
+  const id = ++runId, ok = () => id === runId && dlg.open, D = DEMOS[key];
+  dstage.classList.remove('locked', 'fu'); dwrap.style.opacity = ''; dwrap.classList.remove('orbs-on'); cap(''); dterm.innerHTML = TERM_IDLE;
+  const pw = document.querySelector('.lockuser .pw'); pw.classList.remove('typed'); pw.textContent = 'Nhập mật khẩu';
+  setRow(P.music()); fitDemo(); await sleep(350);
+  if (!ok()) return; await D.run(ok);
+  if (!ok()) return; dstage.classList.remove('locked'); dwrap.style.opacity = ''; dwrap.classList.remove('orbs-on'); setRow(P.music()); cap('');
+  await sleep(900); if (ok()) play(key);  // lặp lại
+}
+let curDemo = null;
+document.querySelectorAll('[data-demo]').forEach(b => b.addEventListener('click', () => openDemo(b.dataset.demo)));
+const ORDER_D = [...document.querySelectorAll('[data-demo]')].map(b => b.dataset.demo);
+function openDemo(key){ curDemo = key; const D = DEMOS[key];
+  document.getElementById('dtitle').textContent = D.t; document.getElementById('ddesc').textContent = D.d;
+  const di = document.getElementById('dico'); di.style.setProperty('--c', D.c); di.innerHTML = ic(D.i);
+  if (!dlg.open) dlg.showModal(); requestAnimationFrame(() => play(key)); }
+const step = d => openDemo(ORDER_D[(ORDER_D.indexOf(curDemo) + d + ORDER_D.length) % ORDER_D.length]);
+document.getElementById('dprev').addEventListener('click', () => step(-1));
+document.getElementById('dnext').addEventListener('click', () => step(1));
+dlg.addEventListener('keydown', e => { if (e.key === 'ArrowRight') step(1); if (e.key === 'ArrowLeft') step(-1); });
+document.getElementById('dreplay').addEventListener('click', () => play(curDemo));
+document.getElementById('dclose').addEventListener('click', () => dlg.close());
+dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+dlg.addEventListener('close', () => { if (!dlg.open) runId++; });
+addEventListener('resize', fitDemo);
+
+// Phần hình trong thẻ rộng giữ đúng tỉ lệ notch, thu nhỏ cho vừa cột.
+const fits = [...document.querySelectorAll('.bx .vis')].filter(v => !v.querySelector('.lyr-vis')).map(v => {
+  const f = document.createElement('div'); f.className = 'fit';
+  while (v.firstChild) f.appendChild(v.firstChild); v.appendChild(f); return [v, f];
+});
+function fitVis(){ fits.forEach(([v, f]) => { f.style.zoom = 1; f.style.zoom = Math.min(1, (v.clientWidth - 4) / f.offsetWidth); }); }
+addEventListener('resize', fitVis); fitVis(); document.fonts && document.fonts.ready.then(fitVis);
+
+fetch('https://api.github.com/repos/letoan1/notch-app/releases/latest').then(r => r.ok ? r.json() : null).then(rel => {
+  const a = rel && (rel.assets || []).find(x => /\.dmg$/.test(x.name));
+  if (a) document.querySelectorAll('a.dl').forEach(el => { el.href = a.browser_download_url; });
+}).catch(() => {});
+
+const io2 = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting){ e.target.classList.add('in'); io2.unobserve(e.target); } }), {threshold:.2});
+
+// ---------- Cài đặt ----------
+// Icon nét mảnh thay cho SF Symbols mà từng dòng trong app dùng (SRow / SToggleRow).
+const SF = {
+  'globe':'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.3 3 14.7 0 18M12 3c-3 3.3-3 14.7 0 18"/>',
+  'cursorarrow.click.2':'<path d="M10 10l9 3.6-3.8 1.4-1.4 3.8z"/><path d="M6.2 12.4A5.5 5.5 0 1 1 12.4 6.2M8.6 11.2a3 3 0 1 1 2.6-2.6"/>',
+  'timer':'<circle cx="12" cy="13" r="8"/><path d="M12 13V9M10 2h4M18.5 6.5l1.5-1.5"/>',
+  'command':'<path d="M9 9V6.5A2.5 2.5 0 1 0 6.5 9H9zm0 0h6m-6 0v6m6-6V6.5A2.5 2.5 0 1 1 17.5 9H15zm0 0v6m0 0h2.5a2.5 2.5 0 1 1-2.5 2.5V15zm0 0H9m0 0v2.5A2.5 2.5 0 1 1 6.5 15H9z"/>',
+  'hand.tap':'<path d="M9.5 12V6a1.5 1.5 0 0 1 3 0v5.2l3.7.7a2 2 0 0 1 1.6 2.3L17 20h-6.5L7 15.7l1-1 1.5 1.2"/><path d="M6.5 6a4.5 4.5 0 0 1 9 0"/>',
+  'display.2':'<rect x="2" y="4" width="12" height="9" rx="1.5"/><rect x="10" y="9" width="12" height="9" rx="1.5"/>',
+  'rectangle.topthird.inset.filled':'<rect x="3" y="5" width="18" height="14" rx="2"/><rect x="6" y="7.5" width="12" height="3" rx=".8" fill="currentColor"/>',
+  'arrow.down.right.and.arrow.up.left':'<path d="M14 4v6h6M10 20v-6H4M14 10l6-6M10 14l-6 6"/>',
+  'leaf':'<path d="M5 19c0-9 5.5-14 15-14 0 9.5-5 15-14 15z"/><path d="M5 19l7-7"/>',
+  'arrow.up.left.and.arrow.down.right':'<path d="M4 10V4h6M20 14v6h-6M4 4l6 6M20 20l-6-6"/>',
+  'paintbrush':'<path d="M18 3l3 3-8.5 8.5-3-3z"/><path d="M9.5 11.5c-2.8 0-4 1.8-4 3.8 0 1.4-.9 2.4-2 2.9 3.2 1 7 0 8-3"/>',
+  'sun.max':'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  'rectangle.lefthalf.inset.filled':'<rect x="3" y="5" width="18" height="14" rx="2"/><rect x="5.5" y="7.5" width="5.5" height="9" rx=".8" fill="currentColor"/>',
+  'rectangle.righthalf.inset.filled':'<rect x="3" y="5" width="18" height="14" rx="2"/><rect x="13" y="7.5" width="5.5" height="9" rx=".8" fill="currentColor"/>',
+  'rectangle.portrait.and.arrow.forward':'<rect x="4" y="3" width="11" height="18" rx="2"/><path d="M12 12h9M18 9l3 3-3 3"/>',
+  'music.note':'<path d="M9 18V5l11-2v13"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>',
+  'app.badge':'<rect x="3" y="6" width="15" height="15" rx="3.5"/><circle cx="18" cy="6" r="3"/>',
+  'waveform':'<path d="M3 12h1M7 8v8M11 4v16M15 7v10M19 10v4M22 12h-.5"/>',
+  'lock.shield':'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><rect x="9" y="11" width="6" height="5" rx="1"/><path d="M10 11V9.5a2 2 0 0 1 4 0V11"/>',
+  'quote.bubble':'<path d="M4 4h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-9l-5 4v-4H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M9 9v3M14 9v3"/>',
+  'clock':'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  'calendar':'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  'tray.full':'<path d="M3 13l3-8h12l3 8v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M3 13h5a4 4 0 0 0 8 0h5M8 8h8M7.5 10.5h9"/>',
+  'camera.viewfinder':'<path d="M3 8V4h4M17 4h4v4M21 16v4h-4M7 20H3v-4"/><circle cx="12" cy="12" r="3.5"/>',
+  'arrow.down.circle':'<circle cx="12" cy="12" r="9"/><path d="M12 7v10M8 13l4 4 4-4"/>',
+  'clock.arrow.circlepath':'<path d="M3.5 12a8.5 8.5 0 1 0 2.8-6.3L3.5 8.5"/><path d="M3.5 3.5v5h5M12 7.5V12l3 2"/>',
+  'camera':'<path d="M3 8a2 2 0 0 1 2-2h2l2-2h6l2 2h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><circle cx="12" cy="13" r="3.5"/>',
+  'battery.25percent':'<rect x="2" y="7" width="18" height="10" rx="2.5"/><path d="M22 10.5v3"/><rect x="4" y="9" width="4" height="6" rx="1" fill="currentColor" stroke="none"/>',
+  'capslock':'<path d="M12 3l9 9h-5v5H8v-5H3z"/><path d="M8 21h8"/>',
+  'wifi.slash':'<path d="M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0M3 3l18 18"/><circle cx="12" cy="19" r=".8" fill="currentColor"/>',
+  'speaker.wave.2':'<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>',
+  'briefcase':'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5h6v2M3 12h18"/>',
+  'battery.0percent':'<rect x="2" y="7" width="18" height="10" rx="2.5"/><path d="M22 10.5v3"/>',
+  'laptopcomputer':'<rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/>',
+  'display':'<rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M9 20h6M12 16v4"/>',
+  'pawprint':'<ellipse cx="12" cy="16" rx="4.5" ry="3.8"/><ellipse cx="5.5" cy="10.5" rx="1.8" ry="2.3"/><ellipse cx="18.5" cy="10.5" rx="1.8" ry="2.3"/><ellipse cx="9" cy="5.8" rx="1.8" ry="2.3"/><ellipse cx="15" cy="5.8" rx="1.8" ry="2.3"/>',
+  'sparkles.rectangle.stack':'<rect x="4" y="8" width="16" height="12" rx="2"/><path d="M7 5h10M9.5 2.5h5M12 11l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/>',
+  'chevron.left.forwardslash.chevron.right':'<path d="M8 6l-6 6 6 6M16 6l6 6-6 6M14 4l-4 16"/>',
+  'doc.text':'<path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 12h6M9 16h6"/>',
+  'antenna.radiowaves.left.and.right':'<circle cx="12" cy="12" r="1.8"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.5 5.5a9.2 9.2 0 0 0 0 13M18.5 5.5a9.2 9.2 0 0 1 0 13"/>',
+  'arrow.clockwise':'<path d="M20 12a8 8 0 1 1-2.3-5.7L20 8.5"/><path d="M20 3.5v5h-5"/>',
+  'music.note.list':'<path d="M3 6h10M3 11h10M3 16h6"/><path d="M17 17V5l4-1"/><circle cx="15" cy="17" r="2"/>',
+  'checkmark.shield':'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M8.5 12l2.5 2.5L16 9.5"/>',
+  'arrow.triangle.2.circlepath':'<path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3"/><path d="M18 3v4h-4M6 21v-4h4"/>',
+  'circle.dashed':'<circle cx="12" cy="12" r="9" stroke-dasharray="3.2 3"/>',
+  'percent':'<path d="M19 5L5 19"/><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/>',
+  'bell':'<path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  'memorychip':'<rect x="5" y="5" width="14" height="14" rx="2"/><rect x="9" y="9" width="6" height="6" rx=".5"/><path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3"/>',
+  'faceid':'<path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3M9 9v2M15 9v2M12 9v4h-1M9 16a4 4 0 0 0 6 0"/>',
+  'lock.open':'<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/>',
+  'web.camera':'<circle cx="12" cy="10" r="7"/><circle cx="12" cy="10" r="2.5"/><path d="M8 21h8M12 17v4"/>'
+};
+const sf = n => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${SF[n] || ''}</svg>`;
+const T_ = (on = 1) => `<button class="tg${on ? ' on' : ''}" aria-label="Bật tắt"></button>`;
+const PK = (opts, k = 0) => `<button class="pk" data-opts='${JSON.stringify(opts).replace(/'/g, '&#39;')}'>${opts[k]}</button>`;
+const SG = (opts, k = 0) => `<span class="sg">${opts.map((o, j) => `<span class="${j === k ? 'on' : ''}">${o}</span>`).join('')}</span>`;
+const LNK = t => `<span class="lnk">${t}</span>`;
+const R = (ico, t, sub, ctl) => `<div class="sw-row"><span class="ri">${ico ? sf(ico) : ''}</span><span class="rt"><b>${t}</b>${sub ? `<small>${sub}</small>` : ''}</span>${ctl || ''}</div>`;
+const SEC_ = (h, rows, foot, right = '') => `<div class="sw-sec"><span>${h}</span>${right}</div><div class="sw-box">${rows.join('')}</div>${foot ? `<p class="sw-foot">${foot}</p>` : ''}`;
+const SYS = LNK('Mở Cài đặt hệ thống');
+const WING = ['Tự động', 'Ảnh bìa', 'Sóng nhạc', 'Cuộc họp kế tiếp', 'Pin', 'Giờ', 'Mức dùng Claude', 'Trống'];
+const PANES = [
+  { g:'', k:'chung', t:'Chung', c:'#8e8e93', i:'i-gear', html: () =>
+    SEC_('Ngôn ngữ', [R('globe', 'Ngôn ngữ của Roost', 'Tự động theo ngôn ngữ của macOS.', PK(['Tự động (theo hệ thống)', 'Tiếng Việt', 'English']))]) +
+    SEC_('Mở notch', [R('cursorarrow.click.2', 'Mở notch khi', '', SG(['Rê chuột vào', 'Bấm vào notch'])), R('timer', 'Độ trễ khi rê chuột', 'Chỉ dùng khi mở bằng cách rê chuột.', PK(['Thông minh', 'Không', '0.15 s', '0.3 s', '0.5 s'])), R('command', 'Phím tắt mở và đóng', 'Không cần quyền Trợ năng.', '<span class="kb">⌥ Space</span>'), R('hand.tap', 'Rung nhẹ trên trackpad', 'Một nhịp rung khi notch mở và khi bạn thả file vào khay.', T_())],
+      'Thông minh: notch chỉ mở khi con trỏ chậm lại hoặc dừng ở đó, lướt qua để bấm thanh menu thì không mở.') +
+    SEC_('Màn hình', [R('display.2', 'Hiện trên', '', PK(['Màn hình có notch', 'Tất cả màn hình (đồng bộ)', 'Màn hình đang có con trỏ', 'Màn hình chính'])), R('rectangle.topthird.inset.filled', 'Màn hình không có notch', '', PK(['Notch vẽ', 'Viên nổi (Dynamic Island)']))], 'Màn hình không có notch thật sẽ có một notch vẽ ở giữa mép trên, hoặc một viên bo tròn nổi ngay dưới mép.') +
+    SEC_('Hiệu năng', [R('arrow.down.right.and.arrow.up.left', 'Tối giản khi toàn màn hình', 'Ẩn cánh và thú cưng, rê chuột không mở notch. Phím tắt và Claude vẫn mở được.', T_()), R('leaf', 'Tự tiết kiệm pin', 'Khi bật Low Power Mode hoặc pin dưới 20%, tắt sóng nhạc thật, thú cưng và quầng sáng.', T_())]) },
+  { g:'', k:'giaodien', t:'Giao diện', c:'#0a84ff', i:'i-sun', html: () =>
+    `<div class="sw-sec"><span>Giao diện</span></div><div class="sw-box"><div class="thm">${[['Mặc định','linear-gradient(135deg,#1c1c1e,#3a3a3c)'],['Pixel 8-bit','repeating-linear-gradient(90deg,#1b1631 0 8px,#241c44 8px 16px)'],['Cassette','linear-gradient(135deg,#e9dcc0,#c8a46b)'],['Van Gogh','linear-gradient(135deg,#1f3a7a,#e2b33c)']].map((x, j) => `<div class="${j ? '' : 'on'}"><i style="background:${x[1]}"></i>${x[0]}</div>`).join('')}</div>${R('arrow.up.left.and.arrow.down.right', 'Kích thước khi mở', '', SG(['Gọn', 'Vừa', 'Rộng'], 1))}</div><p class="sw-foot">Mỗi giao diện có cách hiển thị riêng cho từng tab và một thú cưng riêng.</p>` +
+    SEC_('Màu', [R('paintbrush', 'Màu nhấn', '', SG(['Theo ảnh bìa', 'Cố định'])), R('sun.max', 'Quầng sáng theo ảnh bìa', 'Ánh màu ảnh bìa toả ra quanh notch thu gọn.', T_())], 'Màu nhấn dùng cho thanh tiến độ, sóng nhạc và quầng sáng. Theo ảnh bìa thì màu đổi theo từng bài.') +
+    SEC_('Hai bên notch khi thu gọn', [R('rectangle.lefthalf.inset.filled', 'Bên trái', '', PK(WING)), R('rectangle.righthalf.inset.filled', 'Bên phải', '', PK(WING))], 'Tự động: ảnh bìa bên trái, sóng nhạc bên phải, chỉ khi có nhạc. Giờ, pin và cuộc họp hiện cả khi không có nhạc.') +
+    SEC_('Tab trên notch', [`<div class="chips"><span>Nhạc và lịch</span><span>Âm thanh</span><span>Khay file</span><span>Gương camera</span></div>`, R('rectangle.portrait.and.arrow.forward', 'Khi mở notch, hiện', '', PK(['Tab dùng lần trước', 'Nhạc và lịch', 'Âm thanh', 'Khay file', 'Gương camera']))], 'Kéo chip để đổi thứ tự, bấm ô tròn để ẩn hay hiện một tab. Kéo file vào notch vẫn luôn mở khay, thẻ của Claude luôn hiện trước mọi tab.') },
+  { g:'Tính năng', k:'nhac', t:'Nhạc', c:'#ff375f', i:'i-music', html: () =>
+    SEC_('Trình phát', [R('music.note', 'Trình phát nhạc trên notch', 'Spotify, Apple Music, trình duyệt và mọi app phát nhạc.', T_()), R('app.badge', 'Hiện icon ứng dụng phát nhạc', 'Huy hiệu nhỏ ở góc ảnh bìa, bấm vào để mở app đó.', T_()), R('waveform', 'Sóng nhạc theo âm thanh thật', 'Cột sóng chạy theo âm thanh đang phát. Tốn pin hơn một chút.', T_(0)), R('lock.shield', 'Quyền ghi âm thanh hệ thống', '', SYS)]) +
+    SEC_('Lời bài hát', [R('quote.bubble', 'Lời bài hát (LRCLIB)', 'Nút lời trong trình phát, lời chạy theo nhạc và chế độ toàn màn hình.', T_())], 'Lời chỉ có với Spotify và Apple Music. Roost gửi tên bài, ca sĩ, album và độ dài bài tới lrclib.net để lấy lời, rồi lưu lại trên máy.') +
+    SEC_('Trên màn hình khoá', [R('lock.open', 'Trên màn hình khoá', '', PK(['Gọn', 'Trình phát đầy đủ', 'Tắt'])), R('clock', 'Hiện khi', '', PK(['Chỉ khi đang phát nhạc', 'Hiện mọi lúc']))], 'Trình phát chỉ có khi máy đang khoá, cất đi ngay khi mở khoá và khi màn hình tắt.') },
+  { g:'Tính năng', k:'amthanh', t:'Âm thanh', c:'#ff7a30', i:'i-speaker', html: () =>
+    SEC_('Tab Âm thanh', [R('speaker.wave.2', 'Tab Âm thanh trên notch', 'Chọn loa, mic, âm lượng tổng và âm lượng từng app.', T_()), R('memorychip', 'Nhớ mức âm lượng từng app', 'Mở lại app thì giữ mức đã chỉnh. Tắt thì về 100% khi app thoát.', T_()), R('lock.shield', 'Quyền ghi âm thanh hệ thống', '', SYS)], 'Chỉnh âm lượng riêng một app cần quyền Ghi âm thanh hệ thống, macOS 14.2 trở lên.') },
+  { g:'Tính năng', k:'lich', t:'Lịch', c:'#ff453a', i:'i-cal', html: () =>
+    SEC_('Lịch', [R('calendar', 'Lịch và cuộc họp', 'Tuần hiện tại, sự kiện hôm nay và nút vào Meet, nằm cạnh trình phát nhạc.', T_()), R('lock.shield', 'Quyền truy cập Lịch', 'Roost chỉ đọc lịch, không sửa hay gửi đi đâu.', SYS)], 'Muốn thấy cuộc họp sắp tới ngay cả khi notch thu gọn: Giao diện › Hai bên notch › Cuộc họp kế tiếp.') },
+  { g:'Tính năng', k:'khay', t:'Khay file', c:'#30c85a', i:'i-tray', html: () =>
+    SEC_('Khay file', [R('tray.full', 'Tab Khay', 'Kéo file lên notch để cất tạm, kéo ra để thả vào bất cứ đâu.', T_())], 'Khay chỉ giữ liên kết tới file gốc: di chuyển hay đổi tên thì file vẫn còn, xoá hoặc bỏ vào Thùng rác thì file tự rời khay.') +
+    SEC_('Tự thêm vào khay', [R('camera.viewfinder', 'Ảnh chụp màn hình', 'Ảnh vừa chụp vào khay, kể cả khi chụp vào clipboard.', T_()), R('arrow.down.circle', 'File tải về', 'File trong Downloads vào khay khi đã tải xong.', T_(0)), R('clock.arrow.circlepath', 'Tự dọn khay', '', PK(['Không bao giờ', 'Sau 1 ngày', 'Sau 7 ngày', 'Sau 30 ngày'], 2))]) },
+  { g:'Tính năng', k:'guong', t:'Gương', c:'#32ade6', i:'i-camera', html: () =>
+    SEC_('Gương', [R('camera', 'Tab Gương', 'Soi trước khi họp, đèn viền khi phòng tối, bấm một lần là vào Meet.', T_()), R('lock.shield', 'Quyền camera', '', SYS)], 'Camera chỉ bật khi tab Gương đang mở và tắt ngay khi bạn rời tab. Ảnh chỉ được lưu khi bạn bấm nút chụp.') },
+  { g:'Tính năng', k:'claude', t:'Claude Code', c:'#d97757', i:'i-spark', html: () =>
+    SEC_('Kết nối', [R('antenna.radiowaves.left.and.right', 'Socket của Roost', '', '<span style="color:#30d158;font-size:13px">● Đang nghe</span>'), R('arrow.clockwise', 'Kiểm tra lại cấu hình hook', '', LNK('Kiểm tra'))], 'Mỗi thẻ chờ tối đa 100 giây, luôn ngắn hơn timeout 110 giây của hook. Hết giờ, Roost tắt hay hook lỗi thì Claude Code hỏi lại ở terminal như bình thường, không bao giờ bị treo.') +
+    SEC_('Âm báo', [R('speaker.wave.2', 'Âm báo khi Claude cần bạn', 'Kêu khi có thẻ xin quyền hay câu hỏi, và khi một phiên Claude Code đang chờ bạn (cần hook Notification).', T_()), R('music.note.list', 'Âm thanh', '', PK(['Tink', 'Pop', 'Purr', 'Glass', 'Ping', 'Morse', 'Hero', 'Submarine']))]) +
+    SEC_('Luôn cho phép do Roost cấp', [R('checkmark.shield', '<code style="font-size:12px">Bash(npm test:*)</code>', 'notch-app · .claude/settings.local.json', LNK('Thu hồi'))], 'Thu hồi chỉ gỡ đúng chuỗi luật đó, các luật khác trong file giữ nguyên. File cũ được sao lưu cạnh bên.') },
+  { g:'Tính năng', k:'usage', t:'Mức dùng Claude', c:'#8e5cf6', i:'i-gauge', html: () =>
+    SEC_('Nguồn số liệu', [R('arrow.triangle.2.circlepath', 'Tự lấy số liệu', 'Đọc phiên đăng nhập Claude Code trong Keychain, hỏi api.anthropic.com mỗi 5 phút khi có chỗ đang hiện mức dùng.', T_(0)), R('doc.text', 'Hoặc dùng statusLine của Claude Code', 'Chỉ chạy trong Terminal.', LNK('Chép dòng statusLine'))], 'Token chỉ gửi tới Anthropic, không lưu ở đâu khác. Đây là API Claude Code dùng cho /usage, chưa được công bố nên có thể đổi.') +
+    SEC_('Hiển thị', [R('circle.dashed', 'Kiểu', '', SG(['Vòng', 'Thanh'])), R('percent', 'Hiển thị phần', '', SG(['Phần đã dùng', 'Phần còn lại'])), R('bell', 'Báo khi hạn mức được đặt lại', '', T_())], 'Trên notch đang mở, mức dùng nằm ở ô trạng thái góc phải. Muốn thấy cả khi thu gọn: Giao diện › Hai bên notch › Mức dùng Claude.') },
+  { g:'Trải nghiệm', k:'thongbao', t:'Thông báo', c:'#ff9f0a', i:'i-bell', html: () =>
+    `<div class="sw-sec"><span>Thẻ thông báo</span></div><div class="sw-box" style="padding:12px"><div style="height:110px;border-radius:10px;background:linear-gradient(100deg,#5b7be0,#8e64c8 55%,#e58a9a);display:flex;justify-content:center"><div style="width:300px;height:74px;background:#000;border-radius:0 0 22px 22px;display:flex;align-items:center;gap:12px;padding:6px 20px 0"><span style="flex:1"><b style="display:block;font-size:13px">Pin yếu <span style="color:#ff453a">10%</span></b><small style="display:block;font-size:11px;color:#c7c7cc">Bật Chế độ nguồn điện thấp hoặc cắm sạc.</small></span><i class="batt" style="color:#ff453a"><b style="width:15%"></b></i></div></div></div><p class="sw-foot">Notch thả xuống thành một thẻ có icon, tiêu đề và một dòng giải thích. Rê chuột vào thì thẻ đứng yên, bấm vào thì mở đúng chỗ cần.</p>` +
+    SEC_('Báo trên notch', [R('battery.25percent', 'Pin yếu và pin đầy', 'Báo ở 20% và 10%, và khi sạc đầy.', T_()), R('capslock', 'Bật tắt Caps Lock', 'Hiện ON hoặc OFF mỗi lần bấm.', T_()), R('wifi.slash', 'Mất kết nối Internet', 'Và báo lại khi có mạng trở lại.', T_()), R('speaker.wave.2', 'Thay HUD âm lượng và độ sáng', 'Âm lượng, độ sáng màn hình và đèn bàn phím hiện gọn ở hai bên notch.', T_())],
+      'Mất mạng chỉ báo khi kéo dài hơn vài giây, Wi-Fi chập chờn thoáng qua sẽ không làm phiền bạn. Cắm sạc luôn được báo.', '<span class="lnk">↺ Đặt lại mặc định</span>') },
+  { g:'Trải nghiệm', k:'awake', t:'Giữ máy thức', c:'#a2703f', i:'i-cup', html: () =>
+    SEC_('Giữ máy thức', [R('briefcase', 'Giờ hết làm', '', PK(['17:00', '17:30', '18:00', '18:30', '19:00'], 2)), R('battery.0percent', 'Tự tắt khi pin còn 10%', '', T_()), R('laptopcomputer', 'Tự tắt khi gập máy không có màn rời', '', T_()), R('display', 'Gập máy vẫn chạy trên màn rời', 'Kể cả khi không cắm sạc. Chỉ có tác dụng lúc đang giữ máy thức.', T_(0))], 'Mở notch, bấm ly cà phê để chọn thời gian: 15 phút tới 8 giờ, tới khi tắt, tới giờ hết làm hoặc tới khi một app thoát. Notch báo trước 2 phút khi sắp hết giờ.') },
+  { g:'Trải nghiệm', k:'pet', t:'Thú cưng', c:'#5e5ce6', i:'i-paw', html: () =>
+    SEC_('Thú cưng', [R('pawprint', 'Thú cưng trên notch', 'Mỗi giao diện có một thú cưng riêng.', T_())], 'Thú cưng nhún theo nhạc, ngủ gật khi máy rảnh, nhìn theo con trỏ và đeo tai nghe khi bạn dùng tai nghe.') },
+  { g:'Trải nghiệm', k:'face', t:'Khuôn mặt', c:'#0a84ff', i:'i-face', html: () =>
+    SEC_('Hiệu ứng', [R('faceid', 'Hiệu ứng Face ID khi mở khoá', '', T_())], 'Chỉ là hiệu ứng, không cần bật tính năng bên dưới. Khi bạn mở khoá bằng bất kỳ cách nào (Touch ID, Apple Watch, mật khẩu), notch chạy hiệu ứng quét, hiện dấu ✓ rồi chào bạn.') +
+    SEC_('Mở khoá bằng khuôn mặt (Thử nghiệm)', [R('lock.open', 'Bật mở khoá bằng khuôn mặt', '', T_(0)), R('eye', 'Kiểm tra mặt thật', '', PK(['Nặng (khuyên dùng)', 'Nhẹ', 'Tắt (ảnh chụp cũng qua)'])), R('timer', 'Phiên Touch ID tự khoá sau', '', PK(['1 giờ', '8 giờ', '1 ngày', '7 ngày'], 1)), R('web.camera', 'Camera', 'Chỉ hiện khi máy có hơn một camera.', PK(['Mặc định (camera tích hợp)']))], 'Đây là tiện ích, không phải lớp bảo mật. Camera MacBook chỉ thấy ảnh 2D; một video quay mặt bạn vẫn có thể qua được. Không dùng được sau khi khởi động lại máy.') },
+  { g:'Khác', k:'about', t:'Giới thiệu', c:'#8e8e93', i:'i-gear', html: () =>
+    `<div style="display:flex;align-items:center;gap:16px;margin-bottom:6px"><img src="assets/icon.png" width="64" height="64" alt=""><div><b style="font-size:20px">Roost</b><div style="font-size:13px;color:#8e8e93">Phiên bản 1.0.0 · Tai thỏ MacBook, làm được nhiều hơn.</div></div></div>` +
+    SEC_('Tài nguyên', [R('sparkles.rectangle.stack', 'Hướng dẫn cài đặt', 'Cấp quyền và nối với Claude Code.', LNK('Mở')), R('chevron.left.forwardslash.chevron.right', 'Mã nguồn', '', LNK('GitHub'))]) +
+    SEC_('Giấy phép', [R('doc.text', 'Roost', 'MIT', '')], 'Model nhận diện khuôn mặt ArcFace không thuộc giấy phép MIT và chỉ được dùng phi thương mại. Font VT323 theo SIL OFL, mediaremote-adapter theo BSD 3-Clause.') }
+];
+SF['eye'] = '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>';
+const swSide = document.getElementById('swSide'), swMain = document.getElementById('swMain');
+let lastG = null;
+PANES.forEach(pn => {
+  if (pn.g !== lastG && pn.g) swSide.insertAdjacentHTML('beforeend', `<div class="sw-g">${pn.g}</div>`);
+  lastG = pn.g;
+  swSide.insertAdjacentHTML('beforeend', `<button class="sw-it" data-k="${pn.k}"><span class="sw-ic" style="background:${pn.c}">${ic(pn.i)}</span>${pn.t}</button>`);
+});
+function showPane(k){ const pn = PANES.find(x => x.k === k); swMain.innerHTML = `<h4>${pn.t}</h4>` + pn.html(); swMain.scrollTop = 0;
+  swSide.querySelectorAll('.sw-it').forEach(b => b.classList.toggle('on', b.dataset.k === k)); }
+swSide.addEventListener('click', e => { const b = e.target.closest('.sw-it'); if (b) showPane(b.dataset.k); });
+// Menu chọn kiểu macOS cho các ô chọn
+const swMenu = document.createElement('div'); swMenu.className = 'sw-menu'; document.getElementById('sw').appendChild(swMenu);
+let menuFor = null;
+function closeMenu(){ swMenu.classList.remove('on'); menuFor = null; }
+swMain.addEventListener('scroll', closeMenu);
+document.addEventListener('click', e => { if (!e.target.closest('.pk, .sw-menu')) closeMenu(); });
+swMenu.addEventListener('click', e => { const it = e.target.closest('[data-v]'); if (it && menuFor) { menuFor.textContent = it.dataset.v; closeMenu(); } });
+swMain.addEventListener('click', e => {
+  const t = e.target.closest('.tg'); if (t) t.classList.toggle('on');
+  const sg = e.target.closest('.sg span'); if (sg) { sg.parentElement.querySelectorAll('span').forEach(x => x.classList.toggle('on', x === sg)); }
+  const th = e.target.closest('.thm div'); if (th) th.parentElement.querySelectorAll('div').forEach(x => x.classList.toggle('on', x === th));
+  const pk = e.target.closest('.pk');
+  if (pk) {
+    if (menuFor === pk) { closeMenu(); return; }
+    menuFor = pk; const opts = JSON.parse(pk.dataset.opts), cur = pk.textContent;
+    swMenu.innerHTML = opts.map(o => `<div data-v="${o}"${o === cur ? ' class="cur"' : ''}>${o}</div>`).join('');
+    const sw = document.getElementById('sw').getBoundingClientRect(), r = pk.getBoundingClientRect();
+    swMenu.style.top = (r.bottom - sw.top + 4) + 'px'; swMenu.style.right = (sw.right - r.right) + 'px'; swMenu.classList.add('on');
+  }
+});
+document.querySelectorAll('.tip').forEach(t => t.addEventListener('click', () => { showPane(t.dataset.pane); document.getElementById('sw').scrollIntoView({behavior:'smooth', block:'center'}); }));
+showPane('chung');
+
+// ---------- Hiệu ứng mở trang ----------
+document.querySelectorAll('[data-split]').forEach(el => {
+  let i = 0; el.innerHTML = [...el.textContent].map(c => c === ' ' ? ' ' : `<span class="lt" style="--i:${i++}">${c}</span>`).join('');
+});
+// Tiêu đề mục: tách từ ở cấp ngoài cùng, giữ nguyên các span trang trí.
+document.querySelectorAll('section h2').forEach(h => {
+  let i = 0;
+  [...h.childNodes].forEach(n => {
+    if (n.nodeType === 3) {
+      const frag = document.createDocumentFragment();
+      n.textContent.split(/(\s+)/).forEach(w => { if (!w) return; if (/^\s+$/.test(w)) frag.append(w); else { const sp = document.createElement('span'); sp.className = 'wd'; sp.style.setProperty('--i', i++); sp.textContent = w; frag.append(sp); } });
+      n.replaceWith(frag);
+    } else if (n.nodeType === 1 && n.tagName !== 'BR') { n.classList.add('wd'); n.style.setProperty('--i', i++); }
+  });
+  if (!h.closest('.reveal')) io2.observe(h);
+});
+const intro = document.getElementById('intro'), hero = document.getElementById('hero');
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function startHero(){ hero.classList.remove('pre'); hero.classList.add('go');
+  // "chỗ." trong notch lần lượt hiện nhạc, lịch, khay, Claude rồi dừng ở "chỗ."
+  const items = [...hero.querySelectorAll('.cyc > span')]; let k = 0;
+  const cyc = hero.querySelector('.cyc');
+  const tick = () => { if (k > 0) items[k - 1].className = 'out'; if (k < items.length) { items[k].className = ''; cyc.style.width = items[k].offsetWidth + 'px'; k++; if (k < items.length) setTimeout(tick, 420); } };
+  cyc.style.width = items[0].offsetWidth + 'px';
+  setTimeout(tick, 1050);
+}
+const timers = []; const SLOW = /[?&]introSlow/.test(location.search) ? 4 : 1;  // ?introSlow: xem chậm để kiểm tra
+function finishIntro(){ timers.forEach(clearTimeout); if (intro.isConnected) intro.remove(); if (hero.classList.contains('pre')) startHero(); }
+if (reduce) { intro.remove(); hero.classList.remove('pre'); hero.querySelectorAll('.cyc > span').forEach((x, j, a) => x.className = j === a.length - 1 ? '' : 'out'); }
+else {
+  // icon Roost hiện giữa màn đen, bay lên đậu vào notch, notch mở ra thành cả trang
+  requestAnimationFrame(() => requestAnimationFrame(() => intro.classList.add('p0')));
+  timers.push(setTimeout(() => { intro.classList.remove('p0'); intro.classList.add('p1'); }, 750 * SLOW));
+  timers.push(setTimeout(() => intro.classList.add('p2'), 1900 * SLOW));
+  timers.push(setTimeout(startHero, 2150 * SLOW));
+  timers.push(setTimeout(finishIntro, 2850 * SLOW));
+  intro.addEventListener('click', finishIntro);
+}
+
+const ioIdle = new IntersectionObserver(es => es.forEach(e => e.target.classList.toggle('idle', !e.isIntersecting)), {rootMargin:'100px'});
+document.querySelectorAll('.stage, .marquee, .mini-sound, .bento .vis').forEach(el => ioIdle.observe(el));
+
+const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } }), {threshold:.12});
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+</script>
+</body>
+</html>
