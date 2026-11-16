@@ -353,6 +353,10 @@ struct ExpandedView: View {
                         TabPill(symbol: "speaker.wave.2.fill", label: nil, selected: model.tab == .sound) {
                             model.tab = .sound
                         }
+                    case .system:
+                        TabPill(symbol: "cpu", label: nil, selected: model.tab == .system) {
+                            model.tab = .system
+                        }
                     }
                 }
                 if permissions.requests.count > 1 {
@@ -431,6 +435,8 @@ struct ExpandedView: View {
                 }
             } else if settings.showSound && model.tab == .sound {
                 SoundPanel()
+            } else if settings.showSystem && model.tab == .system {
+                SystemPanel()
             } else if settings.showMirror && model.tab == .mirror {
                 if Theme.isCassette {
                     InstantCameraMirror(camera: camera, calendar: calendar, tray: tray)

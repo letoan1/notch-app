@@ -137,12 +137,12 @@ final class SettingsStore: ObservableObject {
 
     /// Tab hiện ra khi mở notch.
     enum OpenTab: String, CaseIterable, Identifiable {
-        case last, media, sound, tray, mirror
+        case last, media, sound, tray, mirror, system
         var id: String { rawValue }
         var title: String {
             switch self {
             case .last: return L("Tab dùng lần trước", "Last used tab")
-            case .media, .sound, .tray, .mirror: return NotchModel.Tab(rawValue: rawValue)!.title
+            case .media, .sound, .tray, .mirror, .system: return NotchModel.Tab(rawValue: rawValue)!.title
             }
         }
         var tab: NotchModel.Tab? { NotchModel.Tab(rawValue: rawValue) }
@@ -161,6 +161,7 @@ final class SettingsStore: ObservableObject {
     @Published var showTray: Bool { didSet { save(showTray, "tab.tray") } }
     @Published var showMirror: Bool { didSet { save(showMirror, "tab.mirror") } }
     @Published var showSound: Bool { didSet { save(showSound, "tab.sound") } }
+    @Published var showSystem: Bool { didSet { save(showSystem, "tab.system") } }
     /// Tự gỡ file khỏi khay sau N ngày kể từ lúc thả vào; 0 = không bao giờ.
     @Published var trayExpiryDays: Int { didSet { save(trayExpiryDays, "trayExpiryDays") } }
     static let trayExpiryOptions = [0, 1, 7, 30]
@@ -198,6 +199,7 @@ final class SettingsStore: ObservableObject {
         showTray = d.object(forKey: "tab.tray") as? Bool ?? true
         showMirror = d.object(forKey: "tab.mirror") as? Bool ?? true
         showSound = d.object(forKey: "tab.sound") as? Bool ?? true
+        showSystem = d.object(forKey: "tab.system") as? Bool ?? true
         trayExpiryDays = d.object(forKey: "trayExpiryDays") as? Int ?? 0
         screenshotsToTray = d.object(forKey: "screenshotsToTray") as? Bool ?? true
         realVisualizer = d.object(forKey: "realVisualizer2") as? Bool ?? false
@@ -232,6 +234,7 @@ final class SettingsStore: ObservableObject {
         case .tray: return showTray
         case .mirror: return showMirror
         case .sound: return showSound
+        case .system: return showSystem
         }
     }
 

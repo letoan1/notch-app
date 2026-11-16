@@ -416,6 +416,7 @@ private struct AppearancePane: View {
         case .tray: return $settings.showTray
         case .mirror: return $settings.showMirror
         case .sound: return $settings.showSound
+        case .system: return $settings.showSystem
         }
     }
 }
