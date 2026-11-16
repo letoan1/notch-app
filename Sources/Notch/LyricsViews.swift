@@ -155,10 +155,18 @@ struct LyricsLinesView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                .padding(.vertical, fullscreen ? 280 : 40)
+                .padding(.top, fullscreen ? 280 : compact ? 4 : 40)
+                .padding(.bottom, fullscreen ? 280 : 40)
             }
-            .mask(fadeMask)
+            .mask(compact ? AnyView(bottomFadeMask) : AnyView(fadeMask))
         }
+    }
+
+    /// Trong notch lời bắt đầu ngay dưới tên bài: chỉ mờ dần ở mép dưới.
+    private var bottomFadeMask: some View {
+        LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.8),
+                               .init(color: .clear, location: 1)],
+                       startPoint: .top, endPoint: .bottom)
     }
 
     private var fadeMask: some View {
@@ -199,7 +207,7 @@ struct SyncedLyricsView: View {
             let shift = geo.size.height * (fullscreen ? 0.4 : 0.42) - top(of: cur)
             metal(VStack(alignment: .leading, spacing: spacing) {
                 ForEach(store.lines) { line in
-                    row(line, cur: cur)
+                    row(line, cur: cur, width: geo.size.width)
                         .background(GeometryReader { g in
                             Color.clear.preference(key: LyricHeights.self, value: [line.id: g.size.height])
                         })
@@ -222,7 +230,7 @@ struct SyncedLyricsView: View {
         .onPreferenceChange(LyricHeights.self) { heights.wrappedValue = $0 }
     }
 
-    private func row(_ line: LyricLine, cur: Int) -> some View {
+    private func row(_ line: LyricLine, cur: Int, width: CGFloat) -> some View {
         let isCurrent = line.id == store.current
         let distance = abs(line.id - cur)
         let grow: CGFloat = fullscreen ? 1.04 : compact ? 1.1 : 1.06
@@ -231,6 +239,9 @@ struct SyncedLyricsView: View {
             .foregroundStyle(isCurrent ? (fullscreen ? .white : LyricsStyle.active)
                              : (fullscreen ? .white.opacity(0.3) : LyricsStyle.dim))
             .fixedSize(horizontal: false, vertical: true)
+            // Ngắt dòng theo bề rộng đã trừ phần phóng to: dòng dài đang hát không tràn mép phải
+            // (drawingGroup / clipped cắt mất chữ), và dòng không ngắt lại khi tới lượt hát.
+            .frame(width: max(floor(width / grow) - 2, 0), alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .scaleEffect(isCurrent ? grow : 1, anchor: .leading)
             .blur(radius: fullscreen ? min(CGFloat(distance), 4) * 0.45 : 0)
