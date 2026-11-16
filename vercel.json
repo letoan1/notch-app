@@ -1,0 +1,5 @@
+{
+  "outputDirectory": "site",
+  "buildCommand": "",
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- site/ vercel.json"
+}
