@@ -113,8 +113,37 @@ enum BluetoothBattery {
             guard (try? p.run()) != nil else { return completion(nil) }
             let data = out.fileHandleForReading.readDataToEndOfFile()
             p.waitUntilExit()
-            completion(parse(data, name: name))
+            completion(parse(data, name: name) ?? accessoryLevel(named: name))
         }
+    }
+
+    /// Tai nghe không phải của Apple (JBL, Sony…) thường không có pin trong system_profiler,
+    /// nhưng macOS vẫn biết qua phụ kiện nguồn điện: đọc `pmset -g accps` (~0,2s, cùng lượt đọc nền).
+    static func accessoryLevel(named name: String) -> Int? {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/pmset")
+        p.arguments = ["-g", "accps"]
+        let out = Pipe()
+        p.standardOutput = out
+        p.standardError = FileHandle.nullDevice
+        guard (try? p.run()) != nil else { return nil }
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        p.waitUntilExit()
+        return parseAccps(String(decoding: data, as: UTF8.self), name: name)
+    }
+
+    /// Dòng dạng " -JBL Wave Beam 2 (id=27857825)\t80%; discharging present: true".
+    static func parseAccps(_ text: String, name: String) -> Int? {
+        let wanted = name.lowercased()
+        for line in text.split(separator: "\n") {
+            let t = line.trimmingCharacters(in: .whitespaces)
+            guard t.hasPrefix("-"), let idRange = t.range(of: " (id=") else { continue }
+            let n = t[t.index(after: t.startIndex)..<idRange.lowerBound].lowercased()
+            guard n == wanted || n.contains(wanted) || wanted.contains(n),
+                  let pct = t.range(of: #"\d+%"#, options: .regularExpression) else { continue }
+            return Int(t[pct].dropLast())
+        }
+        return nil
     }
 
     static func parse(_ data: Data, name: String) -> Int? {
