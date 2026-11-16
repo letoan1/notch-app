@@ -7,6 +7,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         controller = NotchController()
+        _ = AppUpdater.shared
         OnboardingWindowController.shared.showIfNeeded()
     }
 

@@ -60,6 +60,11 @@ cp -R "$MRA_FW" "$APP/Contents/Frameworks/"
 cp "$MRA_SRC/mediaremote-adapter.pl" "$APP/Contents/Resources/mediaremote-adapter.pl"
 cp "$MRA_SRC/LICENSE" "$APP/Contents/Resources/LICENSE-mediaremote-adapter.txt"
 
+# Sparkle (MIT): tự cập nhật. SwiftPM tải framework universal dựng sẵn vào .build/artifacts.
+SPARKLE_FW=.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework
+cp -R "$SPARKLE_FW" "$APP/Contents/Frameworks/"
+cp .build/artifacts/sparkle/Sparkle/LICENSE "$APP/Contents/Resources/LICENSE-Sparkle.txt"
+
 # Mở khoá bằng khuôn mặt (Packages/FaceUnlockKit, port từ Glance — MIT): model ArcFace (InsightFace,
 # chỉ dùng phi thương mại) để nguyên thư mục, app tự compile lúc chạy; kèm NOTICE + giấy phép.
 FUK=Packages/FaceUnlockKit
@@ -78,6 +83,8 @@ else
 fi
 codesign --force --sign "$SIGN" "$APP/Contents/MacOS/roost-hook"
 codesign --force --sign "$SIGN" "$APP/Contents/Frameworks/MediaRemoteAdapter.framework"
+# Sparkle có Autoupdate, Updater.app và XPC bên trong: ký cả cây.
+codesign --force --deep --sign "$SIGN" "$APP/Contents/Frameworks/Sparkle.framework"
 codesign --force --sign "$SIGN" "$APP"
 codesign --force --sign "$SIGN" build/roost-hook
 codesign --force --sign "$SIGN" build/notch-hook

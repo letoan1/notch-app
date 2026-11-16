@@ -32,5 +32,11 @@
 	<string>Roost hiển thị các sự kiện trong lịch của bạn. — Roost shows your calendar events.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Roost dùng camera cho tab Gương để bạn soi trước khi họp, và nếu bạn bật thì để nhận khuôn mặt mở khoá máy. Roost không quay video. Ảnh chỉ được lưu khi bạn bấm nút chụp, vào thư mục Pictures/Roost. — Roost uses the camera for the Mirror tab and, if you turn it on, face unlock. It never records video; a photo is saved to Pictures/Roost only when you press a capture button.</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://github.com/letoan1/notch-app/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>3hz6OdkAgG6vEZsAkLyhP9KLjy2MpADkp0PZM/rzcpY=</string>
 </dict>
 </plist>

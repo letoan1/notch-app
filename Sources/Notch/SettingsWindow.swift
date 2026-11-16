@@ -938,6 +938,15 @@ private struct PetPane: View {
 // MARK: - Giới thiệu
 
 private struct AboutPane: View {
+    @ObservedObject var updater = AppUpdater.shared
+
+    private var lastCheckText: String {
+        guard let date = updater.lastCheck else { return L("Chưa kiểm tra lần nào.", "Not checked yet.") }
+        let f = RelativeDateTimeFormatter()
+        f.locale = Lang.locale
+        return L("Lần kiểm tra gần nhất: \(f.localizedString(for: date, relativeTo: Date())).", "Last checked \(f.localizedString(for: date, relativeTo: Date())).")
+    }
+
     private var version: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "?"
     }
@@ -955,6 +964,17 @@ private struct AboutPane: View {
                                 .font(.system(size: 12)).foregroundStyle(.secondary)
                         }
                     }
+                }
+            }
+            SSection(L("Cập nhật", "Updates"),
+                     note: L("Roost tìm bản mới mỗi ngày một lần qua GitHub Releases. Mỗi bản được ký bằng khoá riêng của Roost; chữ ký không khớp thì Roost không cài.",
+                             "Roost looks for a new version once a day on GitHub Releases. Every update is signed with Roost's own key; if the signature doesn't match, it isn't installed.")) {
+                SToggleRow(icon: "arrow.triangle.2.circlepath", title: L("Tự kiểm tra bản mới", "Check for updates automatically"),
+                           isOn: $updater.autoCheck)
+                SRow("arrow.down.circle", L("Kiểm tra ngay", "Check now"), detail: lastCheckText, divider: false) {
+                    Button(L("Kiểm tra", "Check")) { updater.checkNow() }
+                        .controlSize(.small)
+                        .disabled(!updater.canCheck)
                 }
             }
             SSection(L("Tài nguyên", "Resources")) {

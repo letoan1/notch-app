@@ -35,6 +35,7 @@ fi
 # Ký ad-hoc từ trong ra ngoài (không mang chứng chỉ tự ký của máy build đi phát hành).
 codesign --force --sign - "$APP/Contents/MacOS/roost-hook"
 codesign --force --sign - "$APP/Contents/Frameworks/MediaRemoteAdapter.framework"
+codesign --force --deep --sign - "$APP/Contents/Frameworks/Sparkle.framework"
 codesign --force --sign - "$APP"
 codesign --verify --deep --strict "$APP"
 lipo -info "$APP/Contents/MacOS/Roost"
@@ -50,3 +51,16 @@ rm -f "$DMG"
 hdiutil create -volname "Roost $VERSION" -srcfolder "$STAGE" -fs HFS+ -format UDZO -imagekey zlib-level=9 -ov "$DMG" >/dev/null
 shasum -a 256 "$DMG" | tee "$DMG.sha256"
 echo "→ $DMG ($(du -h "$DMG" | cut -f1))"
+
+# Appcast cho Sparkle: ký .dmg bằng khoá EdDSA trong login keychain (tạo một lần bằng
+# .build/artifacts/sparkle/Sparkle/bin/generate_keys) rồi ghi dist/appcast.xml.
+# Đưa cả .dmg lẫn appcast.xml lên GitHub Release có tag v<phiên bản>; app đọc
+# releases/latest/download/appcast.xml. Mỗi bản phải tăng CFBundleVersion, Sparkle so số này.
+BUILD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" Info.plist)
+FEED=$(mktemp -d)
+cp "$DMG" "$FEED/"
+.build/artifacts/sparkle/Sparkle/bin/generate_appcast \
+  --download-url-prefix "https://github.com/letoan1/notch-app/releases/download/v$VERSION/" \
+  -o "$OUT/appcast.xml" "$FEED"
+rm -rf "$FEED"
+echo "→ $OUT/appcast.xml (bản $VERSION, build $BUILD)"
