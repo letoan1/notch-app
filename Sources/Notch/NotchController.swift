@@ -64,7 +64,19 @@ final class NotchSlot {
 @MainActor
 final class NotchController {
     // Đủ rộng cho notch mở cỡ Rộng (620 × 1,15) cộng hai cột nút tròn hai bên.
-    static let canvas = CGSize(width: 840, height: 320)
+    /// Cao đủ cho thẻ câu hỏi 2 hàng lựa chọn ở cỡ Rộng (32 + 252 × 1,15 ≈ 322).
+    static let canvas = CGSize(width: 840, height: 340)
+
+    /// Thẻ câu hỏi: 1 hàng lựa chọn (≤ 2) vừa 222pt; 2 hàng có mô tả 2 dòng cần ~240pt nên cho 252pt.
+    /// Pixel xếp lựa chọn thành dòng chữ gọn nên luôn vừa 222pt.
+    static func questionBodyHeight(_ questions: [AskQuestion]) -> CGFloat {
+        if Theme.isPixel { return NotchModel.tallBodyHeight }
+        // Ô lựa chọn rộng ~270pt: mô tả quá ~45 ký tự (cỡ 10) hoặc câu hỏi quá ~70 ký tự sẽ xuống dòng.
+        let crowded = questions.contains { q in
+            (q.options.count + 1) / 2 >= 2 && (q.text.count > 70 || q.options.contains { $0.description.count > 45 })
+        }
+        return crowded ? 252 : NotchModel.tallBodyHeight
+    }
 
     let media = NowPlaying()
     let permissions = PermissionCenter()
@@ -363,8 +375,11 @@ final class NotchController {
         capsLock.check()
         activateSlotUnderMouse()
         updatePet()
-        let isQuestion = permissions.current?.questions?.isEmpty == false
+        let questions = permissions.current?.questions ?? []
+        let isQuestion = !questions.isEmpty
         if model.tall != isQuestion { model.tall = isQuestion }
+        let questionHeight = Self.questionBodyHeight(questions)
+        if isQuestion, model.tallHeight != questionHeight { model.tallHeight = questionHeight }
         let wantMirror = model.tab == .mirror
         if model.mirrorMode != wantMirror { model.mirrorMode = wantMirror }
         updateKeyFocus()

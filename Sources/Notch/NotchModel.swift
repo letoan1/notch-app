@@ -75,6 +75,8 @@ final class NotchModel: ObservableObject {
 
     /// Thẻ câu hỏi của Claude cần cao hơn để vừa 4 lựa chọn.
     @Published var tall = false
+    /// Chiều cao thân notch cho thẻ câu hỏi (đổi theo số hàng lựa chọn).
+    @Published var tallHeight: CGFloat = NotchModel.tallBodyHeight
     /// Tab gương: cao hơn bình thường một chút cho khung camera.
     @Published var mirrorMode = false
     /// Màn hình này đang có app toàn màn hình: chỉ còn notch đen, không cánh / thú cưng / thông báo nhanh.
@@ -82,7 +84,7 @@ final class NotchModel: ObservableObject {
     static let mirrorBodyHeight: CGFloat = 190
 
     var expandedBodyHeight: CGFloat {
-        if tall { return Self.tallBodyHeight }
+        if tall { return tallHeight }
         if mirrorMode { return Self.mirrorBodyHeight }
         return Self.normalBodyHeight
     }

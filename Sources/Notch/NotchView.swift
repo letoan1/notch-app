@@ -150,6 +150,7 @@ struct NotchRootView: View {
         .animation(model.expanded ? .spring(response: 0.46, dampingFraction: 0.72)
                                   : .spring(response: 0.3, dampingFraction: 0.9), value: model.expanded)
         .animation(spring, value: model.tall)
+        .animation(spring, value: model.tallHeight)
         .animation(spring, value: model.mirrorMode)
         .animation(spring, value: model.peek)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: model.alert)
