@@ -128,7 +128,31 @@ final class ClaudeUsageAPI: ObservableObject {
 
     // MARK: - Keychain + HTTP (chạy ngoài main thread)
 
-    nonisolated private static func load(_ done: @escaping @Sendable (UsageFetch) -> Void) {
+    // Token giữ trong bộ nhớ tới khi hết hạn: không đọc Keychain mỗi lần lấy số liệu (mỗi lần đọc có thể hiện hộp thoại).
+    nonisolated(unsafe) private static var cached: (token: String, exp: TimeInterval)?
+    nonisolated private static let cacheLock = NSLock()
+
+    private enum Read { case ok(Data), missing, denied }
+
+    /// Đọc mục "Claude Code-credentials". Ưu tiên /usr/bin/security: Claude Code tạo mục này bằng chính công cụ đó nên
+    /// nó nằm sẵn trong danh sách được phép, macOS không hỏi mật khẩu kể cả khi Roost vừa cập nhật (chữ ký ad-hoc đổi)
+    /// hay Claude Code vừa ghi lại mục (danh sách "Always Allow" của Roost bị xoá). Lỗi lạ thì lùi về SecItem như cũ.
+    nonisolated private static func readCredentials() -> Read {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+        p.arguments = ["find-generic-password", "-s", "Claude Code-credentials", "-w"]
+        let out = Pipe()
+        p.standardOutput = out
+        p.standardError = FileHandle.nullDevice
+        if (try? p.run()) != nil {
+            let data = out.fileHandleForReading.readDataToEndOfFile()
+            p.waitUntilExit()
+            switch p.terminationStatus {
+            case 0 where !data.isEmpty: return .ok(data)
+            case 44: return .missing  // errSecItemNotFound
+            default: break
+            }
+        }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: "Claude Code-credentials",
@@ -137,15 +161,39 @@ final class ClaudeUsageAPI: ObservableObject {
         ]
         var item: CFTypeRef?
         let st = SecItemCopyMatching(query as CFDictionary, &item)
-        if st == errSecUserCanceled || st == errSecAuthFailed || st == errSecInteractionNotAllowed { done(.denied); return }
-        guard st == errSecSuccess, let data = item as? Data,
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let oauth = root["claudeAiOauth"] as? [String: Any],
-              let token = oauth["accessToken"] as? String, !token.isEmpty else { done(.needsLogin); return }
-        if let exp = (oauth["expiresAt"] as? NSNumber)?.doubleValue, exp / 1000 < Date().timeIntervalSince1970 + 60 {
-            done(.needsLogin)
-            return
+        if st == errSecUserCanceled || st == errSecAuthFailed || st == errSecInteractionNotAllowed { return .denied }
+        guard st == errSecSuccess, let data = item as? Data else { return .missing }
+        return .ok(data)
+    }
+
+    /// Token còn hạn ít nhất 60 giây: lấy từ bộ nhớ, hết thì đọc lại Keychain.
+    nonisolated private static func token() -> (String?, denied: Bool) {
+        let now = Date().timeIntervalSince1970
+        cacheLock.lock()
+        if let c = cached, c.exp > now + 60 { cacheLock.unlock(); return (c.token, false) }
+        cached = nil
+        cacheLock.unlock()
+        switch readCredentials() {
+        case .denied: return (nil, true)
+        case .missing: return (nil, false)
+        case let .ok(data):
+            // security -w in ra chuỗi JSON kèm xuống dòng.
+            guard let root = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) as? [String: Any],
+                  let oauth = root["claudeAiOauth"] as? [String: Any],
+                  let t = oauth["accessToken"] as? String, !t.isEmpty else { return (nil, false) }
+            let exp = ((oauth["expiresAt"] as? NSNumber)?.doubleValue ?? 0) / 1000
+            guard exp == 0 || exp > now + 60 else { return (nil, false) }
+            cacheLock.lock(); cached = (t, exp == 0 ? now + 3600 : exp); cacheLock.unlock()
+            return (t, false)
         }
+    }
+
+    nonisolated private static func forgetToken() { cacheLock.lock(); cached = nil; cacheLock.unlock() }
+
+    nonisolated private static func load(_ done: @escaping @Sendable (UsageFetch) -> Void) {
+        let (tok, denied) = token()
+        if denied { done(.denied); return }
+        guard let token = tok else { done(.needsLogin); return }
 
         var req = URLRequest(url: URL(string: "https://api.anthropic.com/api/oauth/usage")!, timeoutInterval: 15)
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -163,7 +211,10 @@ final class ClaudeUsageAPI: ObservableObject {
             }
             switch http.statusCode {
             case 200: break
-            case 401, 403: done(.needsLogin); return
+            case 401, 403:
+                // Token trong bộ nhớ có thể đã bị Claude Code thay: lần sau đọc lại Keychain.
+                forgetToken()
+                done(.needsLogin); return
             case 429: done(.failed(L("Bị giới hạn tạm thời, thử lại sau", "Rate limited, will retry"))); return
             default: done(.failed(L("Lỗi máy chủ \(http.statusCode)", "Server error \(http.statusCode)"))); return
             }
