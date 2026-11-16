@@ -474,7 +474,9 @@ final class EnrollmentWindowController: NSObject, NSWindowDelegate {
         })
         let win = NSWindow(contentViewController: host)
         win.title = L("Quét khuôn mặt", "Enroll your face")
-        win.styleMask = [.titled, .closable]
+        win.styleMask = [.titled, .closable, .fullSizeContentView]
+        win.titlebarAppearsTransparent = true
+        win.titleVisibility = .hidden
         win.isReleasedWhenClosed = false
         win.delegate = self
         window = win
@@ -485,10 +487,13 @@ final class EnrollmentWindowController: NSObject, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         FaceUnlockController.shared.service?.cancelEnrollment()
+        // Huỷ view để camera và layout dừng hẳn.
+        window?.contentViewController = nil
         window = nil
     }
 }
 
+/// Cửa sổ quét mặt, cùng kiểu thẻ với Cài đặt › Khuôn mặt.
 struct EnrollmentView: View {
     @ObservedObject var service: FaceUnlockService
     let replacing: UUID?
@@ -504,40 +509,107 @@ struct EnrollmentView: View {
 
     var body: some View {
         let progress = service.enrollment
-        VStack(spacing: 14) {
-            ZStack {
-                CameraPreview(session: service.previewSession, cornerRadius: 110, mirrored: true)
-                    .frame(width: 220, height: 220)
-                PoseRing(progress: progress)
-                    .frame(width: 262, height: 262)
+        let done = progress?.isComplete == true
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(spacing: 12) {
+                SIconTile(symbol: "faceid", color: SettingsWindowController.PaneID.face.tint, size: 34)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(replacing == nil ? L("Quét khuôn mặt", "Enroll your face") : L("Quét lại khuôn mặt", "Re-enroll your face"))
+                        .font(.system(size: 17, weight: .semibold))
+                    Text(L("Xoay đầu chậm theo hướng được tô sáng. Roost chỉ giữ số đo khuôn mặt, không lưu ảnh.",
+                           "Turn your head slowly toward the highlighted direction. Roost keeps face measurements only, never photos."))
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            .frame(width: 270, height: 270)
 
-            Text(Self.instruction(progress))
-                .font(.headline)
-                .multilineTextAlignment(.center)
-                .frame(height: 40)
-            ProgressView(value: progress?.overallProgress ?? 0).frame(width: 260)
+            SSection(nil) {
+                SBlock(divider: false, padding: 18) {
+                    VStack(spacing: 14) {
+                        ZStack {
+                            CameraPreview(session: service.previewSession, cornerRadius: 96, mirrored: true)
+                                .frame(width: 192, height: 192)
+                                .clipShape(Circle())
+                                .background(Circle().fill(Color.primary.opacity(0.06)))
+                                .overlay {
+                                    if done {
+                                        Circle().fill(.black.opacity(0.35))
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.system(size: 54)).foregroundStyle(.white, SUI.accent)
+                                    }
+                                }
+                            PoseRing(progress: progress)
+                                .frame(width: 228, height: 228)
+                        }
+                        .frame(width: 250, height: 262, alignment: .top)
 
-            if progress?.isComplete == true {
-                HStack {
-                    TextField(L("Tên", "Name"), text: name.projectedValue).textFieldStyle(.roundedBorder).frame(width: 160)
-                    Button(L("Lưu (Touch ID)", "Save (Touch ID)")) { save() }
+                        Text(Self.instruction(progress))
+                            .font(.system(size: 14, weight: .semibold))
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity)
+                            .frame(minHeight: 20)
+                        EnrollmentBar(value: progress?.overallProgress ?? 0)
+                            .frame(width: 260)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+
+            SSection(L("Thông tin", "Details"),
+                     note: Self.livenessNote(service.settings.livenessMode)) {
+                SRow("square.grid.3x3", L("Mẫu khuôn mặt", "Face samples"),
+                     detail: L("\(EnrollmentPose.allCases.count) hướng, mỗi hướng \(Self.perPose(progress)) mẫu", "\(EnrollmentPose.allCases.count) directions, \(Self.perPose(progress)) samples each"),
+                     divider: false) {
+                    Text("\(Self.captured(progress))/\(Self.total(progress))")
+                        .font(.system(size: 12.5, weight: .medium)).monospacedDigit()
+                        .foregroundStyle(done ? SUI.accent : .secondary)
+                }
+                SRow("eye", L("Kiểm tra mặt thật", "Liveness check")) {
+                    SPicker(Binding(get: { service.settings.livenessMode }, set: { service.settings.livenessMode = $0 }),
+                            [(FaceUnlockLivenessMode.heavy, L("Nặng (khuyên dùng)", "Heavy (recommended)")),
+                             (.light, L("Nhẹ", "Light")),
+                             (.off, L("Tắt (ảnh chụp cũng qua)", "Off (a photo can pass)"))])
+                }
+                if done {
+                    SRow("person.crop.circle", L("Tên để chào", "Name for the greeting"),
+                         detail: L("Notch chào bạn bằng tên này sau khi mở khoá.", "The notch greets you with this name after unlocking.")) {
+                        TextField(L("Tên", "Name"), text: name.projectedValue)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 150)
+                    }
+                }
+                if let e = error.wrappedValue ?? progress?.error {
+                    SBlock {
+                        Label(e, systemImage: "exclamationmark.triangle.fill")
+                            .font(.system(size: 12)).foregroundStyle(.red)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+
+            HStack(spacing: 8) {
+                Spacer()
+                Button(L("Huỷ", "Cancel")) { close() }
+                    .buttonStyle(SButtonStyle(.secondary))
+                    .keyboardShortcut(.cancelAction)
+                if progress == nil || progress?.error != nil {
+                    Button(L("Bắt đầu lại", "Start again")) { begin() }
+                        .buttonStyle(SButtonStyle(.secondary))
+                }
+                if done {
+                    Button { save() } label: { Label(L("Lưu bằng Touch ID", "Save with Touch ID"), systemImage: "touchid") }
+                        .buttonStyle(SButtonStyle(.primary))
                         .keyboardShortcut(.defaultAction)
                 }
             }
-            if let e = error.wrappedValue ?? progress?.error {
-                Text(e).font(.caption).foregroundStyle(.red).multilineTextAlignment(.center)
-            }
-            HStack {
-                Button(L("Huỷ", "Cancel")) { close() }
-                if progress == nil {
-                    Button(L("Bắt đầu lại", "Start again")) { begin() }
-                }
-            }
         }
-        .padding(22)
-        .frame(width: 340)
+        .padding(.horizontal, 24)
+        .padding(.top, 6)
+        .padding(.bottom, 22)
+        .frame(width: 440)
+        .fixedSize(horizontal: false, vertical: true)
+        .background(Color(nsColor: .textBackgroundColor))
+        .animation(.easeOut(duration: 0.2), value: done)
         .onAppear { begin() }
     }
 
@@ -556,6 +628,29 @@ struct EnrollmentView: View {
             } catch {
                 self.error.wrappedValue = error.localizedDescription
             }
+        }
+    }
+
+    private static func perPose(_ p: EnrollmentProgress?) -> Int { p?.samplesPerPose ?? 2 }
+    private static func total(_ p: EnrollmentProgress?) -> Int { perPose(p) * EnrollmentPose.allCases.count }
+    private static func captured(_ p: EnrollmentProgress?) -> Int {
+        guard let p else { return 0 }
+        if p.isComplete { return total(p) }
+        return EnrollmentPose.allCases.reduce(0) { $0 + Int(((p.poseProgress[$1] ?? 0) * Double(p.samplesPerPose)).rounded(.down)) }
+    }
+
+    private static func livenessNote(_ mode: FaceUnlockLivenessMode) -> String {
+        guard mode != .off else { return livenessDetail(mode) }
+        return livenessDetail(mode) + " " + L("Khi mở khoá, nếu notch hiện \"Chớp mắt nhẹ để xác nhận\" thì chớp mắt một lần là qua.",
+                                              "When unlocking, if the notch says \"Blink to confirm\", one blink is enough.")
+    }
+
+    private static func livenessDetail(_ mode: FaceUnlockLivenessMode) -> String {
+        switch mode {
+        case .heavy: return L("Mức Nặng cần thêm một dấu hiệu người thật: chiều sâu khuôn mặt, chuyển động khi quay đầu hoặc chớp mắt.",
+                              "Heavy needs one more sign of a live person: face depth, movement as you turn, or a blink.")
+        case .light: return L("Mức Nhẹ chỉ chặn ảnh trên màn hình và ảnh in rõ ràng.", "Light only blocks obvious screens and printed photos.")
+        case .off: return L("Đang tắt kiểm tra mặt thật: ảnh chụp khuôn mặt bạn cũng mở được máy.", "The liveness check is off, so a photo of your face can unlock the Mac.")
         }
     }
 
@@ -580,7 +675,23 @@ struct EnrollmentView: View {
     }
 }
 
-/// Vòng 8 hướng quanh khung camera (+ chấm giữa cho tư thế nhìn thẳng), mỗi cung sáng dần theo tiến độ.
+/// Thanh tiến độ kiểu Cài đặt: rãnh mờ, phần đã xong màu tím.
+private struct EnrollmentBar: View {
+    let value: Double
+    var body: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(Color.primary.opacity(0.08))
+                Capsule().fill(SUI.accent)
+                    .frame(width: max(6, geo.size.width * min(max(value, 0), 1)))
+            }
+        }
+        .frame(height: 6)
+        .animation(.easeOut(duration: 0.2), value: value)
+    }
+}
+
+/// Vòng 8 hướng quanh khung camera (+ chấm dưới cho tư thế nhìn thẳng), mỗi cung đầy dần theo tiến độ.
 private struct PoseRing: View {
     let progress: EnrollmentProgress?
 
@@ -592,23 +703,20 @@ private struct PoseRing: View {
                 if let angle = pose.compassAngle {
                     // compassAngle: 0 = trên, theo chiều kim đồng hồ; khung camera lật gương nên đảo trái/phải.
                     let mirrored = 360 - angle
-                    Arc(start: mirrored - 18, end: mirrored + 18)
-                        .stroke(Color.secondary.opacity(0.25), style: StrokeStyle(lineWidth: 7, lineCap: .round))
-                    Arc(start: mirrored - 18, end: mirrored - 18 + 36 * value)
-                        .stroke(Color.green, style: StrokeStyle(lineWidth: 7, lineCap: .round))
-                    if current {
-                        Arc(start: mirrored - 18, end: mirrored + 18)
-                            .stroke(Color.accentColor.opacity(0.8), style: StrokeStyle(lineWidth: 2))
-                            .padding(-7)
-                    }
+                    Arc(start: mirrored - 17, end: mirrored + 17)
+                        .stroke(current ? SUI.accent.opacity(0.3) : Color.primary.opacity(0.1),
+                                style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                    Arc(start: mirrored - 17, end: mirrored - 17 + 34 * value)
+                        .stroke(SUI.accent, style: StrokeStyle(lineWidth: 6, lineCap: .round))
                 } else {
-                    Circle().fill(value >= 1 ? Color.green : Color.secondary.opacity(0.35))
-                        .frame(width: 10, height: 10)
-                        .offset(y: 131 + 12)
+                    Circle().fill(value >= 1 ? SUI.accent : current ? SUI.accent.opacity(0.4) : Color.primary.opacity(0.15))
+                        .frame(width: 9, height: 9)
+                        .offset(y: 114 + 14)
                 }
             }
         }
         .animation(.easeOut(duration: 0.2), value: progress?.overallProgress)
+        .animation(.easeOut(duration: 0.2), value: progress?.currentPose)
     }
 
     private struct Arc: Shape {

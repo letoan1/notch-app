@@ -231,18 +231,20 @@ private struct SettingsRoot: View {
                     }
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.top, 50)   // chừa chỗ cho 3 nút cửa sổ (tâm cách mép trên 26 pt)
-            .padding(.bottom, 12)
+            .padding(.horizontal, 2)
+            .padding(.top, 42)   // chừa chỗ cho 3 nút cửa sổ (tâm cách mép trên cửa sổ 26 pt)
+            .padding(.bottom, 10)
         }
-        .scrollIndicators(.never)
-        .frame(width: SUI.sidebarWidth)
+        .scrollIndicators(.automatic)
+        // Cuộn gọn trong thẻ: mục cuối không bị cắt ngang ở góc bo khi cửa sổ thấp.
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(Color.primary.opacity(0.035))
                 .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.primary.opacity(0.05)))
-                .padding(8)
         )
+        .padding(8)
+        .frame(width: SUI.sidebarWidth)
     }
 }
 
@@ -497,7 +499,7 @@ private struct WingPreview: View {
 }
 
 /// Hình nhỏ gợi tả từng giao diện (vẽ tĩnh, không chạy hiệu ứng).
-private struct ThemeSwatch: View {
+struct ThemeSwatch: View {
     let theme: Theme
 
     var body: some View {
