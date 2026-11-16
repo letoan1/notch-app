@@ -48,7 +48,8 @@ cp "scripts/dmg/Hướng dẫn mở Roost.html" "$STAGE/"
 
 mkdir -p "$OUT"
 rm -f "$DMG"
-hdiutil create -volname "Roost $VERSION" -srcfolder "$STAGE" -fs HFS+ -format UDZO -imagekey zlib-level=9 -ov "$DMG" >/dev/null
+# Ảnh nền, cỡ cửa sổ và vị trí icon: xem scripts/dmg/layout.sh.
+scripts/dmg/layout.sh "$STAGE" "Roost $VERSION" "$DMG" 2> >(grep -v 'is deprecated' >&2)
 shasum -a 256 "$DMG" | tee "$DMG.sha256"
 echo "→ $DMG ($(du -h "$DMG" | cut -f1))"
 
