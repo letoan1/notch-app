@@ -39,6 +39,28 @@ for a, b in POST:
     en = en.replace(a, b)
 for q in ['"', "'", '(', '`']:
     en = en.replace(q + 'assets/', q + '../assets/')
+# Ảnh SVG minh hoạ có chữ: dựng bản tiếng Anh trong assets/en/ rồi cho trang /en/ trỏ vào đó.
+from xml.sax.saxutils import escape
+ns2 = {}
+exec(open(os.path.join(HERE, 'svg_en.py'), encoding='utf-8').read(), ns2)
+SVG_EN = ns2['SVG_EN']
+AS = os.path.join(SITE, 'assets')
+os.makedirs(os.path.join(AS, 'en'), exist_ok=True)
+svg_names = []
+for name in sorted(os.listdir(AS)):
+    if not name.endswith('.svg'):
+        continue
+    svg = open(os.path.join(AS, name), encoding='utf-8').read()
+    def sub(m):
+        raw = m.group(1); t = raw.strip()
+        return '>' + raw.replace(t, escape(SVG_EN[t])) + '<' if t in SVG_EN else m.group(0)
+    out = re.sub(r'>([^<>]+)<', sub, svg)
+    if out != svg:
+        open(os.path.join(AS, 'en', name), 'w', encoding='utf-8').write(out)
+        svg_names.append(name)
+for name in svg_names:
+    en = en.replace('../assets/' + name, '../assets/en/' + name)
+en = en.replace("'../assets/' + src", "'../assets/en/' + src")
 os.makedirs(os.path.join(SITE, 'en'), exist_ok=True)
 open(os.path.join(SITE, 'en', 'index.html'), 'w', encoding='utf-8').write(en)
 

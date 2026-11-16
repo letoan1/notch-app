@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400">
+<defs>
+<linearGradient id="wallA" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0f766e"/><stop offset="1" stop-color="#4338ca"/></linearGradient>
+<linearGradient id="wallB" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9a3412"/><stop offset="1" stop-color="#7c3aed"/></linearGradient>
+<linearGradient id="art" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffb347"/><stop offset="1" stop-color="#ff4f8b"/></linearGradient>
+<linearGradient id="shot" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#6366f1"/></linearGradient>
+<linearGradient id="shot2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34d399"/><stop offset="1" stop-color="#0ea5e9"/></linearGradient>
+<linearGradient id="shot3" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f472b6"/><stop offset="1" stop-color="#f59e0b"/></linearGradient>
+<clipPath id="card"><rect width="640" height="400" rx="28"/></clipPath>
+<filter id="b60" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="60"/></filter>
+<filter id="b8" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="8"/></filter>
+</defs>
+<style>
+text { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+.eq { transform-box: fill-box; transform-origin: 50% 50%; animation: eq .8s ease-in-out infinite alternate; }
+.e2 { animation-duration: .55s; } .e3 { animation-duration: .95s; } .e4 { animation-duration: .68s; }
+@keyframes eq { from { transform: scaleY(.3); } to { transform: scaleY(1); } }
+.flash { animation: flash 3.2s ease-out infinite; } @keyframes flash { 0%,6% { opacity: .0; } 8% { opacity: .9; } 22%,100% { opacity: 0; } }
+.peek { animation: peek 3.2s ease-in-out infinite; } @keyframes peek { 0%,12% { opacity: 0; } 20%,80% { opacity: 1; } 92%,100% { opacity: 0; } }
+</style>
+<g clip-path="url(#card)"><rect width="640" height="400" fill="#0d0d18"/>
+<circle cx="100" cy="90" r="170" fill="#38bdf8" opacity=".18" filter="url(#b60)"/>
+<text x="36" y="56" font-size="24" font-weight="800" fill="#fff">Screenshots land straight in the tray</text>
+<text x="36" y="84" font-size="14" fill="#fff" opacity=".6">Saved to a file or copied to the clipboard, either works. Images and videos in the tray get previews.</text>
+<rect x="36" y="112" width="36" height="34" rx="8" fill="#fff" opacity=".1"/><text x="54" y="135" font-size="16" fill="#fff" text-anchor="middle">⌘</text>
+<rect x="78" y="112" width="36" height="34" rx="8" fill="#fff" opacity=".1"/><text x="96" y="135" font-size="16" fill="#fff" text-anchor="middle">⇧</text>
+<rect x="120" y="112" width="36" height="34" rx="8" fill="#fff" opacity=".1"/><text x="138" y="135" font-size="16" fill="#fff" text-anchor="middle">4</text>
+<text x="166" y="134" font-size="13" fill="#fff" opacity=".6">→ the notch tells you</text>
+<rect x="300" y="108" width="304" height="46" rx="12" fill="url(#wallA)"/><rect x="300" y="108" width="304" height="14" fill="#fff" opacity=".15"/>
+<rect class="flash" x="300" y="108" width="304" height="46" rx="12" fill="#fff" opacity="0"/>
+<path d="M362 108 Q368 108 368 113 V128 Q368 136 376 136 H528 Q536 136 536 128 V113 Q536 108 542 108 Z" fill="#000"/>
+<g class="peek"><rect x="378" y="113" width="32" height="18" rx="3" fill="url(#shot)" stroke="#fff" stroke-opacity=".5"/><text x="526" y="126" font-size="10.5" font-weight="700" fill="#fff" opacity=".85" text-anchor="end">Added to tray</text></g>
+<rect x="36" y="172" width="568" height="96" rx="18" fill="#000"/>
+<rect x="60" y="186" width="80" height="52" rx="7" fill="url(#shot)" stroke="#fff" stroke-opacity=".25"/>
+<text x="100" y="256" font-size="10" fill="#fff" opacity=".75" text-anchor="middle">Shot 21.27.png</text>
+<rect x="164" y="186" width="80" height="52" rx="7" fill="url(#shot2)" stroke="#fff" stroke-opacity=".25"/>
+<text x="204" y="256" font-size="10" fill="#fff" opacity=".75" text-anchor="middle">Shot 21.31.png</text>
+<rect x="268" y="186" width="80" height="52" rx="7" fill="url(#shot3)" stroke="#fff" stroke-opacity=".25"/>
+<circle cx="308" cy="212" r="10" fill="#000" opacity=".45"/><path d="M305 206 l9 6 l-9 6 z" fill="#fff"/>
+<text x="308" y="256" font-size="10" fill="#fff" opacity=".75" text-anchor="middle">demo.mov</text>
+<rect x="392" y="184" width="196" height="72" rx="12" fill="none" stroke="#fff" stroke-opacity=".3" stroke-width="2" stroke-dasharray="7 6"/>
+<text x="490" y="216" font-size="13" fill="#fff" opacity=".7" text-anchor="middle">↓ drop files here</text><text x="490" y="236" font-size="11" fill="#fff" opacity=".45" text-anchor="middle">Default</text>
+<rect x="36" y="282" width="568" height="96" rx="18" fill="#141210"/>
+<rect x="56" y="352" width="400" height="7" fill="#6b4a2e"/><rect x="56" y="359" width="400" height="3" fill="#4a3321"/>
+<g transform="rotate(-3 118 318)"><rect x="74" y="290" width="88" height="62" fill="#f7f2e6"/><rect x="79" y="295" width="78" height="42" fill="url(#shot)"/><text x="118" y="348" font-size="9.5" fill="#2b2621" text-anchor="middle" font-family="Marker Felt, Comic Sans MS, cursive">Shot 21.27</text><rect x="102" y="285" width="32" height="9" fill="#fff5b8" opacity=".8" transform="rotate(4.5 118 289)"/></g>
+<g transform="rotate(2.5 242 318)"><rect x="198" y="290" width="88" height="62" fill="#f7f2e6"/><rect x="203" y="295" width="78" height="42" fill="url(#shot2)"/><text x="242" y="348" font-size="9.5" fill="#2b2621" text-anchor="middle" font-family="Marker Felt, Comic Sans MS, cursive">Shot 21.31</text><rect x="226" y="285" width="32" height="9" fill="#fff5b8" opacity=".8" transform="rotate(-3.75 242 289)"/></g>
+<g transform="rotate(-1.5 366 318)"><rect x="322" y="290" width="88" height="62" fill="#f7f2e6"/><rect x="327" y="295" width="78" height="42" fill="url(#shot3)"/><text x="366" y="348" font-size="9.5" fill="#2b2621" text-anchor="middle" font-family="Marker Felt, Comic Sans MS, cursive">demo</text><rect x="350" y="285" width="32" height="9" fill="#fff5b8" opacity=".8" transform="rotate(2.25 366 289)"/></g>
+<text x="530" y="326" font-size="13" fill="#f0e3cc" opacity=".8" text-anchor="middle" font-family="Marker Felt, Comic Sans MS, cursive">Polaroid</text><text x="530" y="344" font-size="11" fill="#fff" opacity=".45" text-anchor="middle">Cassette</text>
+</g></svg>

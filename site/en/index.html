@@ -936,33 +936,33 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
           <li><b>One button to join</b><span>A 7-day strip, swipe the trackpad to change weeks, and a button straight into Meet, Zoom or Teams.</span></li>
         </ul>
       </div>
-      <div class="frame reveal"><img src="../assets/card-glance.svg" alt="Visualizer and battery alerts with the notch collapsed" loading="lazy"></div>
+      <div class="frame reveal"><img src="../assets/en/card-glance.svg" alt="Visualizer and battery alerts with the notch collapsed" loading="lazy"></div>
     </div>
 
     <div class="story reveal">
       <ol class="st-list">
         <li class="st-item on" data-i="0">
           <span class="st-n">01</span>
-          <div><h3>Drag-and-drop file tray</h3><p>Park files on the notch, then drag them out into another app. Space opens Quick Look, right-click for AirDrop.</p><img class="st-inline" src="../assets/card-tray.svg" alt="File drag-and-drop tray" loading="lazy"></div>
+          <div><h3>Drag-and-drop file tray</h3><p>Park files on the notch, then drag them out into another app. Space opens Quick Look, right-click for AirDrop.</p><img class="st-inline" src="../assets/en/card-tray.svg" alt="File drag-and-drop tray" loading="lazy"></div>
         </li>
         <li class="st-item" data-i="1">
           <span class="st-n">02</span>
-          <div><h3>Screenshots land in the tray</h3><p>Take a screenshot and it’s right there on the notch, even when you capture to the clipboard.</p><img class="st-inline" src="../assets/card-shots.svg" alt="Screenshots land in the tray" loading="lazy"></div>
+          <div><h3>Screenshots land in the tray</h3><p>Take a screenshot and it’s right there on the notch, even when you capture to the clipboard.</p><img class="st-inline" src="../assets/en/card-shots.svg" alt="Screenshots land in the tray" loading="lazy"></div>
         </li>
         <li class="st-item" data-i="2">
           <span class="st-n">03</span>
-          <div><h3>Pets on the notch wings</h3><p>They dance to the music, follow your cursor, and put on headphones when sound goes to AirPods.</p><img class="st-inline" src="../assets/card-pets.svg" alt="Roost’s four pets" loading="lazy"></div>
+          <div><h3>Pets on the notch wings</h3><p>They dance to the music, follow your cursor, and put on headphones when sound goes to AirPods.</p><img class="st-inline" src="../assets/en/card-pets.svg" alt="Roost’s four pets" loading="lazy"></div>
         </li>
         <li class="st-item" data-i="3">
           <span class="st-n">04</span>
-          <div><h3>Notch or no notch</h3><p>External displays get a drawn notch or a floating pill. In full screen, the notch shrinks to a minimum.</p><img class="st-inline" src="../assets/card-screens.svg" alt="The notch on several displays" loading="lazy"></div>
+          <div><h3>Notch or no notch</h3><p>External displays get a drawn notch or a floating pill. In full screen, the notch shrinks to a minimum.</p><img class="st-inline" src="../assets/en/card-screens.svg" alt="The notch on several displays" loading="lazy"></div>
         </li>
       </ol>
       <div class="st-stage"><div class="st-frame">
-        <img class="st-img on" src="../assets/card-tray.svg" alt="File drag-and-drop tray" loading="lazy">
-        <img class="st-img" src="../assets/card-shots.svg" alt="Screenshots land in the tray" loading="lazy">
-        <img class="st-img" src="../assets/card-pets.svg" alt="Roost’s four pets" loading="lazy">
-        <img class="st-img" src="../assets/card-screens.svg" alt="The notch on several displays" loading="lazy">
+        <img class="st-img on" src="../assets/en/card-tray.svg" alt="File drag-and-drop tray" loading="lazy">
+        <img class="st-img" src="../assets/en/card-shots.svg" alt="Screenshots land in the tray" loading="lazy">
+        <img class="st-img" src="../assets/en/card-pets.svg" alt="Roost’s four pets" loading="lazy">
+        <img class="st-img" src="../assets/en/card-screens.svg" alt="The notch on several displays" loading="lazy">
       </div></div>
     </div>
 
@@ -1160,7 +1160,7 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
       <button data-t="cassette">Cassette</button>
       <button data-t="vangogh">Van Gogh</button>
     </div>
-    <div class="theme-view frame reveal"><img id="themeImg" src="../assets/gallery.svg" alt="Roost’s four themes"></div>
+    <div class="theme-view frame reveal"><img id="themeImg" src="../assets/en/gallery.svg" alt="Roost’s four themes"></div>
     <p class="theme-copy" id="themeCopy"></p>
   </div>
 </section>
@@ -1364,7 +1364,7 @@ const T = {
 const tImg = document.getElementById('themeImg'), tCopy = document.getElementById('themeCopy');
 document.querySelectorAll('.theme-tabs button').forEach(b => b.addEventListener('click', () => {
   document.querySelectorAll('.theme-tabs button').forEach(x => x.classList.toggle('on', x === b));
-  const [src, txt] = T[b.dataset.t]; tImg.src = '../assets/' + src; tCopy.textContent = txt;
+  const [src, txt] = T[b.dataset.t]; tImg.src = '../assets/en/' + src; tCopy.textContent = txt;
 }));
 tCopy.textContent = T.all[1];
 
