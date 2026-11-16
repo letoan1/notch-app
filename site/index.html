@@ -223,6 +223,88 @@ h2{font-size:clamp(34px,5.2vw,60px);line-height:1.06;letter-spacing:-.035em;font
 .points span{color:var(--ink2);font-size:15px}
 .frame{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;box-shadow:0 30px 60px -40px rgba(30,10,60,.35)}
 .frame img{border-radius:18px;width:100%}
+/* Demo gương camera: nhắc khung hình tự chạy, đèn viền bấm được. */
+.md{--l:2}
+.md[data-level="0"]{--l:0}.md[data-level="1"]{--l:1}.md[data-level="3"]{--l:3}
+.md-screen{position:relative;aspect-ratio:16/10;border-radius:22px;overflow:hidden;background:linear-gradient(160deg,#1d1b2e,#2b2347 55%,#3a2c52);box-shadow:0 30px 60px -36px rgba(30,10,60,.55),0 0 0 1px var(--line)}
+.md-edge{position:absolute;inset:0;z-index:3;pointer-events:none;border-radius:22px;transition:box-shadow .45s;
+  box-shadow:inset 0 0 0 calc(var(--l) * 5px) rgba(255,238,214,calc(.32 + var(--l) * .22)),inset 0 0 calc(var(--l) * 40px) rgba(255,214,170,calc(var(--l) * .22))}
+.md-menu{position:absolute;top:0;left:0;right:0;height:26px;display:flex;justify-content:space-between;align-items:center;padding:0 16px;font:600 11px var(--sys,system-ui);color:rgba(255,255,255,.75);background:rgba(255,255,255,.06)}
+.md-notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:min(560px,86%);background:#000;border-radius:0 0 26px 26px;padding:34px 16px 16px;display:flex;gap:14px;color:#fff;font-family:var(--sys,system-ui);z-index:2}
+.md-cam{position:relative;flex:1.15;aspect-ratio:300/190;border-radius:14px;overflow:hidden;background:#2d2826}
+.md-art{width:100%;height:100%;display:block;transition:filter .45s;filter:brightness(calc(.55 + var(--l) * .17)) saturate(calc(.8 + var(--l) * .08))}
+.md-me{animation:mdFace 7s ease-in-out infinite}
+@keyframes mdFace{0%,8%{transform:translateX(0)}18%,44%{transform:translateX(-62px)}58%,100%{transform:translateX(0)}}
+.md-hint{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);font-size:11px;font-weight:700;padding:4px 10px;border-radius:99px;white-space:nowrap;opacity:0}
+.md-hint.off{background:rgba(255,159,10,.92);color:#1d1300;animation:mdOff 7s infinite}
+.md-hint.ok{background:rgba(48,209,88,.92);color:#002b0d;animation:mdOk 7s infinite}
+@keyframes mdOff{0%,16%{opacity:0}20%,46%{opacity:1}50%,100%{opacity:0}}
+@keyframes mdOk{0%,58%{opacity:0}62%,90%{opacity:1}96%,100%{opacity:0}}
+.md-side{flex:1;display:flex;flex-direction:column;gap:8px;font-size:12px;min-width:0}
+.md-side>b{font-size:14px}
+.md-ev{display:flex;align-items:center;gap:8px;border-left:2px solid #5ac8fa;padding-left:8px}
+.md-ev span{flex:1;display:grid}.md-ev small{color:rgba(255,255,255,.55);font-size:10.5px}
+.md-ev i{font-style:normal;font-weight:700;font-size:11px;background:#0a84ff;border-radius:99px;padding:3px 10px}
+.md-row{margin-top:auto;background:rgba(255,255,255,.1);border-radius:99px;padding:6px 12px;font-weight:600;font-size:11.5px}
+.md-row+.md-row{margin-top:0}
+.md-lamp{background:#ffd60a;color:#1d1700;transition:opacity .3s}
+.md[data-level="0"] .md-lamp{background:rgba(255,255,255,.1);color:#fff}
+.md-ctl{display:flex;align-items:center;gap:8px;margin-top:16px;flex-wrap:wrap}
+.md-ctl span{font-size:14px;font-weight:600;color:var(--ink2);margin-right:6px}
+.md-ctl button{all:unset;cursor:pointer;font-size:14px;font-weight:600;padding:8px 16px;border-radius:99px;background:var(--bg2);color:var(--ink)}
+.md-ctl button.on{background:var(--ink);color:#fff}
+@media (max-width:520px){.md-notch{padding:30px 10px 10px;gap:10px;width:94%}.md-side{font-size:10.5px}.md-ev small,.md-row{display:none}}
+@media (prefers-reduced-motion:reduce){.md-me,.md-hint{animation:none}.md-hint.ok{opacity:1}}
+/* Trust center */
+.tc{margin-top:56px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:32px}
+.tc-h{font-size:22px;letter-spacing:-.02em}
+.tc-sub{color:var(--ink2);font-size:15px;margin-top:6px}
+.tc-scroll{overflow-x:auto;margin-top:18px}
+.tc-t{width:100%;border-collapse:collapse;font-size:14.5px;min-width:640px}
+.tc-t th{text-align:left;font-size:12px;font-weight:700;color:var(--ink3);text-transform:uppercase;letter-spacing:.04em;padding:0 14px 10px 0;border-bottom:1px solid var(--line)}
+.tc-t td{padding:14px 14px 14px 0;border-bottom:1px solid var(--line);vertical-align:top;color:var(--ink2);line-height:1.5}
+.tc-t td b{color:var(--ink);font-weight:700}
+.tc-t tr:last-child td{border-bottom:none}
+.tc-t td:first-child{width:22%}
+a.codelink{display:inline-block;font:600 12.5px ui-monospace,Menlo,monospace;color:#2563eb;background:#eff4ff;border-radius:8px;padding:3px 8px;white-space:nowrap}
+a.codelink:hover{text-decoration:underline}
+.tc code{font:12.5px ui-monospace,Menlo,monospace;background:var(--bg2);border-radius:6px;padding:1px 6px;white-space:nowrap}
+.tc-card code{white-space:normal;overflow-wrap:anywhere}
+.tc-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:18px}
+.tc-card{background:var(--bg);border:1px solid var(--line);border-radius:20px;padding:18px}
+.tc-card .ic{font-size:24px}
+.tc-card h4{font-size:16px;margin:8px 0 6px}
+.tc-card p{color:var(--ink2);font-size:13.5px;line-height:1.55}
+.tc-2{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+.tc-lim,.tc-steps{list-style:none;display:grid;gap:16px;margin-top:16px}
+.tc-lim li,.tc-steps li{display:grid;gap:3px;padding-left:16px;border-left:2px solid var(--line)}
+.tc-lim li{border-left-color:#f59e0b}
+.tc-steps{counter-reset:s}
+.tc-steps li{border-left-color:#22c55e}
+.tc-lim span,.tc-steps span{color:var(--ink2);font-size:14.5px;line-height:1.55}
+@media (max-width:860px){.tc{padding:22px}.tc-cards{grid-template-columns:1fr 1fr}.tc-2{grid-template-columns:1fr;gap:28px}}
+@media (max-width:520px){.tc-cards{grid-template-columns:1fr}}
+/* Cuộn kể chuyện: danh sách bên trái, khung hình dính bên phải đổi theo mục đang đọc. */
+.story{display:grid;grid-template-columns:.9fr 1.1fr;gap:56px;margin-top:64px;align-items:start}
+.st-list{list-style:none;display:grid}
+.st-item{display:flex;gap:22px;padding:34px 0;min-height:44vh;align-items:center;cursor:pointer;opacity:.38;transition:opacity .35s}
+.st-item.on{opacity:1}
+.st-item+.st-item{border-top:1px solid var(--line)}
+.st-n{font:800 15px/1 var(--mono,ui-monospace,Menlo,monospace);color:var(--accent);padding-top:8px;align-self:flex-start;margin-top:34px}
+.st-item h3{font-size:clamp(24px,2.6vw,32px);letter-spacing:-.02em;line-height:1.15;margin-bottom:10px}
+.st-item p{color:var(--ink2);font-size:16px;max-width:420px}
+.st-inline{display:none}
+.st-stage{position:sticky;top:calc(50vh - 210px)}
+.st-frame{position:relative;aspect-ratio:1280/760;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;box-shadow:0 30px 60px -40px rgba(30,10,60,.35)}
+.st-img{position:absolute;inset:12px;width:calc(100% - 24px);height:calc(100% - 24px);object-fit:contain;border-radius:18px;opacity:0;transform:scale(.97) translateY(8px);transition:opacity .45s,transform .55s cubic-bezier(.2,.8,.2,1)}
+.st-img.on{opacity:1;transform:none}
+@media (max-width:860px){
+  .story{grid-template-columns:1fr;gap:0}
+  .st-stage{display:none}
+  .st-item{opacity:1;min-height:0;padding:28px 0}
+  .st-inline{display:block;width:100%;margin-top:18px;border-radius:16px;border:1px solid var(--line)}
+  .st-n{margin-top:6px}
+}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:48px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:28px;overflow:hidden}
 .card h3{font-size:22px;letter-spacing:-.02em;margin-bottom:6px}
@@ -275,6 +357,8 @@ details p{color:var(--ink2);margin-top:10px;font-size:15px}
 footer{padding:48px 0 60px;color:var(--ink3);font-size:13px}
 footer .wrap{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
 footer a:hover{color:var(--ink)}
+footer .made{line-height:1.9}
+footer .made a{color:var(--ink);font-weight:700}
 
 /* ---------- Kiểu chữ ---------- */
 .hand{font-family:"Caveat",cursive;font-weight:700;font-size:30px;line-height:1;color:var(--accent);display:inline-block;transform:rotate(-3deg);margin-bottom:12px;letter-spacing:.01em}
@@ -846,27 +930,31 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
       <div class="frame reveal"><img src="assets/card-glance.svg" alt="Sóng nhạc và báo pin khi notch thu gọn" loading="lazy"></div>
     </div>
 
-    <div class="grid2">
-      <div class="card reveal">
-        <h3>Khay file kéo thả</h3>
-        <p>Cất tạm file, kéo ra thả vào app khác. Phím cách mở Quick Look, chuột phải để AirDrop.</p>
-        <img src="assets/card-tray.svg" alt="Khay kéo thả file" loading="lazy">
-      </div>
-      <div class="card reveal">
-        <h3>Ảnh chụp màn hình tự vào khay</h3>
-        <p>Chụp xong là thấy ngay trên notch, kể cả khi chụp vào clipboard.</p>
-        <img src="assets/card-shots.svg" alt="Ảnh chụp màn hình tự vào khay" loading="lazy">
-      </div>
-      <div class="card reveal">
-        <h3>Thú cưng trên cánh notch</h3>
-        <p>Nhảy theo nhạc, nhìn theo con trỏ, đeo tai nghe khi âm thanh ra AirPods.</p>
-        <img src="assets/card-pets.svg" alt="Bốn thú cưng của Roost" loading="lazy">
-      </div>
-      <div class="card reveal">
-        <h3>Có notch hay không</h3>
-        <p>Màn hình rời được vẽ thêm notch hoặc kiểu viên nổi. Toàn màn hình thì notch thu về tối giản.</p>
-        <img src="assets/card-screens.svg" alt="Notch trên nhiều màn hình" loading="lazy">
-      </div>
+    <div class="story reveal">
+      <ol class="st-list">
+        <li class="st-item on" data-i="0">
+          <span class="st-n">01</span>
+          <div><h3>Khay file kéo thả</h3><p>Cất tạm file trên notch, kéo ra thả vào app khác. Phím cách mở Quick Look, chuột phải để AirDrop.</p><img class="st-inline" src="assets/card-tray.svg" alt="Khay kéo thả file" loading="lazy"></div>
+        </li>
+        <li class="st-item" data-i="1">
+          <span class="st-n">02</span>
+          <div><h3>Ảnh chụp màn hình tự vào khay</h3><p>Chụp xong là thấy ngay trên notch, kể cả khi chụp vào clipboard.</p><img class="st-inline" src="assets/card-shots.svg" alt="Ảnh chụp màn hình tự vào khay" loading="lazy"></div>
+        </li>
+        <li class="st-item" data-i="2">
+          <span class="st-n">03</span>
+          <div><h3>Thú cưng trên cánh notch</h3><p>Nhảy theo nhạc, nhìn theo con trỏ, đeo tai nghe khi âm thanh ra AirPods.</p><img class="st-inline" src="assets/card-pets.svg" alt="Bốn thú cưng của Roost" loading="lazy"></div>
+        </li>
+        <li class="st-item" data-i="3">
+          <span class="st-n">04</span>
+          <div><h3>Có notch hay không</h3><p>Màn hình rời được vẽ thêm notch hoặc kiểu viên nổi. Toàn màn hình thì notch thu về tối giản.</p><img class="st-inline" src="assets/card-screens.svg" alt="Notch trên nhiều màn hình" loading="lazy"></div>
+        </li>
+      </ol>
+      <div class="st-stage"><div class="st-frame">
+        <img class="st-img on" src="assets/card-tray.svg" alt="Khay kéo thả file" loading="lazy">
+        <img class="st-img" src="assets/card-shots.svg" alt="Ảnh chụp màn hình tự vào khay" loading="lazy">
+        <img class="st-img" src="assets/card-pets.svg" alt="Bốn thú cưng của Roost" loading="lazy">
+        <img class="st-img" src="assets/card-screens.svg" alt="Notch trên nhiều màn hình" loading="lazy">
+      </div></div>
     </div>
 
     <div class="split" style="margin-top:80px">
@@ -879,7 +967,43 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
           <li><b>Đèn viền</b><span>Thiếu sáng thì bật viền trắng ấm quanh màn hình: Dịu, Vừa, Mạnh.</span></li>
         </ul>
       </div>
-      <div class="frame reveal"><img src="assets/card-mirror.svg" alt="Soi gương camera và đèn viền trước khi họp" loading="lazy"></div>
+      <div class="md reveal" data-level="2">
+        <div class="md-screen">
+          <div class="md-edge"></div>
+          <div class="md-menu"><span>Zoom&nbsp;&nbsp;&nbsp;Meeting</span><span>09:26</span></div>
+          <div class="md-notch">
+            <div class="md-cam"><svg class="md-art" viewBox="0 0 300 190" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  
+  <rect width="300" height="190" fill="#2d2826"/>
+  <rect x="214" y="18" width="62" height="78" rx="4" fill="#6f665c" opacity=".55"/><path d="M245 18v78M214 57h62" stroke="#3b3530" stroke-width="3"/>
+  
+  <rect x="22" y="42" width="34" height="58" rx="3" fill="#2a2623"/><rect x="26" y="50" width="26" height="6" rx="2" fill="#7d5a3c"/><rect x="26" y="60" width="20" height="6" rx="2" fill="#4f6b5a"/><rect x="26" y="70" width="24" height="6" rx="2" fill="#8a3f3a"/>
+  <g class="md-me"><path d="M70 190c4-34 34-52 80-52s76 18 80 52z" fill="#3f5c80"/>
+  <path d="M136 132h28v14c0 6-28 6-28 0z" fill="#d9a37f"/>
+  <path d="M128 146c6 10 38 10 44 0" fill="none" stroke="#e8eef5" stroke-width="4" opacity=".6"/>
+  <ellipse cx="150" cy="96" rx="31" ry="38" fill="#ecbf9c"/>
+  <ellipse cx="119.5" cy="100" rx="5" ry="8" fill="#e2b08c"/><ellipse cx="180.5" cy="100" rx="5" ry="8" fill="#e2b08c"/>
+  <path d="M118 92c-2-26 12-42 33-42 22 0 35 15 32 40-6-12-15-19-27-21-10 9-24 15-38 23z" fill="#2b211c"/>
+  <path d="M137 102c2 2 6 2 8 0M155 102c2 2 6 2 8 0" stroke="#3a2a22" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <path d="M143 118c4 3 10 3 14 0" stroke="#b9715c" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <ellipse cx="134" cy="112" rx="5" ry="3" fill="#ef9a8a" opacity=".35"/><ellipse cx="166" cy="112" rx="5" ry="3" fill="#ef9a8a" opacity=".35"/>
+</g></svg>
+              <span class="md-hint off">Lệch khung, dịch sang phải chút</span>
+              <span class="md-hint ok">Vừa khung ✓</span>
+            </div>
+            <div class="md-side">
+              <b>Sẵn sàng họp?</b>
+              <div class="md-ev"><span><b>Daily standup</b><small>Còn 4 phút, 09:30</small></span><i>Meet</i></div>
+              <div class="md-row">Lật gương</div>
+              <div class="md-row md-lamp">Đèn viền: <em>Vừa</em></div>
+            </div>
+          </div>
+        </div>
+        <div class="md-ctl" role="group" aria-label="Đèn viền">
+          <span>Đèn viền</span>
+          <button data-l="0">Tắt</button><button data-l="1">Dịu</button><button data-l="2" class="on">Vừa</button><button data-l="3">Mạnh</button>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -1064,7 +1188,6 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
       <div class="stat reveal"><b>30 MB</b><span>RAM lúc vừa mở app</span></div>
       <div class="stat reveal"><b>0</b><span>chỗ rò bộ nhớ theo <code>leaks</code></span></div>
     </div>
-    <p class="hint center" style="margin-top:18px">Đo ngày 14/11/2026 trên MacBook Air M2, macOS 27, trung bình 20 giây mỗi mốc.</p>
   </div>
 </section>
 
@@ -1072,17 +1195,33 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
   <div class="wrap">
     <div class="center reveal">
       <span class="hand violet">Riêng tư</span>
-      <h2>Ở lại trên <span class="mark" style="--mc:#86efac">máy bạn</span>.</h2>
-      <p class="sec-lead">Không analytics, không theo dõi. Roost chỉ ra Internet cho hai việc bạn chủ động dùng: tải lời bài hát và đọc mức dùng Claude.</p>
+      <h2>Roost làm gì trên máy bạn,<br><span class="mark" style="--mc:#86efac">ghi hết ra đây</span>.</h2>
+      <p class="sec-lead">Không analytics, không cần tài khoản. Dưới đây là mọi nơi Roost kết nối, mọi quyền nó xin và chỗ dữ liệu được lưu.</p>
     </div>
-    <div class="priv">
-      <div class="card reveal"><div class="ic">📅</div><h3>Lịch, camera</h3><p>Chỉ xin quyền khi bạn mở tab cần tới. Ảnh chỉ lưu khi bạn bấm chụp.</p></div>
-      <div class="card reveal"><div class="ic">🎧</div><h3>Âm thanh hệ thống</h3><p>Chỉ cho sóng nhạc thật và âm lượng từng app. Không ghi, không lưu âm thanh.</p></div>
-      <div class="card reveal"><div class="ic">🖥️</div><h3>Không cần ghi màn hình</h3><p>Nhận biết toàn màn hình qua khung cửa sổ.</p></div>
-      <div class="card reveal"><div class="ic">🎵</div><h3>Lời bài hát</h3><p>Lấy từ LRCLIB (lrclib.net) khi bạn mở lời, lưu đệm trên máy.</p></div>
-      <div class="card reveal"><div class="ic">🔑</div><h3>Claude Code</h3><p>Hook nói chuyện với app qua Unix socket cục bộ. Mức dùng là tuỳ chọn, chỉ gửi tới api.anthropic.com.</p></div>
-      <div class="card reveal"><div class="ic">📖</div><h3>Mã nguồn mở</h3><p>Đọc từng dòng, tự build bằng Command Line Tools.</p></div>
+
+    <div class="tc reveal">
+      <h3 class="tc-h">Roost ra Internet ở đâu</h3>
+      <p class="tc-sub">Chỉ bốn nơi, và chỉ khi bạn dùng tính năng tương ứng.</p>
+      <div class="tc-scroll"><table class="tc-t">
+        <thead><tr><th>Địa chỉ</th><th>Khi nào</th><th>Gửi đi những gì</th></tr></thead>
+        <tbody><tr><td><b>lrclib.net</b></td><td>Khi bạn mở lời bài hát (Spotify, Apple Music)</td><td>Tên bài, ca sĩ, album, độ dài bài. Lời trả về được lưu đệm trên máy.</td></tr><tr><td><b>api.anthropic.com</b></td><td>Chỉ khi bạn tự bật "Mức dùng Claude"</td><td>Token đăng nhập Claude Code của bạn, để hỏi hạn mức 5 giờ và 7 ngày. Token chỉ dùng trong bộ nhớ, không lưu, không ghi log, không đụng refresh token.</td></tr><tr><td><b>github.com</b></td><td>Mỗi ngày một lần (tắt được trong Cài đặt › Giới thiệu)</td><td>Chỉ tải danh sách bản mới. Bản cập nhật phải khớp chữ ký riêng của Roost, sai chữ ký thì không cài.</td></tr><tr><td><b>Máy chủ ảnh của Spotify</b></td><td>Khi Spotify đang phát</td><td>Tải ảnh bìa từ đường dẫn chính Spotify đưa ra.</td></tr></tbody>
+      </table></div>
     </div>
+
+    <div class="tc reveal">
+      <h3 class="tc-h">Quyền Roost xin</h3>
+      <p class="tc-sub">Chỉ hỏi khi bạn mở đúng tính năng cần nó. Không cấp thì phần còn lại vẫn chạy. Roost không xin quyền ghi màn hình.</p>
+      <div class="tc-scroll"><table class="tc-t">
+        <thead><tr><th>Quyền</th><th>Dùng để</th><th>Khi nào hỏi</th><th>Không cấp thì</th></tr></thead>
+        <tbody><tr><td><b>Lịch</b></td><td>Hiện sự kiện, nút vào họp</td><td>Ở màn chào, hoặc khi bạn mở lịch</td><td>Không có lịch</td></tr><tr><td><b>Điều khiển Spotify, Music</b></td><td>Đọc bài đang phát, phát/dừng, chuyển bài</td><td>Lần đầu Roost cần điều khiển app đó</td><td>Không điều khiển được app đó từ notch</td></tr><tr><td><b>Ghi âm thanh hệ thống</b></td><td>Sóng nhạc chạy theo nhạc thật, âm lượng riêng từng app. Không ghi file, không lưu</td><td>Khi đang phát nhạc</td><td>Không có sóng nhạc thật và âm lượng từng app</td></tr><tr><td><b>Camera</b></td><td>Gương soi trước khi họp; mở khoá bằng khuôn mặt nếu bạn bật</td><td>Khi bạn mở tab Gương</td><td>Không có gương</td></tr><tr><td><b>Trợ năng</b></td><td>Thay HUD âm lượng và độ sáng, khoá bàn phím khi lau, gõ mật khẩu khi mở khoá bằng khuôn mặt</td><td>Khi bạn bật một trong các tính năng đó</td><td>Dùng HUD của macOS</td></tr><tr><td><b>Keychain (mục của Claude Code)</b></td><td>Đọc token cho "Mức dùng Claude"</td><td>Khi bạn bật mức dùng</td><td>Không có mức dùng</td></tr></tbody>
+      </table></div>
+    </div>
+
+    <div class="tc reveal">
+      <h3 class="tc-h">Dữ liệu nằm ở đâu</h3>
+      <div class="tc-cards"><div class="tc-card"><div class="ic">🎵</div><h4>Lời bài hát</h4><p><code>~/Library/Application Support/Roost/lyrics</code>, tên file là mã băm.</p></div><div class="tc-card"><div class="ic">📸</div><h4>Ảnh bạn chụp</h4><p><code>~/Pictures/Roost</code>, chỉ khi bạn bấm nút chụp. Ảnh chụp màn hình vào clipboard được lưu vào khay trong <code>Application Support/Roost/Screenshots</code>.</p></div><div class="tc-card"><div class="ic">🙂</div><h4>Khuôn mặt và mật khẩu đăng nhập</h4><p>Chỉ khi bạn bật mở khoá bằng khuôn mặt. Mã hoá AES-GCM, khoá nằm trong Keychain và chỉ mở sau Touch ID hoặc mật khẩu máy, chỉ trên máy này.</p></div><div class="tc-card"><div class="ic">🔌</div><h4>Yêu cầu từ Claude Code</h4><p>Đi qua socket cục bộ <code>~/Library/Application Support/Roost/claude.sock</code>, không rời máy.</p></div></div>
+    </div>
+
   </div>
 </section>
 
@@ -1130,7 +1269,7 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
 
 <footer>
   <div class="wrap">
-    <span>© 2026 Roost. Mã nguồn mở theo giấy phép MIT.</span>
+    <span class="made">Được làm với 💙 bởi <a href="https://github.com/letoan1" target="_blank" rel="noopener">letoan1</a><br>© 2026 Roost. Mã nguồn mở theo giấy phép MIT.</span>
     <span><a href="https://github.com/letoan1/notch-app">GitHub</a> &nbsp;·&nbsp; <a href="https://github.com/letoan1/notch-app/releases">Bản phát hành</a> &nbsp;·&nbsp; <a href="https://github.com/letoan1/notch-app/blob/main/docs/INSTALL.md">Hướng dẫn cài</a></span>
   </div>
 </footer>
@@ -1555,6 +1694,25 @@ document.querySelectorAll('.stage, .marquee, .mini-sound, .bento .vis').forEach(
 
 const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } }), {threshold:.12});
 document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+// Cuộn kể chuyện: mục nào nằm giữa màn hình thì sáng lên và đổi hình bên phải.
+(() => {
+  const items = [...document.querySelectorAll('.st-item')], imgs = [...document.querySelectorAll('.st-img')];
+  if (!items.length) return;
+  const pick = i => { items.forEach((el, j) => el.classList.toggle('on', j === i)); imgs.forEach((el, j) => el.classList.toggle('on', j === i)); };
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) pick(+e.target.dataset.i); }), {rootMargin: '-45% 0px -45% 0px'});
+  items.forEach(el => { io.observe(el); el.addEventListener('click', () => { pick(+el.dataset.i); el.scrollIntoView({behavior: 'smooth', block: 'center'}); }); });
+})();
+
+// Demo gương: chọn mức đèn viền.
+document.querySelectorAll('.md').forEach(md => {
+  const names = ['Tắt', 'Dịu', 'Vừa', 'Mạnh'], lamp = md.querySelector('.md-lamp em');
+  md.querySelectorAll('.md-ctl button').forEach(b => b.addEventListener('click', () => {
+    md.dataset.level = b.dataset.l;
+    md.querySelectorAll('.md-ctl button').forEach(x => x.classList.toggle('on', x === b));
+    lamp.textContent = names[+b.dataset.l];
+  }));
+});
 </script>
 </body>
 </html>
