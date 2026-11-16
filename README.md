@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/letoan1/notch-app/releases/latest/download/Roost-1.0.0.dmg"><b>Tải Roost cho Mac (.dmg)</b></a>
+  <a href="https://github.com/letoan1/notch-app/releases/latest/download/Roost-1.0.1.dmg"><b>Tải Roost cho Mac (.dmg)</b></a>
   &nbsp;·&nbsp;
   <a href="site/index.html">Trang giới thiệu</a>
   &nbsp;·&nbsp;
