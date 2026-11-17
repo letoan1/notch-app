@@ -4,7 +4,7 @@ import SwiftUI
 @MainActor
 final class NotchModel: ObservableObject {
     enum Tab: String, CaseIterable {
-        case media, sound, tray, mirror, system
+        case media, sound, tray, mirror, system, bank
 
         var title: String {
             switch self {
@@ -13,6 +13,7 @@ final class NotchModel: ObservableObject {
             case .tray: return L("Khay file", "File tray")
             case .mirror: return L("Gương camera", "Camera mirror")
             case .system: return L("Hệ thống", "System")
+            case .bank: return L("Ngân hàng", "Bank")
             }
         }
         var symbol: String {
@@ -22,6 +23,7 @@ final class NotchModel: ObservableObject {
             case .tray: return "tray.full.fill"
             case .mirror: return "camera.fill"
             case .system: return "cpu"
+            case .bank: return "qrcode"
             }
         }
     }

@@ -49,8 +49,13 @@ final class CalendarStore: ObservableObject {
     @Published var selectedDay = Calendar.current.startOfDay(for: Date())
     /// Lệch bao nhiêu tuần so với tuần chứa hôm nay.
     @Published private(set) var weekOffset = 0
+    /// Dải ngày bám theo ngón tay khi vuốt ngang (pt), về 0 khi nhả hoặc khi đã chuyển tuần.
+    @Published var dragOffset: CGFloat = 0
+    /// Chiều chuyển tuần gần nhất (+1 sau, -1 trước): tuần mới trượt vào từ phía tương ứng.
+    @Published private(set) var lastShift = 1
 
     func shiftWeek(_ delta: Int) {
+        lastShift = delta > 0 ? 1 : -1
         weekOffset += delta
         // Dải 7 ngày mới không giao dải cũ → chọn hôm nay nếu quay về, không thì ngày giữa dải.
         selectedDay = weekOffset == 0 ? Calendar.current.startOfDay(for: Date()) : weekDays[3]

@@ -51,7 +51,7 @@ final class AlertSettings: ObservableObject {
 
 /// Thẻ thông báo: notch thả xuống thành một thẻ rộng có icon, tiêu đề đậm và 1-2 dòng mô tả.
 struct NotchAlert: Equatable, Identifiable {
-    enum Kind: String { case lowBattery, batteryFull, networkLost, networkBack, awakeEnding, awakeOff, device, keyboardLock, permissionLost }
+    enum Kind: String { case lowBattery, batteryFull, networkLost, networkBack, awakeEnding, awakeOff, device, keyboardLock, permissionLost, moneyReceived }
     enum Tone { case red, green, yellow, blue, neutral }
     enum Icon: Equatable {
         case battery(Double)

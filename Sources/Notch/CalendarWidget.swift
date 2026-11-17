@@ -65,8 +65,12 @@ struct CalendarWidget: View {
             .padding(.leading, 4)
 
             WeekStrip(calendar: calendar, cal: cal)
+                .offset(x: calendar.dragOffset)
                 .id(calendar.weekOffset)
-                .transition(.opacity)
+                // Tuần mới trượt vào theo chiều vuốt, tuần cũ trượt ra phía kia.
+                .transition(.asymmetric(
+                    insertion: .move(edge: calendar.lastShift > 0 ? .trailing : .leading).combined(with: .opacity),
+                    removal: .move(edge: calendar.lastShift > 0 ? .leading : .trailing).combined(with: .opacity)))
                 // Kéo ngang dải ngày để chuyển tuần (minimumDistance để click ngày vẫn ăn).
                 .simultaneousGesture(DragGesture(minimumDistance: 20).onEnded { value in
                     if value.translation.width < -30 { calendar.shiftWeek(1) }
@@ -85,7 +89,9 @@ struct CalendarWidget: View {
         .padding(.horizontal, 14)
         .padding(.bottom, 12)
         .frame(maxHeight: .infinity, alignment: .top)
-        .animation(.easeOut(duration: 0.18), value: calendar.weekOffset)
+        .clipped()
+        .animation(.spring(response: 0.32, dampingFraction: 0.86), value: calendar.weekOffset)
+        .animation(.interactiveSpring(response: 0.2, dampingFraction: 0.9), value: calendar.dragOffset)
     }
 
     @ViewBuilder

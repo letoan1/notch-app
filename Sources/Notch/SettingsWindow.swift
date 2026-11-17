@@ -261,7 +261,10 @@ private struct GeneralPane: View {
                     SPicker($settings.language, Array(SettingsStore.Language.allCases), title: { $0.title })
                 }
             }
-            if Lang.isVietnamese { VietQRSettingsSection() }
+            if Lang.isVietnamese {
+                VietQRSettingsSection()
+                SePaySettingsSection()
+            }
             SSection(L("Mở notch", "Opening the notch"),
                      note: L("Thông minh: notch chỉ mở khi con trỏ chậm lại hoặc dừng ở đó, lướt qua để bấm thanh menu thì không mở.",
                              "Smart: the notch only opens when the pointer slows down or rests on it, so sweeping past to the menu bar won't open it."),
@@ -422,6 +425,7 @@ private struct AppearancePane: View {
         case .mirror: return $settings.showMirror
         case .sound: return $settings.showSound
         case .system: return $settings.showSystem
+        case .bank: return $settings.showBank
         }
     }
 }

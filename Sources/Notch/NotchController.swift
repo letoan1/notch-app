@@ -24,7 +24,9 @@ final class NotchPanel: NSPanel {
     /// Chỉ nhận bàn phím khi đang có câu hỏi của Claude (ô "Khác…"); còn lại click không lấy focus
     /// khỏi app đang dùng.
     var allowsKey = false
-    override var canBecomeKey: Bool { allowsKey }
+    /// Tab Ngân hàng đang mở: bấm vào ô số tiền thì nhận bàn phím (không tự giành focus).
+    var allowsBankKey = false
+    override var canBecomeKey: Bool { allowsKey || allowsBankKey }
     override var canBecomeMain: Bool { false }
     // Không để AppKit đẩy cửa sổ xuống dưới menu bar.
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
@@ -47,9 +49,15 @@ final class NotchSlot {
     let model = NotchModel()
     var screen: NSScreen
 
+    private var bankSink: AnyCancellable?
+
     init(screen: NSScreen) {
         self.screen = screen
         panel.ignoresMouseEvents = true
+        let panel = self.panel
+        bankSink = model.$tab.combineLatest(model.$expanded).sink { tab, expanded in
+            panel.allowsBankKey = expanded && tab == .bank
+        }
     }
 
     func place() {
@@ -143,9 +151,7 @@ final class NotchController {
         tray.$selection.receive(on: DispatchQueue.main).sink { [weak self] _ in
             MainActor.assumeIsolated { self?.updateKeyFocus() }
         }.store(in: &cancellables)
-        VietQRStore.shared.$panelOpen.receive(on: DispatchQueue.main).sink { [weak self] _ in
-            MainActor.assumeIsolated { self?.updateKeyFocus() }
-        }.store(in: &cancellables)
+
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             MainActor.assumeIsolated { self?.handleKey(event) ?? event }
         }
@@ -485,14 +491,14 @@ final class NotchController {
     private func updateKeyFocus() {
         guard active != nil else { return }
         let isQuestion = permissions.current?.questions?.isEmpty == false
-        // Thẻ VietQR có ô nhập số tiền / số tài khoản nên cần bàn phím khi đang mở.
-        let qr = VietQRStore.shared.panelOpen
-        let wantsKey = isQuestion || qr || (trayWantsKey && !TrayQuickLook.shared.isActive)
+        // Tab Ngân hàng có ô nhập số tiền: cho phép nhận bàn phím khi bấm vào ô, nhưng không tự giành focus.
+        let bank = model.expanded && model.tab == .bank
+        let wantsKey = isQuestion || (trayWantsKey && !TrayQuickLook.shared.isActive)
         panel.allowsKey = wantsKey
         // Quick Look đang mở (kể cả lúc còn chạy hiệu ứng hiện ra): không giành key, nếu không nó tự đóng.
-        if (trayWantsKey || qr), !panel.isKeyWindow, !TrayQuickLook.shared.isActive {
+        if trayWantsKey, !panel.isKeyWindow, !TrayQuickLook.shared.isActive {
             panel.makeKey()
-        } else if !wantsKey, panel.isKeyWindow {
+        } else if !wantsKey, !bank, panel.isKeyWindow {
             // Trả bàn phím về app đang dùng (VS Code…) ngay khi hết câu hỏi / bỏ chọn.
             panel.orderOut(nil)
             panel.orderFrontRegardless()
@@ -739,8 +745,18 @@ final class NotchController {
         if event.phase == .began { scrollAccum = 0 }
         let scale: CGFloat = event.hasPreciseScrollingDeltas ? 1 : 10
         scrollAccum += (horizontal ? dx : dy) * scale
+        // Vuốt ngang trên trackpad: dải ngày bám theo tay; nhả tay chưa đủ ngưỡng thì bật về.
+        let live = horizontal && event.hasPreciseScrollingDeltas
+        if event.phase == .ended || event.phase == .cancelled {
+            calendar.dragOffset = 0
+            return nil
+        }
 
-        guard abs(scrollAccum) > 30, Date().timeIntervalSince(lastWeekShift) > 0.35 else { return nil }
+        guard abs(scrollAccum) > 30, Date().timeIntervalSince(lastWeekShift) > 0.35 else {
+            if live { calendar.dragOffset = max(-60, min(60, scrollAccum * 0.8)) }
+            return nil
+        }
+        calendar.dragOffset = 0
         calendar.shiftWeek(scrollAccum < 0 ? 1 : -1)
         scrollAccum = 0
         lastWeekShift = Date()
@@ -809,7 +825,6 @@ final class NotchController {
         applyMinimal()
         if !value {
             pinned = false
-            if VietQRStore.shared.panelOpen { VietQRStore.shared.panelOpen = false }
             model.dropTargeted = false
             if !tray.selection.isEmpty { tray.selection = [] }
             // Đợi hiệu ứng đóng chạy xong mới đưa lịch về hôm nay (tránh vẽ lại giữa chừng).

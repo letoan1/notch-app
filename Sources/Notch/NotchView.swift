@@ -357,6 +357,10 @@ struct ExpandedView: View {
                         TabPill(symbol: "cpu", label: nil, selected: model.tab == .system) {
                             model.tab = .system
                         }
+                    case .bank:
+                        TabPill(symbol: "qrcode", label: nil, selected: model.tab == .bank) {
+                            model.tab = .bank
+                        }
                     }
                 }
                 if permissions.requests.count > 1 {
@@ -437,6 +441,8 @@ struct ExpandedView: View {
                 SoundPanel()
             } else if settings.showSystem && model.tab == .system {
                 SystemPanel()
+            } else if settings.showBank && model.tab == .bank {
+                BankPanel()
             } else if settings.showMirror && model.tab == .mirror {
                 if Theme.isCassette {
                     InstantCameraMirror(camera: camera, calendar: calendar, tray: tray)
@@ -507,8 +513,6 @@ struct ExpandedView: View {
         }
         // Bảng mức dùng Claude thả xuống từ chip trên hàng tab.
         .overlay(alignment: .topTrailing) { ClaudeUsagePanelHost().padding(.top, notchHeight + 2).padding(.trailing, 14) }
-        // Thẻ VietQR thả xuống từ nút QR trên hàng tab.
-        .overlay(alignment: .topTrailing) { VietQRPanelHost().padding(.top, notchHeight + 2).padding(.trailing, 14) }
         .onAppear { shown.wrappedValue = true }
         // Neo lên trên: tab nào thấp hơn thì hàng tab cũng không bị đẩy xuống.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

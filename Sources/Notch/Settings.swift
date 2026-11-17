@@ -162,6 +162,8 @@ final class SettingsStore: ObservableObject {
     @Published var showMirror: Bool { didSet { save(showMirror, "tab.mirror") } }
     @Published var showSound: Bool { didSet { save(showSound, "tab.sound") } }
     @Published var showSystem: Bool { didSet { save(showSystem, "tab.system") } }
+    /// Tab Ngân hàng (VietQR + báo nhận tiền): mặc định bật khi Roost dùng tiếng Việt.
+    @Published var showBank: Bool { didSet { save(showBank, "tab.bank") } }
     /// Tự gỡ file khỏi khay sau N ngày kể từ lúc thả vào; 0 = không bao giờ.
     @Published var trayExpiryDays: Int { didSet { save(trayExpiryDays, "trayExpiryDays") } }
     static let trayExpiryOptions = [0, 1, 7, 30]
@@ -207,6 +209,7 @@ final class SettingsStore: ObservableObject {
         showMirror = d.object(forKey: "tab.mirror") as? Bool ?? true
         showSound = d.object(forKey: "tab.sound") as? Bool ?? true
         showSystem = d.object(forKey: "tab.system") as? Bool ?? true
+        showBank = d.object(forKey: "tab.bank") as? Bool ?? Lang.isVietnamese
         trayExpiryDays = d.object(forKey: "trayExpiryDays") as? Int ?? 0
         screenshotsToTray = d.object(forKey: "screenshotsToTray") as? Bool ?? true
         realVisualizer = d.object(forKey: "realVisualizer2") as? Bool ?? false
@@ -243,6 +246,7 @@ final class SettingsStore: ObservableObject {
         case .mirror: return showMirror
         case .sound: return showSound
         case .system: return showSystem
+        case .bank: return showBank
         }
     }
 
