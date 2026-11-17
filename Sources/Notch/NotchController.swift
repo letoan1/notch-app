@@ -496,9 +496,12 @@ final class NotchController {
         let wantsKey = isQuestion || (trayWantsKey && !TrayQuickLook.shared.isActive)
         panel.allowsKey = wantsKey
         // Quick Look đang mở (kể cả lúc còn chạy hiệu ứng hiện ra): không giành key, nếu không nó tự đóng.
+        if bank, panel.isKeyWindow { keyFromBank = true }
         if trayWantsKey, !panel.isKeyWindow, !TrayQuickLook.shared.isActive {
             panel.makeKey()
-        } else if !wantsKey, !bank, panel.isKeyWindow {
+        } else if !wantsKey, !bank, panel.isKeyWindow, !(keyFromBank && model.expanded) {
+            // Key có được từ màn hình Ngân hàng: chỉ trả khi notch đã thu (ẩn/hiện panel lúc đang mở = notch tắt rồi mở lại).
+            keyFromBank = false
             // Trả bàn phím về app đang dùng (VS Code…) ngay khi hết câu hỏi / bỏ chọn.
             panel.orderOut(nil)
             panel.orderFrontRegardless()
@@ -716,6 +719,7 @@ final class NotchController {
     private var scrollMonitor: Any?
     private var scrollAccum: CGFloat = 0
     private var weekSwipe = false
+    private var keyFromBank = false
     private var lastWeekShift = Date.distantPast
 
     /// Trả nil = đã xử lý (nuốt event), trả event = để hệ thống xử lý tiếp.
