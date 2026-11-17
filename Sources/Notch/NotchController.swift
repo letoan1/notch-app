@@ -143,6 +143,9 @@ final class NotchController {
         tray.$selection.receive(on: DispatchQueue.main).sink { [weak self] _ in
             MainActor.assumeIsolated { self?.updateKeyFocus() }
         }.store(in: &cancellables)
+        VietQRStore.shared.$panelOpen.receive(on: DispatchQueue.main).sink { [weak self] _ in
+            MainActor.assumeIsolated { self?.updateKeyFocus() }
+        }.store(in: &cancellables)
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             MainActor.assumeIsolated { self?.handleKey(event) ?? event }
         }
@@ -482,10 +485,12 @@ final class NotchController {
     private func updateKeyFocus() {
         guard active != nil else { return }
         let isQuestion = permissions.current?.questions?.isEmpty == false
-        let wantsKey = isQuestion || (trayWantsKey && !TrayQuickLook.shared.isActive)
+        // Thẻ VietQR có ô nhập số tiền / số tài khoản nên cần bàn phím khi đang mở.
+        let qr = VietQRStore.shared.panelOpen
+        let wantsKey = isQuestion || qr || (trayWantsKey && !TrayQuickLook.shared.isActive)
         panel.allowsKey = wantsKey
         // Quick Look đang mở (kể cả lúc còn chạy hiệu ứng hiện ra): không giành key, nếu không nó tự đóng.
-        if trayWantsKey, !panel.isKeyWindow, !TrayQuickLook.shared.isActive {
+        if (trayWantsKey || qr), !panel.isKeyWindow, !TrayQuickLook.shared.isActive {
             panel.makeKey()
         } else if !wantsKey, panel.isKeyWindow {
             // Trả bàn phím về app đang dùng (VS Code…) ngay khi hết câu hỏi / bỏ chọn.
@@ -804,6 +809,7 @@ final class NotchController {
         applyMinimal()
         if !value {
             pinned = false
+            if VietQRStore.shared.panelOpen { VietQRStore.shared.panelOpen = false }
             model.dropTargeted = false
             if !tray.selection.isEmpty { tray.selection = [] }
             // Đợi hiệu ứng đóng chạy xong mới đưa lịch về hôm nay (tránh vẽ lại giữa chừng).

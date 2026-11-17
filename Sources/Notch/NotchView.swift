@@ -507,6 +507,8 @@ struct ExpandedView: View {
         }
         // Bảng mức dùng Claude thả xuống từ chip trên hàng tab.
         .overlay(alignment: .topTrailing) { ClaudeUsagePanelHost().padding(.top, notchHeight + 2).padding(.trailing, 14) }
+        // Thẻ VietQR thả xuống từ nút QR trên hàng tab.
+        .overlay(alignment: .topTrailing) { VietQRPanelHost().padding(.top, notchHeight + 2).padding(.trailing, 14) }
         .onAppear { shown.wrappedValue = true }
         // Neo lên trên: tab nào thấp hơn thì hàng tab cũng không bị đẩy xuống.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)

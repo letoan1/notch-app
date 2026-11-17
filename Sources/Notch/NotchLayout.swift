@@ -5,13 +5,14 @@ import AppKit
 // hoặc không dùng (ẩn hẳn). Nút Cài đặt luôn có ở cuối thanh công cụ. Mỗi cột tối đa 3 nút.
 
 enum NotchAction: String, CaseIterable, Codable, Identifiable {
-    case keepAwake, usage, lyrics, headphones, cleanKeyboard, quit
+    case keepAwake, usage, vietQR, lyrics, headphones, cleanKeyboard, quit
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .keepAwake: return L("Giữ máy thức", "Keep awake")
         case .usage: return L("Mức dùng Claude", "Claude usage")
+        case .vietQR: return L("Mã QR nhận tiền", "VietQR")
         case .lyrics: return L("Lời bài hát", "Lyrics")
         case .headphones: return L("Pin tai nghe", "Headphone battery")
         case .cleanKeyboard: return L("Lau phím", "Clean keyboard")
@@ -23,6 +24,7 @@ enum NotchAction: String, CaseIterable, Codable, Identifiable {
         switch self {
         case .keepAwake: return "cup.and.saucer"
         case .usage: return "gauge.with.dots.needle.33percent"
+        case .vietQR: return "qrcode"
         case .lyrics: return "quote.bubble"
         case .headphones: return "headphones"
         case .cleanKeyboard: return "keyboard"
@@ -35,6 +37,7 @@ enum NotchAction: String, CaseIterable, Codable, Identifiable {
         switch self {
         case .lyrics: return LyricsStore.shared.enabled && LyricsStore.supports(media.track)
         case .headphones: return BluetoothAudio.shared.name != nil
+        case .vietQR: return Lang.isVietnamese
         default: return true
         }
     }
@@ -52,6 +55,7 @@ enum NotchAction: String, CaseIterable, Codable, Identifiable {
             model?.tab = .media
             LyricsStore.shared.showInNotch.toggle()
         case .headphones: BluetoothAudio.shared.refresh()
+        case .vietQR: VietQRStore.shared.toggle()
         case .cleanKeyboard: KeyboardCleaner.shared.toggle()
         case .quit: NSApp.terminate(nil)
         }
@@ -65,7 +69,7 @@ struct NotchLayout: Codable, Equatable {
 
     var left: [NotchAction] = []
     var right: [NotchAction] = []
-    var toolbar: [NotchAction] = [.usage, .keepAwake]
+    var toolbar: [NotchAction] = [.usage, .vietQR, .keepAwake]
 
     static let standard = NotchLayout()
 
@@ -118,11 +122,18 @@ final class NotchLayoutStore: ObservableObject {
 
     private init() {
         if let data = UserDefaults.standard.data(forKey: Self.key),
-           let saved = try? JSONDecoder().decode(NotchLayout.self, from: data) {
+           var saved = try? JSONDecoder().decode(NotchLayout.self, from: data) {
+            // 1.2.0: bố cục đã lưu chưa có nút VietQR → thêm một lần lên thanh công cụ (bỏ ra rồi thì không thêm lại).
+            if !UserDefaults.standard.bool(forKey: "layout.vietqr.added"), saved.slot(of: .vietQR) == .unused {
+                saved.toolbar.insert(.vietQR, at: min(1, saved.toolbar.count))
+                // didSet không chạy trong init: lưu ngay, không thì lần mở sau mất nút.
+                if let data = try? JSONEncoder().encode(saved) { UserDefaults.standard.set(data, forKey: Self.key) }
+            }
             layout = saved
         } else {
             layout = .standard
         }
+        UserDefaults.standard.set(true, forKey: "layout.vietqr.added")
     }
 
     /// Chuyển một mục sang chỗ khác, đứng trước `before` nếu có (thả lên một mục khác).
