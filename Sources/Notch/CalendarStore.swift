@@ -49,8 +49,6 @@ final class CalendarStore: ObservableObject {
     @Published var selectedDay = Calendar.current.startOfDay(for: Date())
     /// Lệch bao nhiêu tuần so với tuần chứa hôm nay.
     @Published private(set) var weekOffset = 0
-    /// Dải ngày bám theo ngón tay khi vuốt ngang (pt), về 0 khi nhả hoặc khi đã chuyển tuần.
-    @Published var dragOffset: CGFloat = 0
     /// Chiều chuyển tuần gần nhất (+1 sau, -1 trước): tuần mới trượt vào từ phía tương ứng.
     @Published private(set) var lastShift = 1
 
@@ -152,11 +150,25 @@ final class CalendarStore: ObservableObject {
             dayLoad = [:]
             return
         }
-        let cal = Calendar.current
-        let windowEnd = cal.date(byAdding: .day, value: 1, to: last)!
-        let events = Self.dropDuplicateHolidays(
-            store.events(matching: store.predicateForEvents(withStart: first, end: windowEnd, calendars: nil)))
+        let windowEnd = Calendar.current.date(byAdding: .day, value: 1, to: last)!
+        // EventKit đọc trên luồng nền (đổi tuần không làm khựng hiệu ứng); vuốt nhiều tuần liền thì chỉ áp kết quả mới nhất.
+        reloadGen += 1
+        let gen = reloadGen, store = self.store
+        DispatchQueue.global(qos: .userInitiated).async {
+            nonisolated(unsafe) let raw = store.events(matching: store.predicateForEvents(withStart: first, end: windowEnd, calendars: nil))
+            DispatchQueue.main.async { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self, gen == self.reloadGen else { return }
+                    self.apply(Self.dropDuplicateHolidays(raw), days: days)
+                }
+            }
+        }
+    }
 
+    private var reloadGen = 0
+
+    private func apply(_ events: [EKEvent], days: [Date]) {
+        let cal = Calendar.current
         // Sự kiện nhiều ngày đánh dấu mọi ngày nó phủ.
         var load: [Date: Int] = [:]
         for day in days {
@@ -203,5 +215,22 @@ final class CalendarStore: ObservableObject {
         case .notDetermined: return .notDetermined
         default: return .denied
         }
+    }
+}
+
+/// Dải ngày bám theo ngón tay khi vuốt ngang (pt). Tách khỏi CalendarStore: chỉ dải ngày theo dõi giá trị này,
+/// nên mỗi sự kiện cuộn không làm cả notch vẽ lại.
+@MainActor
+final class WeekDrag: ObservableObject {
+    static let shared = WeekDrag()
+    @Published var offset: CGFloat = 0
+}
+
+struct WeekDragOffset: ViewModifier {
+    @ObservedObject var drag = WeekDrag.shared
+    func body(content: Content) -> some View {
+        content
+            .offset(x: drag.offset)
+            .animation(.interactiveSpring(response: 0.2, dampingFraction: 0.9), value: drag.offset)
     }
 }

@@ -748,15 +748,15 @@ final class NotchController {
         // Vuốt ngang trên trackpad: dải ngày bám theo tay; nhả tay chưa đủ ngưỡng thì bật về.
         let live = horizontal && event.hasPreciseScrollingDeltas
         if event.phase == .ended || event.phase == .cancelled {
-            calendar.dragOffset = 0
+            WeekDrag.shared.offset = 0
             return nil
         }
 
         guard abs(scrollAccum) > 30, Date().timeIntervalSince(lastWeekShift) > 0.35 else {
-            if live { calendar.dragOffset = max(-60, min(60, scrollAccum * 0.8)) }
+            if live { WeekDrag.shared.offset = max(-60, min(60, scrollAccum * 0.8)) }
             return nil
         }
-        calendar.dragOffset = 0
+        WeekDrag.shared.offset = 0
         calendar.shiftWeek(scrollAccum < 0 ? 1 : -1)
         scrollAccum = 0
         lastWeekShift = Date()

@@ -65,7 +65,7 @@ struct CalendarWidget: View {
             .padding(.leading, 4)
 
             WeekStrip(calendar: calendar, cal: cal)
-                .offset(x: calendar.dragOffset)
+                .modifier(WeekDragOffset())
                 .id(calendar.weekOffset)
                 // Tuần mới trượt vào theo chiều vuốt, tuần cũ trượt ra phía kia.
                 .transition(.asymmetric(
@@ -91,7 +91,6 @@ struct CalendarWidget: View {
         .frame(maxHeight: .infinity, alignment: .top)
         .clipped()
         .animation(.spring(response: 0.32, dampingFraction: 0.86), value: calendar.weekOffset)
-        .animation(.interactiveSpring(response: 0.2, dampingFraction: 0.9), value: calendar.dragOffset)
     }
 
     @ViewBuilder

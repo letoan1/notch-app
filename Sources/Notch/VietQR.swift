@@ -146,14 +146,22 @@ final class SePayWatcher: ObservableObject {
         let content: String
         let date: Date
     }
-    enum State: Equatable { case off, waiting, received(Received), failed(String) }
+    /// off = chưa bật / chưa có token; idle = đã bật nhưng đang không chờ (hết 10 phút).
+    enum State: Equatable { case off, idle, waiting, received(Received), failed(String) }
 
     @Published private(set) var state: State = .off
     @Published private(set) var recent: [Received] = []
     @Published var enabled: Bool = UserDefaults.standard.bool(forKey: "sepay.enabled") {
         didSet { UserDefaults.standard.set(enabled, forKey: "sepay.enabled"); if !enabled { stop() } }
     }
-    var ready: Bool { enabled && !(Keychain.read(Self.tokenService) ?? "").isEmpty }
+    @Published private(set) var hasToken = !(Keychain.read(SePayWatcher.tokenService) ?? "").isEmpty
+    var ready: Bool { enabled && hasToken }
+
+    func setToken(_ value: String) {
+        let v = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        Keychain.write(Self.tokenService, v)
+        if hasToken != !v.isEmpty { hasToken = !v.isEmpty }
+    }
 
     private var task: Task<Void, Never>?
     private var seen = Set<String>()
@@ -179,14 +187,14 @@ final class SePayWatcher: ObservableObject {
                 }
                 try? await Task.sleep(nanoseconds: 10_000_000_000)
             }
-            if let self, self.state == .waiting { self.state = .off }
+            if let self, self.state == .waiting { self.state = .idle }
         }
     }
 
     func stop() {
         task?.cancel()
         task = nil
-        if state == .waiting { state = .off }
+        if state == .waiting { state = ready ? .idle : .off }
     }
 
     private func got(_ r: Received) {
@@ -247,6 +255,9 @@ struct BankPanel: View {
         .onDisappear { sepay.stop() }
         .onChange(of: store.amount) { _, _ in restart() }
         .onChange(of: store.code) { _, _ in restart() }
+        // Bật SePay / dán token khi màn hình đang mở: bắt đầu chờ ngay.
+        .onChange(of: sepay.enabled) { _, _ in restart() }
+        .onChange(of: sepay.hasToken) { _, _ in restart() }
     }
 
     private func restart() {
@@ -317,6 +328,12 @@ struct BankPanel: View {
                 Text(L("Người chuyển giữ nguyên nội dung \(store.code) để Roost nhận ra.",
                        "Ask the sender to keep \(store.code) in the transfer note."))
                     .font(.ui(10)).foregroundStyle(.white.opacity(0.5)).fixedSize(horizontal: false, vertical: true)
+            case .idle:
+                Label(L("Đã ngừng chờ", "Stopped waiting"), systemImage: "pause.circle.fill")
+                    .font(.ui(11.5, weight: .semibold)).foregroundStyle(.white)
+                Text(L("Roost chỉ chờ 10 phút cho mỗi mã QR.", "Roost waits up to 10 minutes per QR."))
+                    .font(.ui(10)).foregroundStyle(.white.opacity(0.5))
+                pill(L("Chờ tiếp", "Keep waiting")) { restart() }
             case .failed(let msg):
                 Label(msg, systemImage: "exclamationmark.triangle.fill").font(.ui(10.5)).foregroundStyle(.orange)
             case .off:
@@ -440,9 +457,7 @@ struct SePaySettingsSection: View {
             SRow("key", L("API token của SePay", "SePay API token"),
                  detail: L("my.sepay.vn › Cấu hình công ty › API Access", "my.sepay.vn › Company settings › API Access")) {
                 STextField(L("Dán token", "Paste token"), text: token.projectedValue, secure: true)
-                    .onChange(of: token.wrappedValue) { _, v in
-                        Keychain.write(SePayWatcher.tokenService, v.trimmingCharacters(in: .whitespacesAndNewlines))
-                    }
+                    .onChange(of: token.wrappedValue) { _, v in sepay.setToken(v) }
             }
             .disabled(!sepay.enabled)
         }
