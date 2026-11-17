@@ -98,39 +98,19 @@ final class ScriptRunner: @unchecked Sendable {
         return error == nil ? result : nil
     }
 
-    /// Chế độ trộn / lặp qua Apple event "get property" gửi thẳng, không qua NSAppleScript: biên dịch AppleScript
-    /// nạp bộ thông dịch (~4 MB) và giữ tới khi Roost thoát. Mã thuộc tính lấy từ sdef của Spotify / Music.
     func fetchModes(_ player: Player) -> PlayModes? {
-        let spotify = player == .spotify
-        guard let shuffle = Self.property(spotify ? "pShu" : "pShE", of: player.bundleID),
-              let repeating = Self.property(spotify ? "pRep" : "pRpt", of: player.bundleID) else { return nil }
+        let src = player == .spotify
+            ? "tell application \"Spotify\" to return {shuffling, repeating}"
+            : "tell application \"Music\" to return {shuffle enabled, song repeat as string}"
+        guard let d = run(src), d.numberOfItems == 2 else { return nil }
         let rep: RepeatMode
-        if spotify {
-            rep = repeating.booleanValue ? .all : .off
+        if player == .spotify {
+            rep = d.atIndex(2)?.booleanValue == true ? .all : .off
         } else {
-            switch repeating.enumCodeValue {
-            case Self.code("kRp1"): rep = .one
-            case Self.code("kAll"): rep = .all
-            default: rep = .off
-            }
+            switch d.atIndex(2)?.stringValue { case "one": rep = .one; case "all": rep = .all; default: rep = .off }
         }
-        return PlayModes(shuffle: shuffle.booleanValue, repeatMode: rep, supportsRepeatOne: !spotify, viaAdapter: false)
-    }
-
-    static func code(_ s: String) -> FourCharCode { s.utf8.reduce(0) { $0 << 8 | FourCharCode($1) } }
-
-    /// `get <property> of application`: object specifier dạng formPropertyID, container null.
-    static func property(_ name: String, of bundleID: String) -> NSAppleEventDescriptor? {
-        let event = NSAppleEventDescriptor(eventClass: code("core"), eventID: code("getd"),
-                                           targetDescriptor: NSAppleEventDescriptor(bundleIdentifier: bundleID),
-                                           returnID: AEReturnID(kAutoGenerateReturnID), transactionID: AETransactionID(kAnyTransactionID))
-        guard let spec = NSAppleEventDescriptor.record().coerce(toDescriptorType: code("obj ")) else { return nil }
-        spec.setDescriptor(NSAppleEventDescriptor(typeCode: code("prop")), forKeyword: code("want"))
-        spec.setDescriptor(NSAppleEventDescriptor(enumCode: code("prop")), forKeyword: code("form"))
-        spec.setDescriptor(NSAppleEventDescriptor(typeCode: code(name)), forKeyword: code("seld"))
-        spec.setDescriptor(NSAppleEventDescriptor.null(), forKeyword: code("from"))
-        event.setParam(spec, forKeyword: code("----"))
-        return (try? event.sendEvent(options: [.waitForReply], timeout: 3))?.paramDescriptor(forKeyword: code("----"))
+        return PlayModes(shuffle: d.atIndex(1)?.booleanValue ?? false, repeatMode: rep,
+                         supportsRepeatOne: player == .music, viaAdapter: false)
     }
 
     func fetch(_ player: Player) -> Track? {
@@ -296,6 +276,8 @@ final class NowPlaying: ObservableObject {
     @Published private(set) var modes: PlayModes?
     private var adapterModes: (bundle: String, shuffle: Int?, rep: Int?)?
     private var modesKey = ""
+    /// Spotify báo sai trộn / lặp qua AppleScript (luôn "tắt"), nên nhớ lần bấm cuối trên Roost và dùng giá trị đó.
+    private var spotifyModes: PlayModes?
 
     /// Đọc lại chế độ trộn / lặp: khi đổi bài, đổi trạng thái phát, sau khi bấm, hoặc khi mở notch.
     func refreshModes(force: Bool = false) {
@@ -319,6 +301,10 @@ final class NowPlaying: ObservableObject {
               !NSRunningApplication.runningApplications(withBundleIdentifier: player.bundleID).isEmpty
         else {
             if modes != nil { modes = nil }
+            return
+        }
+        if player == .spotify, let m = spotifyModes {
+            if modes != m { modes = m }
             return
         }
         // Chỉ hỏi khi trình phát đang hiện (force), không hỏi mỗi lần đổi bài lúc notch đóng.
@@ -369,6 +355,13 @@ final class NowPlaying: ObservableObject {
     }
 
     private func sendMode(_ command: String, _ player: Player, want: PlayModes, shuffle: Bool) {
+        // Spotify: đọc lại thì luôn ra "tắt" → trước đây Roost tưởng lệnh không ăn và bấm bù qua MediaRemote,
+        // làm lật ngược lựa chọn. Gửi lệnh rồi tin lựa chọn của người dùng.
+        if player == .spotify {
+            spotifyModes = want
+            runner.async { r in _ = r.run("tell application \"\(player.rawValue)\" to \(command)") }
+            return
+        }
         runner.async { [weak self] r in
             _ = r.run("tell application \"\(player.rawValue)\" to \(command)")
             Thread.sleep(forTimeInterval: 0.4)
