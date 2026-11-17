@@ -23,6 +23,14 @@ final class LyricsStore: ObservableObject {
         didSet { UserDefaults.standard.set(enabled, forKey: "lyrics.enabled"); refresh() }
     }
     /// Notch đang hiện lời thay cho trình phát.
+    /// Karaoke (nút ở toàn màn hình / màn hình khoá): bỏ giọng ca sĩ của app đang phát và tô dần từng chữ.
+    /// Không lưu: tự tắt khi rời màn hình lời, để nhạc không bị mất giọng lúc bạn không để ý.
+    @Published var karaoke = false {
+        didSet {
+            guard karaoke != oldValue else { return }
+            SoundCenter.shared.setKaraoke(karaoke, app: track?.bundleID)
+        }
+    }
     @Published var showInNotch: Bool = UserDefaults.standard.bool(forKey: "lyrics.inNotch") {
         didSet { UserDefaults.standard.set(showInNotch, forKey: "lyrics.inNotch") }
     }
@@ -42,8 +50,14 @@ final class LyricsStore: ObservableObject {
     func bind(_ media: NowPlaying) {
         guard self.media !== media else { return }
         self.media = media
-        trackSink = media.$track.receive(on: RunLoop.main).sink { [weak self] _ in
-            MainActor.assumeIsolated { self?.refresh() }
+        trackSink = media.$track.receive(on: RunLoop.main).sink { [weak self] track in
+            MainActor.assumeIsolated {
+                self?.refresh()
+                // Đổi app phát (Spotify ↔ Music) khi đang karaoke: bỏ giọng ở app mới, trả giọng cho app cũ.
+                if self?.karaoke == true, let app = track?.bundleID, SoundCenter.shared.karaokeApp != app {
+                    SoundCenter.shared.setKaraoke(true, app: app)
+                }
+            }
         }
     }
 

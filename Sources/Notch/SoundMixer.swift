@@ -257,16 +257,27 @@ final class SoundCenter: ObservableObject {
 
     private func effectiveGain(_ app: String) -> Float { mutedApps.contains(app) ? 0 : gain(for: app) }
 
+    /// App đang bật karaoke (bỏ giọng ca sĩ). Không lưu: tắt khi rời màn hình lời.
+    private(set) var karaokeApp: String?
+
+    func setKaraoke(_ on: Bool, app: String?) {
+        if on { permissionDenied = false }   // thử lại: không có quyền thì engine báo lại sau ~2,5 giây
+        let old = karaokeApp
+        karaokeApp = on ? app : nil
+        if let old, old != karaokeApp { apply(old) }
+        if let app = karaokeApp { apply(app) }
+    }
+
     private func apply(_ app: String, rebuild: Bool = false) {
         guard #available(macOS 14.2, *) else { return }
         let processes = allProcesses[app]?.processes ?? []
         let uid = outputs.first { $0.id == outputID }?.uid
-        engine.set(app: app, gain: effectiveGain(app), processes: processes,
+        engine.set(app: app, gain: effectiveGain(app), karaoke: karaokeApp == app, processes: processes,
                    outputID: outputID, outputUID: uid, rebuild: rebuild)
     }
 
     private func applyAll(rebuild: Bool) {
-        let keys = Set(gains.keys).union(mutedApps).union(engine.activeApps)
+        let keys = Set(gains.keys).union(mutedApps).union(engine.activeApps).union([karaokeApp].compactMap { $0 })
         for app in keys { apply(app, rebuild: rebuild) }
     }
 
@@ -312,20 +323,23 @@ final class VolumeEngine: @unchecked Sendable {
         return appsSnapshot
     }
 
-    func set(app: String, gain: Float, processes: [AudioObjectID], outputID: AudioDeviceID, outputUID: String?, rebuild: Bool) {
+    func set(app: String, gain: Float, karaoke: Bool = false, processes: [AudioObjectID], outputID: AudioDeviceID,
+             outputUID: String?, rebuild: Bool) {
         control.async { [self] in
             guard #available(macOS 14.2, *) else { return }
-            if gain == 1 || processes.isEmpty || outputUID == nil {
+            if (gain == 1 && !karaoke) || processes.isEmpty || outputUID == nil {
                 (taps.removeValue(forKey: app) as? AppVolumeTap)?.stop()
                 snapshot()
                 return
             }
             if let tap = taps[app] as? AppVolumeTap, !rebuild, tap.processes == Set(processes), tap.outputID == outputID {
                 tap.setGain(gain)
+                tap.setKaraoke(karaoke)
                 return
             }
             (taps.removeValue(forKey: app) as? AppVolumeTap)?.stop()
-            guard let tap = AppVolumeTap(processes: processes, outputID: outputID, outputUID: outputUID!, gain: gain) else {
+            guard let tap = AppVolumeTap(processes: processes, outputID: outputID, outputUID: outputUID!, gain: gain,
+                                         karaoke: karaoke) else {
                 snapshot()
                 return
             }
@@ -361,15 +375,24 @@ final class AppVolumeTap: @unchecked Sendable {
     private let target = UnsafeMutablePointer<Float>.allocate(capacity: 1)
     private let current = UnsafeMutablePointer<Float>.allocate(capacity: 1)
     private let heard = UnsafeMutablePointer<UInt32>.allocate(capacity: 1)
+    /// Karaoke: [đích 0/1, mức hiện tại (ramp), lọc thấp tầng 1, hệ số lọc thấp, lọc thấp tầng 2] + bộ đệm L/R.
+    private let vocal = UnsafeMutablePointer<Float>.allocate(capacity: 5)
+    private static let scratchFrames = 16384
+    private let scratch = UnsafeMutablePointer<Float>.allocate(capacity: 2 * AppVolumeTap.scratchFrames)
 
     var heardSignal: Bool { heard.pointee != 0 }
 
-    init?(processes: [AudioObjectID], outputID: AudioDeviceID, outputUID: String, gain: Float) {
+    init?(processes: [AudioObjectID], outputID: AudioDeviceID, outputUID: String, gain: Float, karaoke: Bool = false) {
         self.processes = Set(processes)
         self.outputID = outputID
         target.pointee = gain
         current.pointee = gain
         heard.pointee = 0
+        vocal[0] = karaoke ? 1 : 0
+        vocal[1] = 0
+        vocal[2] = 0
+        vocal[3] = 0
+        vocal[4] = 0
 
         let desc = CATapDescription(stereoMixdownOfProcesses: processes)
         desc.uuid = UUID()
@@ -388,6 +411,9 @@ final class AppVolumeTap: @unchecked Sendable {
             interleaved = asbd.mFormatFlags & kAudioFormatFlagIsNonInterleaved == 0
             tapBuffers = interleaved ? 1 : Int(max(asbd.mChannelsPerFrame, 1))
         }
+        // Lọc thấp ~150 Hz cho phần giữa: giữ bass + trống kick khi bỏ giọng.
+        let rate = asbd.mSampleRate > 0 ? asbd.mSampleRate : 48000
+        vocal[3] = Float(1 - exp(-2 * Double.pi * 150 / rate))
 
         let config: [String: Any] = [
             kAudioAggregateDeviceNameKey: "Roost Volume",
@@ -404,12 +430,12 @@ final class AppVolumeTap: @unchecked Sendable {
         guard AudioHardwareCreateAggregateDevice(config as CFDictionary, &agg) == noErr else { stop(); return nil }
         aggregateID = agg
 
-        let target = self.target, current = self.current, heard = self.heard
+        let target = self.target, current = self.current, heard = self.heard, vocal = self.vocal, scratch = self.scratch
         var proc: AudioDeviceIOProcID?
         // nil queue: chạy thẳng trên luồng IO thời gian thực, không cấp phát / khoá trong block.
         let status = AudioDeviceCreateIOProcIDWithBlock(&proc, agg, nil) { _, input, _, output, _ in
             AppVolumeTap.render(input: input, output: output, tapBuffers: tapBuffers, interleaved: interleaved,
-                                target: target, current: current, heard: heard)
+                                target: target, current: current, heard: heard, vocal: vocal, scratch: scratch)
         }
         guard status == noErr, let proc else { stop(); return nil }
         procID = proc
@@ -417,6 +443,7 @@ final class AppVolumeTap: @unchecked Sendable {
     }
 
     func setGain(_ gain: Float) { target.pointee = gain }
+    func setKaraoke(_ on: Bool) { vocal[0] = on ? 1 : 0 }
 
     func stop() {
         if aggregateID != kAudioObjectUnknown {
@@ -439,12 +466,15 @@ final class AppVolumeTap: @unchecked Sendable {
         target.deallocate()
         current.deallocate()
         heard.deallocate()
+        vocal.deallocate()
+        scratch.deallocate()
     }
 
     /// Chép tiếng của app (các buffer cuối của đầu vào) ra 2 kênh đầu của loa, nhân gain có ramp.
     private static func render(input: UnsafePointer<AudioBufferList>, output: UnsafeMutablePointer<AudioBufferList>,
                                tapBuffers: Int, interleaved: Bool, target: UnsafeMutablePointer<Float>,
-                               current: UnsafeMutablePointer<Float>, heard: UnsafeMutablePointer<UInt32>) {
+                               current: UnsafeMutablePointer<Float>, heard: UnsafeMutablePointer<UInt32>,
+                               vocal: UnsafeMutablePointer<Float>, scratch: UnsafeMutablePointer<Float>) {
         let inList = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: input))
         let outList = UnsafeMutableAudioBufferListPointer(output)
         for buf in outList where buf.mData != nil { memset(buf.mData, 0, Int(buf.mDataByteSize)) }
@@ -471,12 +501,38 @@ final class AppVolumeTap: @unchecked Sendable {
             srcFrames = Int(bl.mDataByteSize) / 4
             right = tapBuffers > 1 ? inList[first + 1].mData?.assumingMemoryBound(to: Float.self) ?? left : left
         }
-        guard let left, let right, srcFrames > 0 else { return }
+        guard var left, var right, srcFrames > 0 else { return }
 
         if heard.pointee == 0 {
             var peak: Float = 0
             vDSP_maxmgv(left, vDSP_Stride(srcStride), &peak, vDSP_Length(srcFrames))
             if peak > 1e-6 { heard.pointee = 1 }
+        }
+
+        // Karaoke: giọng thường nằm giữa hai kênh → giữ phần "side" (L−R), cộng lại phần giữa đã lọc thấp
+        // để còn bass / kick. Trộn dần từ bản gốc sang bản bỏ giọng (ramp) cho khỏi tiếng bụp khi bật/tắt.
+        // Loa một kênh: L+R triệt luôn phần side, chỉ còn bass, nên không lọc giọng.
+        let monoOut = outList.count == 1 && outList[0].mNumberChannels == 1
+        let kGoal = vocal[0], kStart = vocal[1]
+        if !monoOut, kGoal > 0 || kStart > 0 {
+            let n = min(srcFrames, scratchFrames)
+            let sl = scratch, sr = scratch + scratchFrames
+            let kStep = (kGoal - kStart) / Float(n)
+            var k = kStart, lp = vocal[2], lp2 = vocal[4]
+            let a = vocal[3]
+            for i in 0..<n {
+                let l = left[i * srcStride], r = right[i * srcStride]
+                let side = (l - r) * 0.5
+                lp += a * ((l + r) * 0.5 - lp)
+                lp2 += a * (lp - lp2)     // 2 tầng: giọng ở ~1 kHz còn ~2% thay vì ~15%
+                sl[i] = l + k * (side + lp2 - l)
+                sr[i] = r + k * (-side + lp2 - r)
+                k += kStep
+            }
+            vocal[1] = kGoal
+            vocal[2] = lp
+            vocal[4] = lp2
+            left = sl; right = sr; srcStride = 1; srcFrames = n
         }
 
         let goal = target.pointee

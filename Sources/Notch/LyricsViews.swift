@@ -116,7 +116,11 @@ struct LyricsLinesView: View {
     var body: some View {
         switch store.status {
         case .synced, .plain:
-            lines
+            if fullscreen {
+                lines.overlay(alignment: .topTrailing) { KaraokeButton(store: store) }
+            } else {
+                lines
+            }
         case .loading, .idle:
             message(L("Đang tìm lời…", "Looking for lyrics…"))
         case .missing:
@@ -234,10 +238,7 @@ struct SyncedLyricsView: View {
         let isCurrent = line.id == store.current
         let distance = abs(line.id - cur)
         let grow: CGFloat = fullscreen ? 1.04 : compact ? 1.1 : 1.06
-        return Text(line.text)
-            .font(.ui(size, weight: .bold))
-            .foregroundStyle(isCurrent ? (fullscreen ? .white : LyricsStyle.active)
-                             : (fullscreen ? .white.opacity(0.3) : LyricsStyle.dim))
+        return lineText(line, isCurrent: isCurrent)
             .fixedSize(horizontal: false, vertical: true)
             // Ngắt dòng theo bề rộng đã trừ phần phóng to: dòng dài đang hát không tràn mép phải
             // (drawingGroup / clipped cắt mất chữ), và dòng không ngắt lại khi tới lượt hát.
@@ -248,6 +249,18 @@ struct SyncedLyricsView: View {
             .contentShape(Rectangle())
             .onTapGesture { store.seek(to: line) }
             .allowsHitTesting(distance <= 6)
+    }
+
+    @ViewBuilder private func lineText(_ line: LyricLine, isCurrent: Bool) -> some View {
+        if fullscreen, isCurrent, store.karaoke, let start = line.time, let track = store.track {
+            let next = store.lines.first { $0.id > line.id && $0.time != nil }?.time
+            KaraokeLine(text: line.text, start: start, end: next, track: track, size: size)
+        } else {
+            Text(line.text)
+                .font(.ui(size, weight: .bold))
+                .foregroundStyle(isCurrent ? (fullscreen ? .white : LyricsStyle.active)
+                                 : (fullscreen ? .white.opacity(0.3) : LyricsStyle.dim))
+        }
     }
 
     /// Toàn màn hình: chữ lớn + blur động, vẽ qua Metal cho khỏi rớt khung hình.
@@ -267,6 +280,103 @@ struct SyncedLyricsView: View {
     }
 }
 
+/// Nút Karaoke trên màn hình lời toàn màn hình / màn hình khoá: bỏ giọng ca sĩ (cần quyền Ghi âm thanh hệ thống,
+/// như âm lượng từng app) và tô dần từng chữ. Rời màn hình lời thì tự tắt.
+struct KaraokeButton: View {
+    @ObservedObject var store: LyricsStore
+    @ObservedObject private var sound = SoundCenter.shared
+    private var deniedState = State(initialValue: false)
+    private var denied: Bool { deniedState.wrappedValue }
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 8) {
+            button
+            if denied {
+                VStack(alignment: .trailing, spacing: 6) {
+                    Text(L("Cần quyền Ghi âm thanh hệ thống để tắt giọng ca sĩ.",
+                           "Muting the vocals needs System Audio Recording permission."))
+                        .font(.ui(12)).foregroundStyle(.white.opacity(0.75))
+                        .multilineTextAlignment(.trailing).fixedSize(horizontal: false, vertical: true)
+                    Button(L("Mở Cài đặt hệ thống", "Open System Settings")) { sound.openPrivacySettings() }
+                        .buttonStyle(.plain).font(.ui(12, weight: .semibold)).foregroundStyle(.white)
+                        .padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(Capsule().fill(.white.opacity(0.14)))
+                }
+                .frame(maxWidth: 240, alignment: .trailing)
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: denied)
+        // Engine không nghe được tiếng (chưa cấp quyền) thì đã gỡ tap: tắt nút cho khớp, nói rõ vì sao.
+        .onChange(of: sound.permissionDenied) { _, value in
+            if value && store.karaoke { store.karaoke = false; deniedState.wrappedValue = true }
+        }
+        .onChange(of: store.karaoke) { _, on in if on { deniedState.wrappedValue = false } }
+        .onDisappear { store.karaoke = false }
+    }
+
+    private var button: some View {
+        Button { store.karaoke.toggle() } label: {
+            Label(L("Karaoke", "Karaoke"), systemImage: store.karaoke ? "music.mic.circle.fill" : "music.mic")
+                .font(.ui(13, weight: .semibold))
+                .padding(.horizontal, 12).padding(.vertical, 7)
+                .background(Capsule().fill(.white.opacity(store.karaoke ? 0.28 : 0.12)))
+                .foregroundStyle(.white)
+        }
+        .buttonStyle(.plain)
+        .help(store.karaoke ? L("Bật lại giọng ca sĩ", "Bring the vocals back")
+                            : L("Tắt giọng ca sĩ, chỉ còn beat", "Mute the vocals, keep the beat"))
+        .accessibilityLabel(store.karaoke ? L("Tắt karaoke", "Turn karaoke off") : L("Bật karaoke", "Turn karaoke on"))
+    }
+}
+
+/// Dòng đang hát kiểu karaoke: chữ đã hát trắng, chữ chưa hát mờ, chữ đang hát sáng dần.
+/// LRCLIB chỉ có mốc theo dòng, nên thời điểm từng chữ là ước lượng theo số ký tự, trong khoảng tới dòng sau
+/// (khoảng lặng dài giữa hai dòng không kéo dài phần tô). Ghép bằng `Text + Text` nên dòng dài vẫn tự xuống dòng.
+struct KaraokeLine: View {
+    let text: String
+    let start: Double
+    let end: Double?
+    let track: Track
+    let size: CGFloat
+
+    var body: some View {
+        // Nhạc dừng: dừng luôn đồng hồ, không vẽ lại.
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: !track.isPlaying)) { ctx in
+            Self.render(words, lit: lit(at: track.position(at: ctx.date)))
+                .font(.ui(size, weight: .bold))
+        }
+    }
+
+    private var words: [Substring] { text.split(separator: " ", omittingEmptySubsequences: true) }
+
+    /// Bao nhiêu chữ đã được tô (có phần lẻ: chữ đang hát).
+    private func lit(at pos: Double) -> Double {
+        let ws = words
+        guard !ws.isEmpty else { return 0 }
+        let chars = Double(ws.reduce(0) { $0 + $1.count + 1 })
+        let gap = (end ?? start + 6) - start
+        // shortcut: tốc độ hát ước lượng ~0,085 giây/ký tự; lời có mốc từng chữ (Apple Music) thì nên dùng mốc thật.
+        let duration = max(0.3, min(gap * 0.92, chars * 0.085 + 0.6))
+        var done = min(max((pos - start) / duration, 0), 1) * chars
+        var count = 0.0
+        for w in ws {
+            let len = Double(w.count + 1)
+            if done >= len { count += 1; done -= len } else { return count + done / len }
+        }
+        return count
+    }
+
+    static func render(_ words: [Substring], lit: Double) -> Text {
+        words.enumerated().reduce(Text("")) { acc, item in
+            let (i, w) = item
+            let f = min(max(lit - Double(i), 0), 1)
+            let piece = Text((i == 0 ? "" : " ") + w).foregroundColor(.white.opacity(0.42 + 0.58 * f))
+            return acc + piece
+        }
+    }
+}
+
 // MARK: - Toàn màn hình
 
 private final class LyricsWindow: NSWindow {
@@ -275,7 +385,12 @@ private final class LyricsWindow: NSWindow {
     override var canBecomeMain: Bool { true }
     override func cancelOperation(_ sender: Any?) { onClose?() }
     override func keyDown(with event: NSEvent) {
-        if event.keyCode == 53 { onClose?() } else if event.keyCode == 49 { LyricsFullscreen.shared.media?.playPause() } else { super.keyDown(with: event) }
+        switch event.keyCode {
+        case 53: onClose?()                                            // Esc
+        case 49: LyricsFullscreen.shared.media?.playPause()             // Space
+        case 40: LyricsStore.shared.karaoke.toggle()                     // K: karaoke
+        default: super.keyDown(with: event)
+        }
     }
 }
 
