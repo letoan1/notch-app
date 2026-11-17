@@ -55,8 +55,8 @@ final class NotchSlot {
         self.screen = screen
         panel.ignoresMouseEvents = true
         let panel = self.panel
-        bankSink = model.$tab.combineLatest(model.$expanded).sink { tab, expanded in
-            panel.allowsBankKey = expanded && tab == .bank
+        bankSink = VietQRStore.shared.$panelOpen.combineLatest(model.$expanded).sink { open, expanded in
+            panel.allowsBankKey = expanded && open
         }
     }
 
@@ -492,7 +492,7 @@ final class NotchController {
         guard active != nil else { return }
         let isQuestion = permissions.current?.questions?.isEmpty == false
         // Tab Ngân hàng có ô nhập số tiền: cho phép nhận bàn phím khi bấm vào ô, nhưng không tự giành focus.
-        let bank = model.expanded && model.tab == .bank
+        let bank = model.expanded && VietQRStore.shared.panelOpen
         let wantsKey = isQuestion || (trayWantsKey && !TrayQuickLook.shared.isActive)
         panel.allowsKey = wantsKey
         // Quick Look đang mở (kể cả lúc còn chạy hiệu ứng hiện ra): không giành key, nếu không nó tự đóng.
@@ -825,6 +825,7 @@ final class NotchController {
         applyMinimal()
         if !value {
             pinned = false
+            if VietQRStore.shared.panelOpen { VietQRStore.shared.panelOpen = false }
             model.dropTargeted = false
             if !tray.selection.isEmpty { tray.selection = [] }
             // Đợi hiệu ứng đóng chạy xong mới đưa lịch về hôm nay (tránh vẽ lại giữa chừng).

@@ -26,7 +26,7 @@ final class SettingsWindowController {
 
     /// id dạng chuỗi để thêm / bớt mục không làm lệch mục đã nhớ.
     enum PaneID: String, CaseIterable, Identifiable {
-        case general, appearance, music, sound, calendar, tray, mirror, claude, usage, alerts, awake, pet, face, about
+        case general, appearance, music, sound, calendar, tray, mirror, bank, claude, usage, alerts, awake, pet, face, about
         var id: String { rawValue }
 
         var title: String {
@@ -44,6 +44,7 @@ final class SettingsWindowController {
             case .awake: return L("Giữ máy thức", "Keep awake")
             case .pet: return L("Thú cưng", "Pet")
             case .face: return L("Khuôn mặt", "Face unlock")
+            case .bank: return L("Ngân hàng", "Bank")
             case .about: return L("Giới thiệu", "About")
             }
         }
@@ -63,6 +64,7 @@ final class SettingsWindowController {
             case .awake: return "cup.and.saucer.fill"
             case .pet: return "pawprint.fill"
             case .face: return "faceid"
+            case .bank: return "qrcode"
             case .about: return "info"
             }
         }
@@ -82,6 +84,7 @@ final class SettingsWindowController {
             case .awake: return Color(red: 0.62, green: 0.43, blue: 0.3)
             case .pet: return Color(red: 0.36, green: 0.42, blue: 0.95)
             case .face: return Color(red: 0.14, green: 0.6, blue: 0.95)
+            case .bank: return Color(red: 0.2, green: 0.7, blue: 0.45)
             case .about: return Color(red: 0.55, green: 0.57, blue: 0.62)
             }
         }
@@ -102,6 +105,7 @@ final class SettingsWindowController {
             case .awake: KeepAwakePane()
             case .pet: PetPane(settings: s)
             case .face: FaceUnlockPane()
+            case .bank: SPage { VietQRSettingsSection(); SePaySettingsSection() }
             case .about: AboutPane()
             }
         }
@@ -109,7 +113,7 @@ final class SettingsWindowController {
         /// Các nhóm trên thanh bên (nhóm đầu không có tiêu đề).
         static var groups: [(String?, [PaneID])] {
             [(nil, [.general, .appearance]),
-             (L("Tính năng", "Features"), [.music, .sound, .calendar, .tray, .mirror, .claude, .usage]),
+             (L("Tính năng", "Features"), [.music, .sound, .calendar, .tray, .mirror, .bank, .claude, .usage]),
              (L("Trải nghiệm", "Experiences"), [.alerts, .awake, .pet, .face]),
              (L("Khác", "Other"), [.about])]
         }
@@ -260,10 +264,6 @@ private struct GeneralPane: View {
                      detail: L("Tự động theo ngôn ngữ của macOS.", "Automatic follows your macOS language."), divider: false) {
                     SPicker($settings.language, Array(SettingsStore.Language.allCases), title: { $0.title })
                 }
-            }
-            if Lang.isVietnamese {
-                VietQRSettingsSection()
-                SePaySettingsSection()
             }
             SSection(L("Mở notch", "Opening the notch"),
                      note: L("Thông minh: notch chỉ mở khi con trỏ chậm lại hoặc dừng ở đó, lướt qua để bấm thanh menu thì không mở.",
@@ -425,7 +425,6 @@ private struct AppearancePane: View {
         case .mirror: return $settings.showMirror
         case .sound: return $settings.showSound
         case .system: return $settings.showSystem
-        case .bank: return $settings.showBank
         }
     }
 }

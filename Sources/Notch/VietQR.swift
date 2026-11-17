@@ -99,6 +99,10 @@ enum Keychain {
 final class VietQRStore: ObservableObject {
     static let shared = VietQRStore()
     @Published var amount: Int?
+    /// Màn hình Ngân hàng đang thay nội dung notch (mở từ nút QR trong Bố cục notch).
+    @Published var panelOpen = false
+
+    func toggle() { withAnimation(.easeOut(duration: 0.2)) { panelOpen.toggle() } }
     @Published private(set) var bin: String = UserDefaults.standard.string(forKey: "vietqr.bin") ?? ""
     @Published private(set) var name: String = UserDefaults.standard.string(forKey: "vietqr.name") ?? ""
     @Published private(set) var account: String = VietQRStore.readAccount() ?? ""
@@ -319,7 +323,7 @@ struct BankPanel: View {
                 Text(L("Báo khi nhận tiền", "Payment alerts")).font(.ui(11.5, weight: .semibold)).foregroundStyle(.white)
                 Text(L("Bật SePay để notch báo ngay khi tiền vào tài khoản.", "Turn on SePay to get a notch alert when money arrives."))
                     .font(.ui(10)).foregroundStyle(.white.opacity(0.5)).fixedSize(horizontal: false, vertical: true)
-                pill(L("Thiết lập", "Set up")) { SettingsWindowController.shared.show(pane: "general") }
+                pill(L("Thiết lập", "Set up")) { SettingsWindowController.shared.show(pane: "bank") }
             }
             if !sepay.recent.isEmpty, sepay.state != .waiting {
                 ForEach(sepay.recent.dropFirst().prefix(2)) { r in
@@ -340,7 +344,7 @@ struct BankPanel: View {
                     .font(.ui(11)).foregroundStyle(.white.opacity(0.55))
             }
             Spacer()
-            pill(L("Thiết lập", "Set up")) { SettingsWindowController.shared.show(pane: "general") }
+            pill(L("Thiết lập", "Set up")) { SettingsWindowController.shared.show(pane: "bank") }
         }
         .frame(maxHeight: .infinity)
     }

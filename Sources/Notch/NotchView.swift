@@ -314,6 +314,7 @@ private struct BatteryGlyph: View {
 // MARK: - Expanded
 
 struct ExpandedView: View {
+    @ObservedObject var qr = VietQRStore.shared
     @ObservedObject var model: NotchModel
     @ObservedObject var media: NowPlaying
     @ObservedObject var permissions: PermissionCenter
@@ -339,28 +340,30 @@ struct ExpandedView: View {
                         TabPill(symbol: settings.showMedia ? "music.note" : "calendar", label: nil,
                                 selected: model.tab == .media) {
                             model.tab = .media
+                            qr.panelOpen = false
                         }
                     case .tray:
                         TabPill(symbol: "tray.full.fill", label: nil, selected: model.tab == .tray,
                                 badge: tray.files.isEmpty ? nil : tray.files.count) {
                             model.tab = .tray
+                            qr.panelOpen = false
                         }
                     case .mirror:
                         TabPill(symbol: "camera.fill", label: nil, selected: model.tab == .mirror) {
                             model.tab = .mirror
+                            qr.panelOpen = false
                         }
                     case .sound:
                         TabPill(symbol: "speaker.wave.2.fill", label: nil, selected: model.tab == .sound) {
                             model.tab = .sound
+                            qr.panelOpen = false
                         }
                     case .system:
                         TabPill(symbol: "cpu", label: nil, selected: model.tab == .system) {
                             model.tab = .system
+                            qr.panelOpen = false
                         }
-                    case .bank:
-                        TabPill(symbol: "qrcode", label: nil, selected: model.tab == .bank) {
-                            model.tab = .bank
-                        }
+
                     }
                 }
                 if permissions.requests.count > 1 {
@@ -427,6 +430,10 @@ struct ExpandedView: View {
                 }
                 .id(request.id)
                 .transition(.opacity)
+            } else if qr.panelOpen && !model.dropTargeted {
+                // Nút QR (Bố cục notch) mở màn hình Ngân hàng thay cho nội dung tab; bấm tab khác là đóng.
+                BankPanel()
+                    .transition(.opacity)
             } else if settings.showTray && (model.tab == .tray || model.dropTargeted) {
                 if Theme.isCassette {
                     CassetteTrayView(tray: tray, targeted: model.dropTargeted)
@@ -441,8 +448,7 @@ struct ExpandedView: View {
                 SoundPanel()
             } else if settings.showSystem && model.tab == .system {
                 SystemPanel()
-            } else if settings.showBank && model.tab == .bank {
-                BankPanel()
+
             } else if settings.showMirror && model.tab == .mirror {
                 if Theme.isCassette {
                     InstantCameraMirror(camera: camera, calendar: calendar, tray: tray)

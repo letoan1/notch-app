@@ -12,7 +12,7 @@ enum NotchAction: String, CaseIterable, Codable, Identifiable {
         switch self {
         case .keepAwake: return L("Giữ máy thức", "Keep awake")
         case .usage: return L("Mức dùng Claude", "Claude usage")
-        case .vietQR: return L("Ngân hàng (QR)", "Bank (QR)")
+        case .vietQR: return L("Mã QR nhận tiền", "Bank QR")
         case .lyrics: return L("Lời bài hát", "Lyrics")
         case .headphones: return L("Pin tai nghe", "Headphone battery")
         case .cleanKeyboard: return L("Lau phím", "Clean keyboard")
@@ -55,9 +55,7 @@ enum NotchAction: String, CaseIterable, Codable, Identifiable {
             model?.tab = .media
             LyricsStore.shared.showInNotch.toggle()
         case .headphones: BluetoothAudio.shared.refresh()
-        case .vietQR:
-            SettingsStore.shared.showBank = true
-            model?.tab = .bank
+        case .vietQR: VietQRStore.shared.toggle()
         case .cleanKeyboard: KeyboardCleaner.shared.toggle()
         case .quit: NSApp.terminate(nil)
         }
