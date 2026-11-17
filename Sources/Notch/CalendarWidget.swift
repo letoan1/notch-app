@@ -15,6 +15,16 @@ struct CalendarWidget: View {
         return c
     }
 
+    /// "9/10 ÂL", "Mùng 1/10", "Rằm tháng 10"; Tết còn ≤ 60 ngày thì thêm "· còn 12 ngày Tết".
+    static func lunarLabel(_ day: Date) -> String {
+        let l = LunarDate(solar: day)
+        let month = "\(l.month)" + (l.leap ? " nhuận" : "")
+        var text = l.day == 1 ? "Mùng 1/\(month)" : l.day == 15 ? "Rằm tháng \(month)" : "\(l.day)/\(month) ÂL"
+        let tet = LunarDate.daysUntilTet(from: day)
+        if tet == 0 { text = "Mùng 1 Tết" } else if tet <= 60 { text += " · còn \(tet) ngày Tết" }
+        return text
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
@@ -24,6 +34,13 @@ struct CalendarWidget: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                     .layoutPriority(1)
+                if Lang.isVietnamese {
+                    Text(Self.lunarLabel(calendar.selectedDay))
+                        .font(.ui(10.5, weight: .medium))
+                        .foregroundStyle(tone(0.5))
+                        .lineLimit(1)
+                        .fixedSize()
+                }
                 Spacer(minLength: 4)
                 if calendar.weekOffset != 0 {
                     Button { calendar.resetToToday() } label: {
