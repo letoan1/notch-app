@@ -366,6 +366,43 @@ footer a:hover{color:var(--ink)}
 footer .made{line-height:1.9}
 footer .made a{color:var(--ink);font-weight:700}
 
+/* ---------- Phiên bản ---------- */
+.rel{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:56px;align-items:start;margin-top:8px}
+.rel-side{position:sticky;top:92px}
+.rel-side h2{margin-top:2px}
+.rel-side .sec-lead{margin-top:14px}
+.inst{margin-top:28px;background:#141416;color:#fff;border-radius:22px;padding:20px}
+.inst-l{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+.cmd{display:flex;align-items:center;gap:10px;margin-top:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:10px 10px 10px 14px;font:500 13.5px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
+.cmd code{flex:1;min-width:0;overflow-wrap:anywhere}
+.cmd code:before{content:"$ ";color:rgba(255,255,255,.4)}
+.copy{flex:none;font:600 12px/1 "Be Vietnam Pro",sans-serif;color:#111;background:#fff;border:0;border-radius:8px;padding:8px 11px;cursor:pointer}
+.copy.ok{background:#30d158;color:#fff}
+.inst p{font-size:13px;color:rgba(255,255,255,.65);margin-top:10px}
+.inst .alt{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.1);font-size:13px;color:rgba(255,255,255,.65)}
+.inst .alt a{color:#fff;font-weight:600;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.3)}
+.log{list-style:none;position:relative}
+.log:before{content:"";position:absolute;left:7px;top:14px;bottom:14px;width:2px;background:var(--line)}
+.log>li{position:relative;padding-left:36px}
+.log>li+li{margin-top:14px}
+.log>li:before{content:"";position:absolute;left:0;top:23px;width:16px;height:16px;border-radius:50%;background:var(--bg);border:2px solid var(--ink3);box-sizing:border-box}
+.log>li.cur:before{border-color:var(--accent);background:var(--accent);box-shadow:0 0 0 5px rgba(232,84,28,.15)}
+.log details{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:0}
+.log summary{padding:18px 20px;font-size:15px;align-items:center;justify-content:flex-start;gap:12px}
+.log summary:after{margin-left:auto}
+.ver{font-weight:800;font-size:17px;letter-spacing:-.01em}
+.when{color:var(--ink3);font-weight:500;font-size:13px}
+.tag{font-size:11px;font-weight:700;border-radius:99px;padding:3px 9px;background:var(--bg2);color:var(--ink2)}
+.cur .tag{background:var(--accent);color:#fff}
+.log .bd{padding:0 20px 18px}
+.log h4{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);margin:6px 0 8px}
+.log h4+ul{margin-bottom:12px}
+.log .bd>ul{list-style:disc;padding-left:18px;color:var(--ink2);font-size:14.5px}
+.log .bd li+li{margin-top:5px}
+.log .bd b{color:var(--ink)}
+.log .rlink{display:inline-block;margin-top:4px;font-size:13px;font-weight:600;color:var(--accent)}
+@media (max-width:860px){.rel{grid-template-columns:1fr;gap:32px}.rel-side{position:static}}
+
 /* ---------- Kiểu chữ ---------- */
 .hand{font-family:"Caveat",cursive;font-weight:700;font-size:30px;line-height:1;color:var(--accent);display:inline-block;transform:rotate(-3deg);margin-bottom:12px;letter-spacing:.01em}
 .hand.orange{color:#c2410c}.hand.violet{color:#2563eb}.hand.light{color:#ffd1a8}
@@ -752,6 +789,7 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
       <li><a href="#themes">Giao diện</a></li>
       <li><a href="#settings">Cài đặt</a></li>
       <li><a href="#privacy">Riêng tư</a></li>
+      <li><a href="#releases">Phiên bản</a></li>
       <li><a href="#faq">Hỏi đáp</a></li>
     </ul>
     <a class="lang" href="en/" hreflang="en" lang="en">EN</a>
@@ -764,7 +802,6 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
 
 <div class="intro" id="intro" aria-hidden="true"><div class="iris"><div class="iris-in"><img src="assets/icon.png" alt=""><span>Roost</span></div></div><img class="flyicon" src="assets/icon.png" alt=""><span class="skip">Bấm để bỏ qua</span></div>
 <header class="hero wrap pre" id="hero">
-  <span class="eyebrow"><b>Mới</b> Duyệt yêu cầu Claude Code ngay trên notch</span>
   <h1><span class="line fall" data-split>Notch nhỏ.</span><span class="line"><span class="fall" data-split>Việc gì cũng có</span> <span class="nw"><b class="cyc"><span class="wait">nhạc</span><span class="wait">lịch</span><span class="wait">khay</span><span class="wait">Claude</span><span class="wait">chỗ.</span></b></span></span></h1>
   <div class="lead lead-row">
     <span class="li" style="--i:0"><span class="chipn"><span class="w-art"></span><span class="spec"><i></i><i></i><i></i><i></i></span></span>Bài đang nghe</span>
@@ -1234,13 +1271,45 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
   </div>
 </section>
 
+<section id="releases">
+  <div class="wrap rel">
+    <div class="rel-side reveal">
+      <span class="hand">Phiên bản</span>
+      <h2>Có gì mới<br>trong Roost.</h2>
+      <p class="sec-lead">Roost tự kiểm tra bản mới mỗi ngày và hỏi trước khi cài. Mỗi bản được ký bằng khoá riêng, sai chữ ký thì không cài.</p>
+      <div class="inst">
+        <div class="inst-l">Cài bằng Homebrew</div>
+        <div class="cmd"><code>brew install --cask letoan1/tap/roost</code><button class="copy" type="button" data-copy="brew install --cask letoan1/tap/roost">Chép</button></div>
+        <p>Mở được ngay, không phải vào Privacy &amp; Security lần đầu.</p>
+        <div class="alt">Hoặc <a class="dl" href="https://github.com/letoan1/notch-app/releases/latest/download/Roost-1.0.3.dmg">tải file .dmg</a> và <a href="https://github.com/letoan1/notch-app/blob/main/docs/INSTALL.md">xem cách mở lần đầu</a></div>
+      </div>
+    </div>
+    <ol class="log reveal">
+      <li class="cur"><details open><summary><span class="ver">1.0.3</span><span class="tag">Mới nhất</span><span class="when">16/11/2026</span></summary><div class="bd">
+        <h4>Thêm</h4><ul><li><b>Tab Hệ thống</b>: CPU, bộ nhớ, pin, mạng, ổ đĩa và nhiệt độ trên một trang. Chỉ đo khi tab đang mở.</li></ul>
+        <h4>Sửa</h4><ul><li>Hết bị hỏi mật khẩu Keychain liên tục khi bật Mức dùng Claude.</li><li>Viền lệch quanh ô ngày khi chọn ngày trong lịch.</li></ul>
+        <a class="rlink" href="https://github.com/letoan1/notch-app/releases/tag/v1.0.3">Ghi chú đầy đủ →</a></div></details></li>
+      <li><details><summary><span class="ver">1.0.2</span><span class="when">16/11/2026</span></summary><div class="bd">
+        <h4>Sửa</h4><ul><li><b>HUD độ sáng</b> thay được HUD của macOS cả khi máy có BetterDisplay hay MonitorControl.</li><li>Chuột đang ở màn hình ngoài thì Roost nhường phím độ sáng cho màn đó.</li></ul>
+        <a class="rlink" href="https://github.com/letoan1/notch-app/releases/tag/v1.0.2">Ghi chú đầy đủ →</a></div></details></li>
+      <li><details><summary><span class="ver">1.0.1</span><span class="when">16/11/2026</span></summary><div class="bd">
+        <h4>Thêm</h4><ul><li><b>Tự cập nhật</b> từ GitHub Releases, có kiểm tra chữ ký.</li><li>HUD âm lượng, độ sáng và đèn bàn phím trên hai cánh notch.</li><li>Lau phím: khoá bàn phím để lau, Esc 5 lần để mở.</li><li>Lời bài hát trượt từng dòng, dòng đang hát phóng to.</li><li>Pin tai nghe không phải của Apple (JBL, Sony…).</li></ul>
+        <h4>Sửa</h4><ul><li>Lời bài hát dài bị cắt chữ trên màn hình khoá.</li><li>Mở khoá khuôn mặt báo “không nhận ra” khi chỉ hụt ngưỡng một chút.</li></ul>
+        <a class="rlink" href="https://github.com/letoan1/notch-app/releases/tag/v1.0.1">Ghi chú đầy đủ →</a></div></details></li>
+      <li><details><summary><span class="ver">1.0.0</span><span class="when">14/11/2026</span></summary><div class="bd">
+        <ul><li>Bản đầu tiên: bốn giao diện, nhạc, lịch, khay file, gương camera, duyệt yêu cầu Claude Code, thú cưng và mở khoá bằng khuôn mặt.</li></ul>
+        <a class="rlink" href="https://github.com/letoan1/notch-app/releases/tag/v1.0.0">Ghi chú đầy đủ →</a></div></details></li>
+    </ol>
+  </div>
+</section>
+
 <section id="faq">
   <div class="wrap">
     <div class="center reveal"><span class="hand">Hỏi nhanh</span><h2>Câu hỏi thường gặp</h2></div>
     <div class="faq">
       <details><summary>Roost có mất phí không?</summary><p>Không. Roost miễn phí và mã nguồn mở theo giấy phép MIT.</p></details>
       <details><summary>Máy không có tai thỏ dùng được không?</summary><p>Được. Roost vẽ một notch giả ở giữa mép trên màn hình, hoặc bạn chọn kiểu viên nổi trong Cài đặt.</p></details>
-      <details><summary>Sao macOS cảnh báo khi mở lần đầu?</summary><p>Roost chưa ký Developer ID và chưa notarize. Vào System Settings › Privacy &amp; Security, bấm Open Anyway một lần. Toàn bộ mã nguồn công khai để bạn kiểm tra.</p></details>
+      <details><summary>Sao macOS cảnh báo khi mở lần đầu?</summary><p>Roost chưa ký Developer ID và chưa notarize. Cài bằng Homebrew thì không gặp cảnh báo này. Nếu tải .dmg, vào System Settings › Privacy &amp; Security, bấm Open Anyway một lần. Toàn bộ mã nguồn công khai để bạn kiểm tra.</p></details>
       <details><summary>Tắt Roost thì Claude Code có bị treo không?</summary><p>Không. Hook trả về ngay mà không quyết định gì, Claude Code hỏi bạn trong terminal như bình thường.</p></details>
       <details><summary>Sao không có trên Mac App Store?</summary><p>Roost dùng API riêng của Apple để đọc bài đang phát và hiện trên màn hình khoá, điều App Store không cho phép.</p></details>
       <details><summary>Roost có giao diện tiếng Anh không?</summary><p>Có. Chọn Tiếng Việt hoặc English trong Cài đặt.</p></details>
@@ -1723,6 +1792,11 @@ document.querySelectorAll('.md').forEach(md => {
     lamp.textContent = names[+b.dataset.l];
   }));
 });
+
+// Nút chép lệnh cài.
+document.querySelectorAll('.copy').forEach(b=>b.addEventListener('click',()=>{
+  navigator.clipboard?.writeText(b.dataset.copy).then(()=>{const t=b.textContent;b.textContent='Đã chép';b.classList.add('ok');setTimeout(()=>{b.textContent=t;b.classList.remove('ok')},1600)});
+}));
 </script>
 </body>
 </html>

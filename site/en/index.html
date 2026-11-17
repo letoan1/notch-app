@@ -366,6 +366,43 @@ footer a:hover{color:var(--ink)}
 footer .made{line-height:1.9}
 footer .made a{color:var(--ink);font-weight:700}
 
+/* ---------- Releases ---------- */
+.rel{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,7fr);gap:56px;align-items:start;margin-top:8px}
+.rel-side{position:sticky;top:92px}
+.rel-side h2{margin-top:2px}
+.rel-side .sec-lead{margin-top:14px}
+.inst{margin-top:28px;background:#141416;color:#fff;border-radius:22px;padding:20px}
+.inst-l{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+.cmd{display:flex;align-items:center;gap:10px;margin-top:10px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:10px 10px 10px 14px;font:500 13.5px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
+.cmd code{flex:1;min-width:0;overflow-wrap:anywhere}
+.cmd code:before{content:"$ ";color:rgba(255,255,255,.4)}
+.copy{flex:none;font:600 12px/1 "Be Vietnam Pro",sans-serif;color:#111;background:#fff;border:0;border-radius:8px;padding:8px 11px;cursor:pointer}
+.copy.ok{background:#30d158;color:#fff}
+.inst p{font-size:13px;color:rgba(255,255,255,.65);margin-top:10px}
+.inst .alt{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px;padding-top:16px;border-top:1px solid rgba(255,255,255,.1);font-size:13px;color:rgba(255,255,255,.65)}
+.inst .alt a{color:#fff;font-weight:600;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.3)}
+.log{list-style:none;position:relative}
+.log:before{content:"";position:absolute;left:7px;top:14px;bottom:14px;width:2px;background:var(--line)}
+.log>li{position:relative;padding-left:36px}
+.log>li+li{margin-top:14px}
+.log>li:before{content:"";position:absolute;left:0;top:23px;width:16px;height:16px;border-radius:50%;background:var(--bg);border:2px solid var(--ink3);box-sizing:border-box}
+.log>li.cur:before{border-color:var(--accent);background:var(--accent);box-shadow:0 0 0 5px rgba(232,84,28,.15)}
+.log details{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:0}
+.log summary{padding:18px 20px;font-size:15px;align-items:center;justify-content:flex-start;gap:12px}
+.log summary:after{margin-left:auto}
+.ver{font-weight:800;font-size:17px;letter-spacing:-.01em}
+.when{color:var(--ink3);font-weight:500;font-size:13px}
+.tag{font-size:11px;font-weight:700;border-radius:99px;padding:3px 9px;background:var(--bg2);color:var(--ink2)}
+.cur .tag{background:var(--accent);color:#fff}
+.log .bd{padding:0 20px 18px}
+.log h4{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);margin:6px 0 8px}
+.log h4+ul{margin-bottom:12px}
+.log .bd>ul{list-style:disc;padding-left:18px;color:var(--ink2);font-size:14.5px}
+.log .bd li+li{margin-top:5px}
+.log .bd b{color:var(--ink)}
+.log .rlink{display:inline-block;margin-top:4px;font-size:13px;font-weight:600;color:var(--accent)}
+@media (max-width:860px){.rel{grid-template-columns:1fr;gap:32px}.rel-side{position:static}}
+
 /* ---------- Style chữ ---------- */
 .hand{font-family:"Caveat",cursive;font-weight:700;font-size:30px;line-height:1;color:var(--accent);display:inline-block;transform:rotate(-3deg);margin-bottom:12px;letter-spacing:.01em}
 .hand.orange{color:#c2410c}.hand.violet{color:#2563eb}.hand.light{color:#ffd1a8}
@@ -752,6 +789,7 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
       <li><a href="#themes">Themes</a></li>
       <li><a href="#settings">Settings</a></li>
       <li><a href="#privacy">Privacy</a></li>
+      <li><a href="#releases">Releases</a></li>
       <li><a href="#faq">FAQ</a></li>
     </ul>
     <a class="lang" href="../" hreflang="vi" lang="vi">VI</a>
@@ -764,7 +802,6 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
 
 <div class="intro" id="intro" aria-hidden="true"><div class="iris"><div class="iris-in"><img src="../assets/icon.png" alt=""><span>Roost</span></div></div><img class="flyicon" src="../assets/icon.png" alt=""><span class="skip">Click to skip</span></div>
 <header class="hero wrap pre" id="hero">
-  <span class="eyebrow"><b>New</b> Approve Claude Code requests right from the notch</span>
   <h1><span class="line fall" data-split>A tiny notch.</span><span class="line"><span class="fall" data-split>Room for</span> <span class="nw"><b class="cyc"><span class="wait">music</span><span class="wait">calendar</span><span class="wait">files</span><span class="wait">Claude</span><span class="wait">everything.</span></b></span></span></h1>
   <div class="lead lead-row">
     <span class="li" style="--i:0"><span class="chipn"><span class="w-art"></span><span class="spec"><i></i><i></i><i></i><i></i></span></span>Now playing</span>
@@ -1234,13 +1271,45 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
   </div>
 </section>
 
+<section id="releases">
+  <div class="wrap rel">
+    <div class="rel-side reveal">
+      <span class="hand">Releases</span>
+      <h2>What’s new<br>in Roost.</h2>
+      <p class="sec-lead">Roost checks for a new version once a day and asks before installing. Every release is signed with Roost’s own key, and a bad signature means no install.</p>
+      <div class="inst">
+        <div class="inst-l">Install with Homebrew</div>
+        <div class="cmd"><code>brew install --cask letoan1/tap/roost</code><button class="copy" type="button" data-copy="brew install --cask letoan1/tap/roost">Copy</button></div>
+        <p>Opens right away, no trip to Privacy &amp; Security the first time.</p>
+        <div class="alt">Or <a class="dl" href="https://github.com/letoan1/notch-app/releases/latest/download/Roost-1.0.3.dmg">download the .dmg</a> and <a href="https://github.com/letoan1/notch-app/blob/main/docs/INSTALL.md">see how to open it the first time</a></div>
+      </div>
+    </div>
+    <ol class="log reveal">
+      <li class="cur"><details open><summary><span class="ver">1.0.3</span><span class="tag">Latest</span><span class="when">Nov 16, 2026</span></summary><div class="bd">
+        <h4>Added</h4><ul><li><b>System tab</b>: CPU, memory, battery, network, disk and temperature on one page. Measured only while the tab is open.</li></ul>
+        <h4>Fixed</h4><ul><li>No more repeated Keychain password prompts with Claude usage turned on.</li><li>Off-center ring around a selected day in the calendar.</li></ul>
+        <a class="rlink" href="https://github.com/letoan1/notch-app/releases/tag/v1.0.3">Full notes →</a></div></details></li>
+      <li><details><summary><span class="ver">1.0.2</span><span class="when">Nov 16, 2026</span></summary><div class="bd">
+        <h4>Fixed</h4><ul><li><b>Brightness HUD</b> now replaces the macOS HUD even with BetterDisplay or MonitorControl installed.</li><li>With the pointer on an external display, Roost leaves the brightness keys to that display.</li></ul>
+        <a class="rlink" href="https://github.com/letoan1/notch-app/releases/tag/v1.0.2">Full notes →</a></div></details></li>
+      <li><details><summary><span class="ver">1.0.1</span><span class="when">Nov 16, 2026</span></summary><div class="bd">
+        <h4>Added</h4><ul><li><b>Auto-update</b> from GitHub Releases, with signature checks.</li><li>Volume, brightness and keyboard backlight HUD on the notch wings.</li><li>Keyboard cleaning: lock the keyboard to wipe it, press Esc 5 times to unlock.</li><li>Lyrics scroll line by line, with the current line enlarged.</li><li>Battery level for non-Apple headphones (JBL, Sony…).</li></ul>
+        <h4>Fixed</h4><ul><li>Long lyric lines cut off on the lock screen.</li><li>Face unlock saying “not recognized” when the match fell just short of the threshold.</li></ul>
+        <a class="rlink" href="https://github.com/letoan1/notch-app/releases/tag/v1.0.1">Full notes →</a></div></details></li>
+      <li><details><summary><span class="ver">1.0.0</span><span class="when">Nov 14, 2026</span></summary><div class="bd">
+        <ul><li>First release: four themes, music, calendar, file tray, camera mirror, Claude Code approvals, pets and face unlock.</li></ul>
+        <a class="rlink" href="https://github.com/letoan1/notch-app/releases/tag/v1.0.0">Full notes →</a></div></details></li>
+    </ol>
+  </div>
+</section>
+
 <section id="faq">
   <div class="wrap">
     <div class="center reveal"><span class="hand">Quick answers</span><h2>Frequently asked questions</h2></div>
     <div class="faq">
       <details><summary>Does Roost cost anything?</summary><p>No. Roost is free and open source under the MIT license.</p></details>
       <details><summary>Does it work on a Mac without a notch?</summary><p>Yes. Roost draws a notch at the top center of the screen, or you can pick the floating pill style in Settings.</p></details>
-      <details><summary>Why does macOS warn me the first time I open it?</summary><p>Roost isn’t signed with a Developer ID or notarized yet. Go to System Settings › Privacy &amp; Security and click Open Anyway once. All the source code is public for you to check.</p></details>
+      <details><summary>Why does macOS warn me the first time I open it?</summary><p>Roost isn’t signed with a Developer ID or notarized yet. Installing with Homebrew avoids this warning. If you download the .dmg, open System Settings › Privacy &amp; Security and click Open Anyway once. All the source code is public for you to check.</p></details>
       <details><summary>Does Claude Code hang if Roost is quit?</summary><p>No. The hook returns right away without deciding anything, and Claude Code asks you in the terminal as usual.</p></details>
       <details><summary>Why isn’t it on the Mac App Store?</summary><p>Roost uses private Apple APIs to read what’s playing and show it on the lock screen, which the App Store doesn’t allow.</p></details>
       <details><summary>Is Roost available in English?</summary><p>Yes. Pick Tiếng Việt or English in Settings.</p></details>
@@ -1723,6 +1792,11 @@ document.querySelectorAll('.md').forEach(md => {
     lamp.textContent = names[+b.dataset.l];
   }));
 });
+
+// Nút chép lệnh cài.
+document.querySelectorAll('.copy').forEach(b=>b.addEventListener('click',()=>{
+  navigator.clipboard?.writeText(b.dataset.copy).then(()=>{const t=b.textContent;b.textContent='Copied';b.classList.add('ok');setTimeout(()=>{b.textContent=t;b.classList.remove('ok')},1600)});
+}));
 </script>
 </body>
 </html>
