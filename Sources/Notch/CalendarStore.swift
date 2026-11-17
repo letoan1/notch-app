@@ -149,7 +149,8 @@ final class CalendarStore: ObservableObject {
         }
         let cal = Calendar.current
         let windowEnd = cal.date(byAdding: .day, value: 1, to: last)!
-        let events = store.events(matching: store.predicateForEvents(withStart: first, end: windowEnd, calendars: nil))
+        let events = Self.dropDuplicateHolidays(
+            store.events(matching: store.predicateForEvents(withStart: first, end: windowEnd, calendars: nil)))
 
         // Sự kiện nhiều ngày đánh dấu mọi ngày nó phủ.
         var load: [Date: Int] = [:]
@@ -170,6 +171,25 @@ final class CalendarStore: ObservableObject {
                      color: Color(nsColor: $0.calendar?.color ?? .systemBlue),
                      meeting: Self.meeting(in: $0))
             }
+    }
+
+    /// Có cả lịch ngày lễ tiếng Anh lẫn tiếng Việt ("Holidays in Vietnam" + "Ngày lễ ở Việt Nam") thì mỗi ngày lễ
+    /// hiện hai lần: chỉ giữ lịch ngày lễ đúng ngôn ngữ của Roost.
+    static func dropDuplicateHolidays(_ events: [EKEvent]) -> [EKEvent] {
+        func isHoliday(_ c: EKCalendar) -> Bool {
+            let t = c.title.lowercased()
+            return t.contains("holiday") || t.contains("ngày lễ") || t.contains("ngày nghỉ")
+        }
+        let holidays = Dictionary(grouping: events.compactMap(\.calendar).filter(isHoliday), by: \.calendarIdentifier)
+            .compactMap(\.value.first)
+        guard holidays.count > 1 else { return events }
+        // Tên lịch có dấu tiếng Việt = lịch tiếng Việt.
+        func vietnamese(_ c: EKCalendar) -> Bool { c.title.folding(options: .diacriticInsensitive, locale: nil) != c.title }
+        guard let keep = holidays.first(where: { vietnamese($0) == Lang.isVietnamese }) else { return events }
+        return events.filter { e in
+            guard let c = e.calendar, isHoliday(c) else { return true }
+            return c.calendarIdentifier == keep.calendarIdentifier
+        }
     }
 
     private static func currentAccess() -> Access {

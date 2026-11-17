@@ -28,19 +28,21 @@ struct CalendarWidget: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 4) {
-                Text(calendar.monthTitle)
-                    .font(.ui(12, weight: .bold))
-                    .foregroundStyle(tone(0.85))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                    .layoutPriority(1)
-                if Lang.isVietnamese {
-                    Text(Self.lunarLabel(calendar.selectedDay))
-                        .font(.ui(10.5, weight: .medium))
-                        .foregroundStyle(tone(0.5))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(calendar.monthTitle)
+                        .font(.ui(12, weight: .bold))
+                        .foregroundStyle(tone(0.85))
                         .lineLimit(1)
-                        .fixedSize()
+                        .minimumScaleFactor(0.8)
+                    // Âm lịch: dòng nhỏ dưới tên tháng, không giành chỗ với tên tháng và nút điều hướng.
+                    if Lang.isVietnamese {
+                        Text(Self.lunarLabel(calendar.selectedDay))
+                            .font(.ui(9.5, weight: .medium))
+                            .foregroundStyle(tone(0.45))
+                            .lineLimit(1)
+                    }
                 }
+                .layoutPriority(1)
                 Spacer(minLength: 4)
                 if calendar.weekOffset != 0 {
                     Button { calendar.resetToToday() } label: {

@@ -67,7 +67,6 @@ enum VietQR {
 final class VietQRStore: ObservableObject {
     static let shared = VietQRStore()
     @Published var panelOpen = false
-    @Published var editing = false
     @Published var amount: Int?
     @Published private(set) var bin: String = UserDefaults.standard.string(forKey: "vietqr.bin") ?? ""
     @Published private(set) var name: String = UserDefaults.standard.string(forKey: "vietqr.name") ?? ""
@@ -83,13 +82,12 @@ final class VietQRStore: ObservableObject {
         UserDefaults.standard.set(bin, forKey: "vietqr.bin")
         UserDefaults.standard.set(self.name, forKey: "vietqr.name")
         Self.writeAccount(self.account)
-        editing = false
     }
 
     func toggle() {
         withAnimation(.easeOut(duration: 0.18)) {
             panelOpen.toggle()
-            if panelOpen { amount = nil; editing = !configured }
+            if panelOpen { amount = nil }
         }
     }
 
@@ -135,20 +133,21 @@ private struct VietQRPanel: View {
     private static let quick = [50_000, 100_000, 200_000, 500_000]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "qrcode").font(.system(size: 11, weight: .bold)).foregroundStyle(.white.opacity(0.8))
-                Text(L("Nhận tiền", "Receive money")).font(.ui(13, weight: .bold)).foregroundStyle(.white)
-                Spacer()
-                if store.configured && !store.editing {
-                    iconButton("pencil", L("Đổi tài khoản", "Change account")) { store.editing = true }
+        // Không có dòng tiêu đề: thẻ thấp để không bị đáy notch cắt; nút sửa / đóng nằm ở góc.
+        VStack(alignment: .leading, spacing: 0) {
+            if store.configured { card } else { empty }
+        }
+        .padding(10)
+        .frame(width: 330, alignment: .leading)
+        .overlay(alignment: .topTrailing) {
+            HStack(spacing: 4) {
+                if store.configured {
+                    iconButton("pencil", L("Đổi tài khoản", "Change account")) { Self.openSettings() }
                 }
                 iconButton("xmark", L("Đóng", "Close")) { store.toggle() }
             }
-            if store.editing || !store.configured { VietQRSetup() } else { card }
+            .padding(8)
         }
-        .padding(12)
-        .frame(width: 320, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(white: 0.09)))
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.white.opacity(0.12)))
         .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
@@ -162,16 +161,20 @@ private struct VietQRPanel: View {
                     Image(nsImage: img).interpolation(.none).resizable().scaledToFit()
                 } else { Color.white }
             }
-            .padding(7)
-            .frame(width: 128, height: 128)
+            .padding(6)
+            .frame(width: 108, height: 108)
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(.white))
             .accessibilityLabel(L("Mã QR chuyển khoản", "Bank transfer QR code"))
 
             VStack(alignment: .leading, spacing: 6) {
-                Text(store.bank?.name ?? store.bin).font(.ui(12, weight: .bold)).foregroundStyle(.white)
-                if !store.name.isEmpty {
-                    Text(store.name).font(.ui(10.5, weight: .medium)).foregroundStyle(.white.opacity(0.6)).lineLimit(1)
+                HStack(spacing: 5) {
+                    Text(store.bank?.name ?? store.bin).font(.ui(12, weight: .bold)).foregroundStyle(.white)
+                    if !store.name.isEmpty {
+                        Text(store.name).font(.ui(10, weight: .medium)).foregroundStyle(.white.opacity(0.55))
+                    }
                 }
+                .lineLimit(1)
+                .padding(.trailing, 48)   // chừa chỗ cho nút sửa / đóng
                 Button {
                     NSPasteboard.general.clearContents()
                     NSPasteboard.general.setString(store.account, forType: .string)
@@ -186,9 +189,7 @@ private struct VietQRPanel: View {
                 }
                 .buttonStyle(.plain)
                 .help(L("Chép số tài khoản", "Copy account number"))
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 4), GridItem(.flexible(), spacing: 4)], spacing: 4) {
-                    ForEach(Self.quick, id: \.self) { v in chip(v) }
-                }
+                HStack(spacing: 4) { ForEach(Self.quick, id: \.self) { v in chip(v) } }
                 TextField(L("Số tiền khác", "Other amount"), text: custom.projectedValue)
                     .textFieldStyle(.plain)
                     .font(.ui(11).monospacedDigit())
@@ -200,6 +201,28 @@ private struct VietQRPanel: View {
                     }
             }
         }
+    }
+
+    /// Chưa có tài khoản: một dòng + nút mở Cài đặt (gõ phím trong notch không tiện).
+    private var empty: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "qrcode").font(.system(size: 18)).foregroundStyle(.white.opacity(0.7))
+            Text(L("Thêm tài khoản ngân hàng để có mã QR nhận tiền.", "Add a bank account to get a QR for receiving money."))
+                .font(.ui(11.5)).foregroundStyle(.white.opacity(0.65))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            Button(L("Thiết lập", "Set up")) { Self.openSettings() }
+                .padding(.trailing, 26)   // chừa nút đóng ở góc
+                .buttonStyle(.plain)
+                .font(.ui(11.5, weight: .bold)).foregroundStyle(.black)
+                .padding(.horizontal, 12).padding(.vertical, 6)
+                .background(Capsule().fill(.white))
+        }
+    }
+
+    static func openSettings() {
+        VietQRStore.shared.panelOpen = false
+        SettingsWindowController.shared.show(pane: "general")
     }
 
     private var masked: String {
@@ -232,53 +255,44 @@ private struct VietQRPanel: View {
     }
 }
 
-/// Thiết lập ngay trong thẻ: chọn ngân hàng, số tài khoản, tên chủ tài khoản.
-private struct VietQRSetup: View {
+/// Cài đặt › Chung › Nhận tiền (VietQR): lưu ngay khi đổi, số tài khoản vào Keychain.
+struct VietQRSettingsSection: View {
     @ObservedObject var store = VietQRStore.shared
-    private var bin: State<String>
-    private var account: State<String>
-    private var name: State<String>
-
-    init() {
-        let s = VietQRStore.shared
-        bin = State(initialValue: s.bin.isEmpty ? VietQR.banks[0].bin : s.bin)
-        account = State(initialValue: s.account)
-        name = State(initialValue: s.name)
-    }
+    private var account = State(initialValue: VietQRStore.shared.account)
+    private var name = State(initialValue: VietQRStore.shared.name)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(L("Mã QR tạo ngay trên máy theo chuẩn VietQR. Số tài khoản lưu trong Keychain, không gửi đi đâu.",
-                   "The QR is made on this Mac using the VietQR standard. Your account number stays in the Keychain."))
-                .font(.ui(10.5)).foregroundStyle(.white.opacity(0.55)).fixedSize(horizontal: false, vertical: true)
-            Picker("", selection: bin.projectedValue) {
-                ForEach(VietQR.banks) { Text($0.name).tag($0.bin) }
-            }
-            .labelsHidden()
-            field(L("Số tài khoản", "Account number"), account)
-            field(L("Tên chủ tài khoản (không bắt buộc)", "Account holder (optional)"), name)
-            HStack {
-                Spacer()
-                if store.configured {
-                    Button(L("Huỷ", "Cancel")) { store.editing = false }.buttonStyle(.plain)
-                        .font(.ui(11, weight: .semibold)).foregroundStyle(.white.opacity(0.6))
+        SSection(L("Nhận tiền (VietQR)", "Receive money (VietQR)"),
+                 note: L("Nút QR trên hàng tab mở mã chuyển khoản vào tài khoản này. Mã tạo ngay trên máy theo chuẩn VietQR; số tài khoản lưu trong Keychain, không gửi đi đâu.",
+                         "The QR button on the tab bar shows a transfer QR for this account. It is made on this Mac using the VietQR standard; the account number stays in the Keychain.")) {
+            SRow("building.columns", L("Ngân hàng", "Bank"), divider: false) {
+                Picker("", selection: Binding(get: { store.bin.isEmpty ? VietQR.banks[0].bin : store.bin },
+                                              set: { store.save(bin: $0, account: store.account, name: store.name) })) {
+                    ForEach(VietQR.banks) { Text($0.name).tag($0.bin) }
                 }
-                Button(L("Lưu", "Save")) { store.save(bin: bin.wrappedValue, account: account.wrappedValue, name: name.wrappedValue) }
-                    .buttonStyle(.plain)
-                    .font(.ui(11, weight: .bold)).foregroundStyle(.black)
-                    .padding(.horizontal, 12).padding(.vertical, 5)
-                    .background(Capsule().fill(.white))
-                    .disabled(account.wrappedValue.filter(\.isNumber).count < 6)
-                    .opacity(account.wrappedValue.filter(\.isNumber).count < 6 ? 0.4 : 1)
+                .labelsHidden()
+                .frame(width: 200)
+            }
+            SRow("number", L("Số tài khoản", "Account number")) {
+                TextField("0123456789", text: account.projectedValue)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 200)
+                    .onChange(of: account.wrappedValue) { _, v in save(account: v) }
+            }
+            SRow("person", L("Tên chủ tài khoản", "Account holder"), detail: L("Không bắt buộc, chỉ để bạn nhìn.", "Optional, only shown to you.")) {
+                TextField("NGUYEN VAN A", text: name.projectedValue)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 200)
+                    .onChange(of: name.wrappedValue) { _, v in store.save(bin: binOrDefault, account: store.account, name: v) }
             }
         }
     }
 
-    private func field(_ title: String, _ text: State<String>) -> some View {
-        TextField(title, text: text.projectedValue)
-            .textFieldStyle(.plain)
-            .font(.ui(12))
-            .padding(.horizontal, 8).padding(.vertical, 6)
-            .background(RoundedRectangle(cornerRadius: 7).fill(.white.opacity(0.08)))
+    private var binOrDefault: String { store.bin.isEmpty ? VietQR.banks[0].bin : store.bin }
+
+    private func save(account v: String) {
+        let digits = v.filter(\.isNumber)
+        if digits != v { account.wrappedValue = digits }   // chỉ nhận chữ số
+        store.save(bin: binOrDefault, account: digits, name: store.name)
     }
 }
