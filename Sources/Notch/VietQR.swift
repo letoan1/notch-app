@@ -122,7 +122,10 @@ final class VietQRStore: ObservableObject {
     /// Mã nội dung chuyển khoản riêng cho mỗi lần nhận, để SePay khớp đúng giao dịch ("RST4K9P2").
     @Published private(set) var code = VietQRStore.newCode()
 
-    func newRequest() { code = Self.newCode(); amount = nil }
+    /// Mỗi mã chờ tối đa 10 phút tính từ lúc tạo; đóng / mở lại màn hình không làm lại từ đầu.
+    @Published private(set) var expiresAt = Date().addingTimeInterval(600)
+
+    func newRequest() { code = Self.newCode(); amount = nil; expiresAt = Date().addingTimeInterval(600) }
 
     static func newCode() -> String {
         let chars = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")   // bỏ 0/O, 1/I cho dễ đọc
@@ -166,12 +169,14 @@ final class SePayWatcher: ObservableObject {
     private var task: Task<Void, Never>?
     private var seen = Set<String>()
 
-    func watch(code: String, amount: Int?, account: String) {
+    func watch(code: String, amount: Int?, account: String, until deadline: Date) {
         task?.cancel()
         guard ready, let token = Keychain.read(Self.tokenService) else { state = .off; return }
+        // Mã này đã nhận tiền rồi (mở lại màn hình sau khi nhận): giữ trạng thái đã nhận.
+        if case .received(let r) = state, r.content.uppercased().contains(code.uppercased()) { return }
+        guard deadline > Date() else { state = .idle; return }
         state = .waiting
         task = Task { [weak self] in
-            let deadline = Date().addingTimeInterval(600)
             while !Task.isCancelled, Date() < deadline {
                 do {
                     let txs = try await Self.fetch(token: token, account: account)
@@ -262,7 +267,7 @@ struct BankPanel: View {
 
     private func restart() {
         guard store.configured else { return }
-        sepay.watch(code: store.code, amount: store.amount, account: store.account)
+        sepay.watch(code: store.code, amount: store.amount, account: store.account, until: store.expiresAt)
     }
 
     private var content: some View {
@@ -328,12 +333,21 @@ struct BankPanel: View {
                 Text(L("Người chuyển giữ nguyên nội dung \(store.code) để Roost nhận ra.",
                        "Ask the sender to keep \(store.code) in the transfer note."))
                     .font(.ui(10)).foregroundStyle(.white.opacity(0.5)).fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
+                    TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                        let left = max(0, Int(store.expiresAt.timeIntervalSince(ctx.date)))
+                        Text(L("Còn ", "") + String(format: "%d:%02d", left / 60, left % 60) + L("", " left"))
+                            .font(.ui(10.5, weight: .semibold).monospacedDigit()).foregroundStyle(.white.opacity(0.7))
+                    }
+                    pill(L("Tạo mã mới", "New code")) { custom.wrappedValue = ""; store.newRequest() }
+                }
             case .idle:
-                Label(L("Đã ngừng chờ", "Stopped waiting"), systemImage: "pause.circle.fill")
+                Label(L("Mã đã hết hạn", "Code expired"), systemImage: "clock.badge.xmark")
                     .font(.ui(11.5, weight: .semibold)).foregroundStyle(.white)
-                Text(L("Roost chỉ chờ 10 phút cho mỗi mã QR.", "Roost waits up to 10 minutes per QR."))
-                    .font(.ui(10)).foregroundStyle(.white.opacity(0.5))
-                pill(L("Chờ tiếp", "Keep waiting")) { restart() }
+                Text(L("Mỗi mã QR chờ tối đa 10 phút. Tạo mã mới cho giao dịch tiếp theo.",
+                       "Each QR waits up to 10 minutes. Make a new code for the next transfer."))
+                    .font(.ui(10)).foregroundStyle(.white.opacity(0.5)).fixedSize(horizontal: false, vertical: true)
+                pill(L("Tạo mã mới", "New code")) { custom.wrappedValue = ""; store.newRequest() }
             case .failed(let msg):
                 Label(msg, systemImage: "exclamationmark.triangle.fill").font(.ui(10.5)).foregroundStyle(.orange)
             case .off:

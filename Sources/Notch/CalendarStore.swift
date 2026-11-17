@@ -112,9 +112,11 @@ final class CalendarStore: ObservableObject {
     }
 
     /// Dải 7 ngày quanh tâm (hôm nay + weekOffset tuần): 3 ngày trước, tâm, 3 ngày sau.
-    var weekDays: [Date] {
+    var weekDays: [Date] { days(week: weekOffset) }
+
+    func days(week: Int) -> [Date] {
         let cal = Calendar.current
-        let center = cal.date(byAdding: .day, value: 7 * weekOffset, to: cal.startOfDay(for: Date()))!
+        let center = cal.date(byAdding: .day, value: 7 * week, to: cal.startOfDay(for: Date()))!
         return (-3...3).compactMap { cal.date(byAdding: .day, value: $0, to: center) }
     }
 
@@ -224,13 +226,25 @@ final class CalendarStore: ObservableObject {
 final class WeekDrag: ObservableObject {
     static let shared = WeekDrag()
     @Published var offset: CGFloat = 0
-}
+    /// Chiều rộng một tuần trên màn hình (đo từ dải ngày).
+    var width: CGFloat = 300
+    private var paging = false
 
-struct WeekDragOffset: ViewModifier {
-    @ObservedObject var drag = WeekDrag.shared
-    func body(content: Content) -> some View {
-        content
-            .offset(x: drag.offset)
-            .animation(.interactiveSpring(response: 0.2, dampingFraction: 0.9), value: drag.offset)
+    /// Lật sang tuần sau (+1) / trước (-1): trượt hết một trang rồi mới đổi tuần, không có cú nhảy.
+    func page(_ dir: Int, commit: @escaping @MainActor () -> Void) {
+        guard !paging else { return }
+        paging = true
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.9)) {
+            offset = CGFloat(-dir) * width
+        } completion: {
+            commit()
+            var t = Transaction()
+            t.disablesAnimations = true
+            withTransaction(t) { self.offset = 0 }
+            self.paging = false
+        }
     }
+
+    /// Nhả tay chưa đủ xa: bật về tuần hiện tại.
+    func settle() { withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { offset = 0 } }
 }

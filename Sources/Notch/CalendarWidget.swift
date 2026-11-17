@@ -59,22 +59,16 @@ struct CalendarWidget: View {
                     .buttonStyle(.plain)
                     .transition(.opacity)
                 }
-                NavButton(symbol: "chevron.left") { calendar.shiftWeek(-1) }
-                NavButton(symbol: "chevron.right") { calendar.shiftWeek(1) }
+                NavButton(symbol: "chevron.left") { flip(-1) }
+                NavButton(symbol: "chevron.right") { flip(1) }
             }
             .padding(.leading, 4)
 
-            WeekStrip(calendar: calendar, cal: cal)
-                .modifier(WeekDragOffset())
-                .id(calendar.weekOffset)
-                // Tuần mới trượt vào theo chiều vuốt, tuần cũ trượt ra phía kia.
-                .transition(.asymmetric(
-                    insertion: .move(edge: calendar.lastShift > 0 ? .trailing : .leading).combined(with: .opacity),
-                    removal: .move(edge: calendar.lastShift > 0 ? .leading : .trailing).combined(with: .opacity)))
-                // Kéo ngang dải ngày để chuyển tuần (minimumDistance để click ngày vẫn ăn).
+            WeekPager(calendar: calendar, cal: cal)
+                // Kéo chuột ngang trên dải ngày cũng lật tuần (minimumDistance để click ngày vẫn ăn).
                 .simultaneousGesture(DragGesture(minimumDistance: 20).onEnded { value in
-                    if value.translation.width < -30 { calendar.shiftWeek(1) }
-                    if value.translation.width > 30 { calendar.shiftWeek(-1) }
+                    if value.translation.width < -30 { flip(1) }
+                    if value.translation.width > 30 { flip(-1) }
                 })
 
             switch calendar.access {
@@ -89,8 +83,11 @@ struct CalendarWidget: View {
         .padding(.horizontal, 14)
         .padding(.bottom, 12)
         .frame(maxHeight: .infinity, alignment: .top)
-        .clipped()
-        .animation(.spring(response: 0.32, dampingFraction: 0.86), value: calendar.weekOffset)
+    }
+
+    private func flip(_ dir: Int) {
+        let calendar = calendar
+        WeekDrag.shared.page(dir) { calendar.shiftWeek(dir) }
     }
 
     @ViewBuilder
@@ -156,14 +153,43 @@ private struct NavButton: View {
     }
 }
 
+/// Ba tuần cạnh nhau (trước, hiện tại, sau) trượt theo ngón tay; chỉ view này theo dõi vị trí kéo.
+private struct WeekPager: View {
+    @ObservedObject var calendar: CalendarStore
+    let cal: Calendar
+    @ObservedObject var drag = WeekDrag.shared
+
+    var body: some View {
+        ZStack {
+            WeekStrip(calendar: calendar, cal: cal, days: calendar.days(week: calendar.weekOffset))
+                .background(GeometryReader { g in
+                    Color.clear
+                        .onAppear { drag.width = g.size.width }
+                        .onChange(of: g.size.width) { _, w in drag.width = w }
+                })
+                .overlay {
+                    WeekStrip(calendar: calendar, cal: cal, days: calendar.days(week: calendar.weekOffset - 1))
+                        .offset(x: -drag.width).allowsHitTesting(false)
+                }
+                .overlay {
+                    WeekStrip(calendar: calendar, cal: cal, days: calendar.days(week: calendar.weekOffset + 1))
+                        .offset(x: drag.width).allowsHitTesting(false)
+                }
+                .offset(x: drag.offset)
+        }
+        .clipped()
+    }
+}
+
 private struct WeekStrip: View {
     @ObservedObject var calendar: CalendarStore
     let cal: Calendar
+    let days: [Date]
 
     var body: some View {
         let today = cal.startOfDay(for: Date())
         HStack(spacing: 2) {
-            ForEach(calendar.weekDays, id: \.self) { day in
+            ForEach(days, id: \.self) { day in
                 DayCell(
                     weekday: cal.veryShortWeekdaySymbols[cal.component(.weekday, from: day) - 1],
                     number: cal.component(.day, from: day),

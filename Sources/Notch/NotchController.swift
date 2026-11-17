@@ -715,6 +715,7 @@ final class NotchController {
 
     private var scrollMonitor: Any?
     private var scrollAccum: CGFloat = 0
+    private var weekSwipe = false
     private var lastWeekShift = Date.distantPast
 
     /// Trả nil = đã xử lý (nuốt event), trả event = để hệ thống xử lý tiếp.
@@ -740,24 +741,35 @@ final class NotchController {
         let inWeekStrip = mouse.y >= top - model.notchSize.height - 78 * s
         if !horizontal && !inWeekStrip { return event }
 
-        // Bỏ quán tính để một lần vuốt chỉ chuyển một tuần.
+        // Bỏ quán tính để một lần vuốt chỉ lật một tuần.
         if !event.momentumPhase.isEmpty { return nil }
-        if event.phase == .began { scrollAccum = 0 }
-        let scale: CGFloat = event.hasPreciseScrollingDeltas ? 1 : 10
-        scrollAccum += (horizontal ? dx : dy) * scale
-        // Vuốt ngang trên trackpad: dải ngày bám theo tay; nhả tay chưa đủ ngưỡng thì bật về.
-        let live = horizontal && event.hasPreciseScrollingDeltas
-        if event.phase == .ended || event.phase == .cancelled {
-            WeekDrag.shared.offset = 0
+        let drag = WeekDrag.shared
+        let calendar = self.calendar
+        // Trackpad vuốt ngang: dải 3 tuần bám theo tay; nhả tay quá 1/5 bề rộng thì lật, không thì bật về.
+        // Chốt hướng ngay từ đầu cử chỉ: sự kiện "ended" không có dx nên không suy lại được.
+        if event.phase == .began { scrollAccum = 0; weekSwipe = horizontal && event.hasPreciseScrollingDeltas }
+        if weekSwipe {
+            if event.phase == .ended || event.phase == .cancelled {
+                weekSwipe = false
+                if abs(drag.offset) > drag.width * 0.2 {
+                    let dir = drag.offset < 0 ? 1 : -1
+                    drag.page(dir) { calendar.shiftWeek(dir) }
+                } else {
+                    drag.settle()
+                }
+                return nil
+            }
+            scrollAccum += dx
+            drag.offset = max(-drag.width, min(drag.width, scrollAccum))
             return nil
         }
 
-        guard abs(scrollAccum) > 30, Date().timeIntervalSince(lastWeekShift) > 0.35 else {
-            if live { WeekDrag.shared.offset = max(-60, min(60, scrollAccum * 0.8)) }
-            return nil
-        }
-        WeekDrag.shared.offset = 0
-        calendar.shiftWeek(scrollAccum < 0 ? 1 : -1)
+        // Con lăn chuột / vuốt dọc trên dải ngày: lật từng trang.
+        let scale: CGFloat = event.hasPreciseScrollingDeltas ? 1 : 10
+        scrollAccum += (horizontal ? dx : dy) * scale
+        guard abs(scrollAccum) > 30, Date().timeIntervalSince(lastWeekShift) > 0.35 else { return nil }
+        let dir = scrollAccum < 0 ? 1 : -1
+        drag.page(dir) { calendar.shiftWeek(dir) }
         scrollAccum = 0
         lastWeekShift = Date()
         return nil
