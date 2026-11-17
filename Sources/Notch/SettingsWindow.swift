@@ -788,6 +788,7 @@ private struct MirrorPane: View {
 
 struct AlertsPane: View {
     @ObservedObject var alerts = AlertSettings.shared
+    @ObservedObject var perms = PermissionWatch.shared
 
     var body: some View {
         SPage {
@@ -812,7 +813,7 @@ struct AlertsPane: View {
                            detail: L("Và báo lại khi có mạng trở lại.", "And again when you're back online."),
                            isOn: $alerts.network)
                 SToggleRow(icon: "speaker.wave.2", title: L("Thay HUD âm lượng và độ sáng", "Replace the volume and brightness HUD"),
-                           detail: FaceUnlockService.isAccessibilityTrusted
+                           detail: perms.accessibilityTrusted
                                ? L("Âm lượng, độ sáng màn hình và đèn bàn phím hiện gọn ở hai bên notch.",
                                    "Volume, display brightness and keyboard backlight show neatly beside the notch.")
                                : L("Cần quyền Trợ năng để bắt phím. Bật lên để cấp quyền.",

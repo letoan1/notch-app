@@ -4,8 +4,8 @@ Roost: app notch cho macOS (SwiftUI + AppKit), build không cần Xcode. Đọc 
 
 ## Build và chạy
 
-- `./build.sh install`: build release, ký bằng chứng chỉ tự ký "Notch Local Signing", cài vào `/Applications/Roost.app` rồi mở lại. Build release mất 5–7 phút (cả module biên dịch một lần).
-- `scripts/make-dmg.sh`: đóng gói `dist/Roost-<ver>.dmg` universal (arm64 + x86_64), ký ad-hoc, chưa notarize. Phiên bản lấy từ `CFBundleShortVersionString` trong `Info.plist`.
+- `./build.sh install`: build release, ký bằng chứng chỉ tự ký "Roost Release Signing" (không có thì "Notch Local Signing"), cài vào `/Applications/Roost.app` rồi mở lại. Build release mất 5–7 phút (cả module biên dịch một lần).
+- `scripts/make-dmg.sh`: đóng gói `dist/Roost-<ver>.dmg` universal (arm64 + x86_64), ký bằng "Roost Release Signing" (không bao giờ ad-hoc: ad-hoc làm người dùng mất quyền sau mỗi bản cập nhật), chưa notarize. Phiên bản lấy từ `CFBundleShortVersionString` trong `Info.plist`.
 - `scripts/demo-claude.sh [--question]`: gửi yêu cầu Claude giả lên notch để thử thẻ xin quyền / câu hỏi.
 - Chỉ có Command Line Tools, SDK macOS 27. Không có `xcrun metal`, không có plugin macro của Xcode.
 

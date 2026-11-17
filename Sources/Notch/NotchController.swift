@@ -653,6 +653,7 @@ final class NotchController {
             return true
         }
         SystemHUD.shared.start()
+        PermissionWatch.shared.start()
         capsLock.start()
         downloads.onFile = { [weak self] url in
             guard let self, self.settings.showTray else { return }
