@@ -6,11 +6,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        // App nền không có menu Edit → ⌘C / ⌘V / ⌘X / ⌘A không tới được ô nhập. Menu chính không hiện ra
+        // (app không có thanh menu), chỉ để phím tắt có chỗ đi qua.
+        NSApp.mainMenu = Self.editMenu()
         controller = NotchController()
         _ = AppUpdater.shared
         OnboardingWindowController.shared.showIfNeeded()
         // Lần mở sau một crash: hỏi có mở GitHub issue điền sẵn không (không tự gửi gì).
         DispatchQueue.main.asyncAfter(deadline: .now() + 4) { MainActor.assumeIsolated { CrashReport.checkOnLaunch() } }
+    }
+
+    private static func editMenu() -> NSMenu {
+        let main = NSMenu()
+        let appItem = NSMenuItem()
+        appItem.submenu = NSMenu()
+        main.addItem(appItem)
+        let editItem = NSMenuItem()
+        let edit = NSMenu(title: "Edit")
+        for (title, action, key, mods) in [
+            ("Undo", "undo:", "z", NSEvent.ModifierFlags.command), ("Redo", "redo:", "z", [.command, .shift]),
+            ("Cut", "cut:", "x", .command), ("Copy", "copy:", "c", .command),
+            ("Paste", "paste:", "v", .command), ("Select All", "selectAll:", "a", .command),
+        ] {
+            let item = NSMenuItem(title: title, action: Selector(action), keyEquivalent: key)
+            item.keyEquivalentModifierMask = mods
+            edit.addItem(item)
+        }
+        editItem.submenu = edit
+        main.addItem(editItem)
+        return main
     }
 
     // Quick Look của khay: panel tìm controller trong responder chain (kết thúc ở app delegate).

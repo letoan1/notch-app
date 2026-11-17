@@ -214,6 +214,38 @@ private struct SPickerLabel: View {
     }
 }
 
+/// Ô nhập cùng kiểu SPicker: nền mờ, viền mảnh, viền tím khi đang gõ. `secure` = ô mật khẩu / token.
+struct STextField: View {
+    let placeholder: String
+    let text: Binding<String>
+    var secure = false
+    var width: CGFloat = 200
+    private var focused = FocusState<Bool>()
+
+    init(_ placeholder: String, text: Binding<String>, secure: Bool = false, width: CGFloat = 200) {
+        self.placeholder = placeholder
+        self.text = text
+        self.secure = secure
+        self.width = width
+    }
+
+    var body: some View {
+        Group {
+            if secure { SecureField(placeholder, text: text) } else { TextField(placeholder, text: text) }
+        }
+        .textFieldStyle(.plain)
+        .font(.system(size: 12.5, weight: .medium).monospacedDigit())
+        .focused(focused.projectedValue)
+        .padding(.horizontal, 11)
+        .frame(width: width, height: 28)
+        .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(Color.primary.opacity(0.055)))
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .strokeBorder(focused.wrappedValue ? SUI.accent.opacity(0.7) : Color.primary.opacity(0.07),
+                          lineWidth: focused.wrappedValue ? 1.5 : 1))
+        .animation(.easeOut(duration: 0.12), value: focused.wrappedValue)
+    }
+}
+
 /// Nút chọn liền khối: đoạn đang chọn nền tím, chữ trắng.
 struct SSegmented<T: Hashable>: View {
     let selection: Binding<T>

@@ -401,23 +401,16 @@ struct VietQRSettingsSection: View {
                  note: L("Nút QR trên hàng tab mở mã chuyển khoản vào tài khoản này. Mã tạo ngay trên máy theo chuẩn VietQR; số tài khoản lưu trong Keychain, không gửi đi đâu.",
                          "The QR button on the tab bar shows a transfer QR for this account. It is made on this Mac using the VietQR standard; the account number stays in the Keychain.")) {
             SRow("building.columns", L("Ngân hàng", "Bank"), divider: false) {
-                Picker("", selection: Binding(get: { store.bin.isEmpty ? VietQR.banks[0].bin : store.bin },
-                                              set: { store.save(bin: $0, account: store.account, name: store.name) })) {
-                    ForEach(VietQR.banks) { Text($0.name).tag($0.bin) }
-                }
-                .labelsHidden()
-                .frame(width: 200)
+                SPicker(Binding(get: { store.bin.isEmpty ? VietQR.banks[0].bin : store.bin },
+                                set: { store.save(bin: $0, account: store.account, name: store.name) }),
+                        VietQR.banks.map { ($0.bin, $0.name) })
             }
             SRow("number", L("Số tài khoản", "Account number")) {
-                TextField("0123456789", text: account.projectedValue)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 200)
+                STextField("0123456789", text: account.projectedValue)
                     .onChange(of: account.wrappedValue) { _, v in save(account: v) }
             }
             SRow("person", L("Tên chủ tài khoản", "Account holder"), detail: L("Không bắt buộc, chỉ để bạn nhìn.", "Optional, only shown to you.")) {
-                TextField("NGUYEN VAN A", text: name.projectedValue)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 200)
+                STextField("NGUYEN VAN A", text: name.projectedValue)
                     .onChange(of: name.wrappedValue) { _, v in store.save(bin: binOrDefault, account: store.account, name: v) }
             }
         }
@@ -446,9 +439,7 @@ struct SePaySettingsSection: View {
                        divider: false, isOn: $sepay.enabled)
             SRow("key", L("API token của SePay", "SePay API token"),
                  detail: L("my.sepay.vn › Cấu hình công ty › API Access", "my.sepay.vn › Company settings › API Access")) {
-                SecureField("••••••••", text: token.projectedValue)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 200)
+                STextField(L("Dán token", "Paste token"), text: token.projectedValue, secure: true)
                     .onChange(of: token.wrappedValue) { _, v in
                         Keychain.write(SePayWatcher.tokenService, v.trimmingCharacters(in: .whitespacesAndNewlines))
                     }
