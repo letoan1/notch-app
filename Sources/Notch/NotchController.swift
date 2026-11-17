@@ -147,7 +147,9 @@ final class NotchController {
         permissions.$requests.receive(on: DispatchQueue.main).sink { [weak self] _ in
             MainActor.assumeIsolated { self?.tick() }
         }.store(in: &cancellables)
-        // Mở / đóng từ script (kiểm thử, phím tắt bên ngoài): notifyutil -p / DistributedNotificationCenter.
+        // Mở / đóng từ script (kiểm thử, phím tắt bên ngoài): DistributedNotificationCenter, không phải notifyutil.
+        // osascript -l JavaScript -e 'ObjC.import("Foundation"); $.NSDistributedNotificationCenter.defaultCenter
+        //   .postNotificationNameObjectUserInfoDeliverImmediately("io.github.letoan1.roost.toggle", $(), $(), true)'
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name("io.github.letoan1.roost.toggle"),
                                                             object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.toggleFromHotkey() }

@@ -286,10 +286,10 @@ struct ClaudeUsagePanel: View {
     var body: some View {
         let s = UsageStyleSet.current
         TimelineView(.everyMinute) { ctx in
-            // Notch thấp (giao diện nhỏ, có dòng lỗi, nhiều model) thì bảng cuộn thay vì bị đáy notch cắt mất.
+            // Notch thấp: bỏ các hạn mức riêng từng model trước, để bảng không bị đáy notch cắt mất.
             ViewThatFits(in: .vertical) {
-                content(s, now: ctx.date)
-                ScrollView(.vertical, showsIndicators: false) { content(s, now: ctx.date) }
+                content(s, now: ctx.date, scoped: true)
+                content(s, now: ctx.date, scoped: false)
             }
         }
         .padding(10)
@@ -301,7 +301,7 @@ struct ClaudeUsagePanel: View {
         .onDisappear { api.release() }
     }
 
-    @ViewBuilder private func content(_ s: UsageStyleSet, now: Date) -> some View {
+    @ViewBuilder private func content(_ s: UsageStyleSet, now: Date, scoped: Bool) -> some View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
                     Image(systemName: "sparkle").font(.system(size: 11, weight: .bold))
@@ -328,12 +328,12 @@ struct ClaudeUsagePanel: View {
                     .opacity(api.enabled ? 1 : 0.4)
                     .disabled(!api.enabled)
                 }
-                HStack(spacing: 0) {
+                HStack(spacing: 10) {
                     ForEach([ClaudeUsage.Window.fiveHour, .sevenDay], id: \.self) { w in
-                        bigRing(w, s, now: now).frame(maxWidth: .infinity)
+                        ringTile(w, s, now: now).frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                if !usage.scoped.isEmpty {
+                if scoped, !usage.scoped.isEmpty {
                     VStack(spacing: 4) {
                         ForEach(usage.scoped) { sc in scopedRow(sc, s) }
                     }
@@ -349,36 +349,35 @@ struct ClaudeUsagePanel: View {
             }
     }
 
-    @ViewBuilder private func bigRing(_ w: ClaudeUsage.Window, _ s: UsageStyleSet, now: Date) -> some View {
-        let label = w == .fiveHour ? L("5 giờ", "5h") : L("tuần", "7d")
-        VStack(spacing: 5) {
+    /// Vòng nhỏ có % ở giữa, tên hạn mức và thời gian tới lúc đặt lại nằm bên phải: thấp hơn kiểu vòng lớn xếp dọc.
+    @ViewBuilder private func ringTile(_ w: ClaudeUsage.Window, _ s: UsageStyleSet, now: Date) -> some View {
+        let l = usage.limit(w)
+        HStack(spacing: 8) {
             ZStack {
-                Circle().stroke(s.track, lineWidth: 6)
-                if let l = usage.limit(w) {
-                    let f = ClaudeUsage.fraction(l, show: extras.usageShow)
-                    Circle().trim(from: 0, to: f)
-                        .stroke(ClaudeUsage.color(l), style: StrokeStyle(lineWidth: 6, lineCap: Theme.isPixel ? .butt : .round))
+                Circle().stroke(s.track, lineWidth: 4.5)
+                if let l {
+                    Circle().trim(from: 0, to: ClaudeUsage.fraction(l, show: extras.usageShow))
+                        .stroke(ClaudeUsage.color(l), style: StrokeStyle(lineWidth: 4.5, lineCap: Theme.isPixel ? .butt : .round))
                         .rotationEffect(.degrees(-90))
-                    VStack(spacing: 0) {
-                        Text("\(Int((f * 100).rounded()))%").font(.ui(15, weight: .bold).monospacedDigit()).foregroundStyle(s.text)
-                        Text(label).font(.ui(9, weight: .semibold)).foregroundStyle(s.secondary)
-                    }
-                } else {
-                    VStack(spacing: 0) {
-                        Text("--").font(.ui(15, weight: .bold)).foregroundStyle(s.secondary)
-                        Text(label).font(.ui(9, weight: .semibold)).foregroundStyle(s.secondary)
-                    }
                 }
+                Text(l.map { "\(Int((ClaudeUsage.fraction($0, show: extras.usageShow) * 100).rounded()))%" } ?? "--")
+                    .font(.ui(12, weight: .bold).monospacedDigit())
+                    .foregroundStyle(l == nil ? s.secondary : s.text)
+                    .minimumScaleFactor(0.7).lineLimit(1).padding(.horizontal, 5)
             }
-            .frame(width: 62, height: 62)
-            HStack(spacing: 3) {
-                Image(systemName: "timer").font(.system(size: 9, weight: .semibold))
-                Text(usage.limit(w).map { Self.until($0.resetsAt, now: now) } ?? "--")
-                    .font(.ui(10).monospacedDigit()).lineLimit(1)
+            .frame(width: 44, height: 44)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(w == .fiveHour ? L("5 giờ", "5 hours") : L("Tuần", "Weekly"))
+                    .font(.ui(12, weight: .semibold)).foregroundStyle(s.text)
+                HStack(spacing: 3) {
+                    Image(systemName: "timer").font(.system(size: 9, weight: .semibold))
+                    Text(l.map { Self.until($0.resetsAt, now: now) } ?? "--")
+                        .font(.ui(10).monospacedDigit()).lineLimit(1).minimumScaleFactor(0.8)
+                }
+                .foregroundStyle(s.secondary)
             }
-            .foregroundStyle(s.secondary)
-            .help(usage.limit(w).map { ClaudeUsage.resetText($0.resetsAt, now: now) } ?? "")
         }
+        .help(l.map { ClaudeUsage.resetText($0.resetsAt, now: now) } ?? "")
     }
 
     private func scopedRow(_ sc: ClaudeUsage.Scoped, _ s: UsageStyleSet) -> some View {
