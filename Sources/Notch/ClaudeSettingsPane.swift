@@ -6,6 +6,7 @@ private final class ClaudePaneModel: ObservableObject {
     @Published var hooks: [ClaudeHookDetector.Found] = []
     @Published var socketExists = false
     @Published var message: String?
+    @Published var copiedCodex = false
 
     func refresh(projects: [String]) {
         socketExists = FileManager.default.fileExists(atPath: PermissionCenter.socketPath)
@@ -61,6 +62,33 @@ struct ClaudePane: View {
                 }
                 SRow("arrow.clockwise", L("Kiểm tra lại cấu hình hook", "Check the hook setup again")) {
                     Button(L("Kiểm tra", "Check")) { model.refresh(projects: activity.projects) }.controlSize(.small)
+                }
+            }
+            SSection("Codex CLI",
+                     note: L("Lần đầu mở Codex sau khi thêm hook, Codex hỏi duyệt hook mới: chọn tin tưởng. Thẻ của Codex không có nút Luôn cho phép, vì luật của Codex nằm ở chỗ khác.",
+                             "The first time you open Codex after adding the hook, Codex asks you to review it: trust it. Codex cards have no Always allow button, since Codex keeps its rules elsewhere.")) {
+                SBlock {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(L("Duyệt yêu cầu của Codex trên notch như với Claude Code. Dán đoạn này vào \(ClaudePaths.short(CodexHooks.file)):",
+                               "Approve Codex requests on the notch just like Claude Code. Paste this into \(ClaudePaths.short(CodexHooks.file)):"))
+                            .font(.system(size: 12)).foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        ScrollView {
+                            Text(CodexHooks.config)
+                                .font(.system(size: 11, design: .monospaced))
+                                .textSelection(.enabled)
+                                .padding(10)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .frame(height: 130)
+                        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.06)))
+                        Button(model.copiedCodex ? L("Đã chép", "Copied") : L("Chép", "Copy")) {
+                            NSPasteboard.general.clearContents()
+                            NSPasteboard.general.setString(CodexHooks.config, forType: .string)
+                            model.copiedCodex = true
+                        }
+                        .controlSize(.small)
+                    }
                 }
             }
 

@@ -83,6 +83,8 @@ struct PermissionRequest: Identifiable {
     /// Mục hẹp nhất trong số gợi ý; nil = ẩn "Luôn cho phép".
     let allowScope: AllowScope?
     let rawTool: String
+    /// Yêu cầu từ Codex CLI (hook cùng định dạng với Claude Code, payload có thêm `turn_id`).
+    let codex: Bool
     /// `tool_input` nguyên văn: AskUserQuestion / ExitPlanMode cần trả lại qua `updatedInput`.
     let toolInput: [String: Any]
     /// Có giá trị khi đây là AskUserQuestion: hiện thẻ chọn đáp án thay vì Cho phép/Từ chối.
@@ -108,20 +110,21 @@ struct PermissionRequest: Identifiable {
     }
 
     var kindTitle: String {
+        let who = codex ? "Codex" : "Claude"
         switch kind {
-        case .question: return L("Claude hỏi", "Claude asks")
-        case .plan: return L("Claude trình kế hoạch", "Claude has a plan")
+        case .question: return L("\(who) hỏi", "\(who) asks")
+        case .plan: return L("\(who) trình kế hoạch", "\(who) has a plan")
         case .tool:
             switch rawTool {
-            case "Bash": return L("Claude muốn chạy lệnh", "Claude wants to run a command")
-            case "Edit", "MultiEdit", "NotebookEdit": return L("Claude muốn sửa file", "Claude wants to edit a file")
-            case "Write": return L("Claude muốn ghi file", "Claude wants to write a file")
-            case "Read": return L("Claude muốn đọc file", "Claude wants to read a file")
-            case "WebFetch": return L("Claude muốn mở trang web", "Claude wants to fetch a page")
-            case "WebSearch": return L("Claude muốn tìm trên web", "Claude wants to search the web")
+            case "Bash": return L("\(who) muốn chạy lệnh", "\(who) wants to run a command")
+            case "Edit", "MultiEdit", "NotebookEdit", "apply_patch": return L("\(who) muốn sửa file", "\(who) wants to edit a file")
+            case "Write": return L("\(who) muốn ghi file", "\(who) wants to write a file")
+            case "Read": return L("\(who) muốn đọc file", "\(who) wants to read a file")
+            case "WebFetch": return L("\(who) muốn mở trang web", "\(who) wants to fetch a page")
+            case "WebSearch": return L("\(who) muốn tìm trên web", "\(who) wants to search the web")
             default:
-                return rawTool.hasPrefix("mcp__") ? L("Claude muốn dùng công cụ MCP", "Claude wants to use an MCP tool")
-                    : L("Claude xin quyền", "Claude needs permission")
+                return rawTool.hasPrefix("mcp__") ? L("\(who) muốn dùng công cụ MCP", "\(who) wants to use an MCP tool")
+                    : L("\(who) xin quyền", "\(who) needs permission")
             }
         }
     }
@@ -133,7 +136,7 @@ struct PermissionRequest: Identifiable {
         case .tool:
             switch rawTool {
             case "Bash": return "terminal.fill"
-            case "Edit", "MultiEdit", "NotebookEdit", "Write": return "pencil.line"
+            case "Edit", "MultiEdit", "NotebookEdit", "Write", "apply_patch": return "pencil.line"
             case "Read": return "doc.text.magnifyingglass"
             case "WebFetch", "WebSearch": return "globe"
             default: return rawTool.hasPrefix("mcp__") ? "puzzlepiece.extension.fill" : "lock.shield.fill"
@@ -487,6 +490,7 @@ final class PermissionCenter: ObservableObject {
             suggestions: suggestions,
             allowScope: kind == .question ? nil : AllowScope.narrowest(suggestions, projectDir: projectDir),
             rawTool: tool,
+            codex: meta["agent"] as? String == "codex" || obj["turn_id"] != nil,
             toolInput: input,
             questions: kind == .question
                 ? (input["questions"] as? [Any] ?? []).compactMap(AskQuestion.init)
@@ -620,6 +624,17 @@ final class PermissionCenter: ObservableObject {
             return (str("command") ?? "", str("description"))
         case "Edit", "Write", "Read", "MultiEdit", "NotebookEdit":
             return (ClaudePaths.short(str("file_path") ?? str("notebook_path") ?? ""), nil)
+        case "apply_patch":
+            // Codex: "*** Update File: <path>" / Add / Delete trong patch; dòng phụ đếm dòng thêm/bớt.
+            let lines = (str("command") ?? "").split(separator: "\n", omittingEmptySubsequences: false)
+            let files = lines.compactMap { line -> String? in
+                for p in ["*** Update File: ", "*** Add File: ", "*** Delete File: "] where line.hasPrefix(p) {
+                    return ClaudePaths.short(String(line.dropFirst(p.count)))
+                }
+                return nil
+            }
+            let added = lines.filter { $0.hasPrefix("+") }.count, removed = lines.filter { $0.hasPrefix("-") }.count
+            return (files.joined(separator: ", "), L("+\(added) −\(removed) dòng", "+\(added) −\(removed) lines"))
         case "WebFetch":
             return (str("url") ?? "", str("prompt"))
         case "WebSearch":

@@ -1,6 +1,6 @@
 import Foundation
 
-// Claude Code gọi binary này cho các hook event (JSON qua stdin).
+// Claude Code (và Codex CLI, với --codex) gọi binary này cho các hook event (JSON qua stdin, cùng định dạng).
 // - PermissionRequest: gửi yêu cầu lên app Roost qua Unix socket rồi chờ người dùng bấm.
 // - PostToolUse / PostToolUseFailure / Stop / SessionEnd / UserPromptSubmit: báo app gỡ thẻ đã được
 //   trả lời ở terminal (hộp thoại terminal chạy song song với hook), không chờ, không in gì.
@@ -55,6 +55,8 @@ if isRequest {
         "claude_pid": Int(claudePid),
         "hook_pid": Int(getpid()),
     ]
+    // `roost-hook --codex`: lệnh hook trong ~/.codex/hooks.json, để thẻ ghi "Codex" thay vì "Claude".
+    if CommandLine.arguments.contains("--codex") { meta["agent"] = "codex" }
     // App chủ (VS Code, Terminal, iTerm…) để thẻ có nút mở đúng cửa sổ.
     for (key, name) in [("host_bundle_id", "__CFBundleIdentifier"), ("term_program", "TERM_PROGRAM"),
                         ("project_dir", "CLAUDE_PROJECT_DIR"), ("entrypoint", "CLAUDE_CODE_ENTRYPOINT")] {

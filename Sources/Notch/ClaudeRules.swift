@@ -236,7 +236,8 @@ enum ClaudeHookDetector {
     }
 
     static func scan(projects: [String]) -> [Found] {
-        var files = [NSHomeDirectory() + "/.claude/settings.json", NSHomeDirectory() + "/.claude/settings.local.json"]
+        var files = [NSHomeDirectory() + "/.claude/settings.json", NSHomeDirectory() + "/.claude/settings.local.json",
+                     CodexHooks.file]
         // Hook có thể nằm ở thư mục cha của project (vd. workspace chứa nhiều repo): dò ngược lên tới $HOME.
         let home = NSHomeDirectory()
         for dir in projects {
@@ -270,4 +271,35 @@ enum ClaudeHookDetector {
             return Found(file: file, events: events.sorted(), timeout: timeout)
         }
     }
+}
+
+/// Codex CLI: hook cùng định dạng Claude Code, đặt trong ~/.codex/hooks.json (hoặc $CODEX_HOME/hooks.json).
+/// Codex không có event Notification; lần đầu chạy sau khi thêm hook, Codex hỏi duyệt hook trong TUI.
+enum CodexHooks {
+    static var file: String {
+        let home = ProcessInfo.processInfo.environment["CODEX_HOME"].flatMap { $0.isEmpty ? nil : $0 }
+            ?? NSHomeDirectory() + "/.codex"
+        return home + "/hooks.json"
+    }
+    static let command = "/Applications/Roost.app/Contents/MacOS/roost-hook --codex"
+    static let config = """
+    {
+      "hooks": {
+        "PermissionRequest": [{
+          "matcher": "*",
+          "hooks": [{ "type": "command", "command": "\(command)", "timeout": 110 }]
+        }],
+        "PostToolUse": [{
+          "matcher": "*",
+          "hooks": [{ "type": "command", "command": "\(command)", "timeout": 5 }]
+        }],
+        "Stop": [{
+          "hooks": [{ "type": "command", "command": "\(command)", "timeout": 5 }]
+        }],
+        "SessionEnd": [{
+          "hooks": [{ "type": "command", "command": "\(command)", "timeout": 5 }]
+        }]
+      }
+    }
+    """
 }
