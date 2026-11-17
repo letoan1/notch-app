@@ -6,7 +6,14 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-IDENTITY="Notch Local Signing"   # tên chứng chỉ trong keychain (giữ nguyên), tạo 1 lần bằng scripts/make-signing-cert.sh
+# Chứng chỉ ký trong keychain. Ưu tiên chứng chỉ phát hành để bản ./build.sh install và bản tải từ Releases
+# được macOS coi là cùng một app (chuyển qua lại không mất quyền). Máy chưa có thì dùng chứng chỉ dev,
+# tạo 1 lần bằng scripts/make-signing-cert.sh.
+if security find-identity -p codesigning | grep -q '"Roost Release Signing"'; then
+  IDENTITY="Roost Release Signing"
+else
+  IDENTITY="Notch Local Signing"
+fi
 
 swift build -c release
 

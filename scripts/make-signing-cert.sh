@@ -1,8 +1,12 @@
 #!/bin/bash
 # Tạo 1 lần: chứng chỉ ký code tự ký trong login keychain.
 # Ký cố định → TCC nhận diện app theo bundle id + chứng chỉ, không hỏi lại quyền mỗi lần build.
+#   scripts/make-signing-cert.sh                          → "Notch Local Signing" (build dev)
+#   scripts/make-signing-cert.sh "Roost Release Signing"  → chứng chỉ ký bản phát hành (make-dmg.sh)
+# Chứng chỉ phát hành phải giữ suốt đời app: mất khoá riêng thì mọi người dùng phải cấp lại quyền.
+# Sao lưu ngay: Keychain Access → My Certificates → chuột phải "Roost Release Signing" → Export (.p12).
 set -euo pipefail
-NAME="Notch Local Signing"
+NAME="${1:-Notch Local Signing}"
 if security find-identity -p codesigning | grep -q "\"$NAME\""; then
   echo "Đã có chứng chỉ \"$NAME\""; exit 0
 fi

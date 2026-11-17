@@ -252,6 +252,12 @@ Cần để phát hành ngoài máy này:
 5. Cơ chế cập nhật: chưa có. Gợi ý Sparkle 2 (khoá EdDSA, appcast trên GitHub Releases).
 6. Đổi chứng chỉ ký sẽ đổi designated requirement. Người dùng phải cấp lại Lịch, Camera, Automation, Trợ năng, âm thanh hệ thống một lần.
 
+Ký bản phát hành (từ 2026-11-17, trước khi có Developer ID):
+- `scripts/make-dmg.sh` ký bằng chứng chỉ tự ký "Roost Release Signing" và dừng nếu máy không có chứng chỉ này. Không bao giờ phát hành bản ký ad-hoc: designated requirement của bản ad-hoc là `cdhash`, nên mỗi bản cập nhật làm mọi người dùng mất hết quyền (Trợ năng, Camera, Lịch, Automation, âm thanh). Bản 1.0.0 đến 1.0.3 bị lỗi này.
+- Designated requirement đúng: `identifier "io.github.letoan1.roost" and certificate leaf = H"918a0464db5b814d0ae99d25c57e906747e6b13e"`. Kiểm tra bằng `codesign -d -r- Roost.app`.
+- Khoá riêng của chứng chỉ phải được sao lưu (.p12) cùng chỗ với khoá EdDSA của Sparkle. Mất khoá thì mọi người dùng phải cấp lại quyền thêm một lần.
+- Bản đầu tiên ký bằng chứng chỉ này vẫn khiến người dùng cũ phải cấp lại quyền một lần. Ghi rõ trong release notes.
+
 Rủi ro cần quyết định trước khi phát hành:
 - Model ArcFace (InsightFace) đi kèm có giấy phép chỉ cho dùng phi thương mại (xem `Packages/FaceUnlockKit/NOTICE.md`).
 - `mediaremote-adapter` dựa vào việc `/usr/bin/perl` được dùng MediaRemote. Apple có thể chặn đường này ở bản macOS sau. App đã có AppleScript dự phòng cho Spotify/Music.

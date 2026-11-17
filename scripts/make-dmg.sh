@@ -2,7 +2,11 @@
 # Đóng gói Roost thành file .dmg để gắn lên GitHub Release (chưa ký Developer ID, chưa notarize).
 #   scripts/make-dmg.sh            → dist/Roost-<phiên bản>.dmg (universal: Apple silicon + Intel)
 #   scripts/make-dmg.sh --arm64    → chỉ bản Apple silicon (build nhanh hơn)
-# App trong .dmg được ký ad-hoc. Người dùng mở lần đầu sẽ gặp cảnh báo Gatekeeper,
+# App trong .dmg được ký bằng chứng chỉ tự ký "Roost Release Signing" (tạo 1 lần bằng
+# scripts/make-signing-cert.sh "Roost Release Signing", nhớ sao lưu .p12). Ký cố định thì macOS nhận diện
+# app theo bundle id + chứng chỉ, nên quyền Trợ năng, Camera, Lịch… còn nguyên qua các bản cập nhật.
+# Ký ad-hoc thì mỗi bản có cdhash mới và người dùng mất hết quyền sau mỗi lần cập nhật.
+# Chưa có Developer ID nên lần mở đầu vẫn gặp cảnh báo Gatekeeper,
 # cách mở có trong "Hướng dẫn mở Roost.html" đi kèm và docs/INSTALL.md.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -12,6 +16,15 @@ VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Info.pl
 APP=build/Roost.app
 OUT=dist
 DMG="$OUT/Roost-$VERSION.dmg"
+SIGN="Roost Release Signing"
+
+# Không có chứng chỉ thì dừng, không lùi về ad-hoc: phát hành bản ad-hoc là làm người dùng mất quyền.
+if ! security find-identity -p codesigning | grep -q "\"$SIGN\""; then
+  echo "✗ Không thấy chứng chỉ \"$SIGN\" trong keychain." >&2
+  echo "  Máy phát hành: nhập lại file .p12 đã sao lưu (mở file .p12, nhập vào login keychain)." >&2
+  echo "  Chỉ lần đầu tiên mới tạo mới: scripts/make-signing-cert.sh \"$SIGN\"" >&2
+  exit 1
+fi
 
 echo "→ build bản Apple silicon"
 ./build.sh >/dev/null
@@ -32,12 +45,16 @@ if [ $ARM_ONLY -eq 0 ]; then
     -o "$MRA_BIN"
 fi
 
-# Ký ad-hoc từ trong ra ngoài (không mang chứng chỉ tự ký của máy build đi phát hành).
-codesign --force --sign - "$APP/Contents/MacOS/roost-hook"
-codesign --force --sign - "$APP/Contents/Frameworks/MediaRemoteAdapter.framework"
-codesign --force --deep --sign - "$APP/Contents/Frameworks/Sparkle.framework"
-codesign --force --sign - "$APP"
+# Ký từ trong ra ngoài bằng chứng chỉ phát hành.
+codesign --force --sign "$SIGN" "$APP/Contents/MacOS/roost-hook"
+codesign --force --sign "$SIGN" "$APP/Contents/Frameworks/MediaRemoteAdapter.framework"
+codesign --force --deep --sign "$SIGN" "$APP/Contents/Frameworks/Sparkle.framework"
+codesign --force --sign "$SIGN" "$APP"
 codesign --verify --deep --strict "$APP"
+# Designated requirement phải theo chứng chỉ, không phải cdhash (cdhash = quyền mất sau mỗi bản).
+if codesign -d -r- "$APP" 2>&1 | grep -q "designated => cdhash"; then
+  echo "✗ App vẫn mang designated requirement theo cdhash, không phát hành." >&2; exit 1
+fi
 lipo -info "$APP/Contents/MacOS/Roost"
 
 STAGE=$(mktemp -d)
