@@ -21,6 +21,10 @@ en = src.replace('<a class="lang" href="en/" hreflang="en" lang="en">EN</a>',
                  '<a class="lang" href="../" hreflang="vi" lang="vi">VI</a>', 1)
 en = en.replace('<html lang="vi">', '<html lang="en">', 1)
 en = en.replace('<title>Roost: notch cho MacBook</title>', '<title>Roost: your MacBook notch, doing more</title>', 1)
+en = en.replace('content="Roost: notch cho MacBook"', 'content="Roost: your MacBook notch, doing more"', 1)
+en = en.replace('/assets/og.png"', '/assets/og-en.png"', 1).replace('content="vi_VN"', 'content="en_US"', 1)
+en = en.replace('<meta property="og:url" content="https://roost-flame.vercel.app/">',
+                '<meta property="og:url" content="https://roost-flame.vercel.app/en/">', 1)
 # Chỗ đặc biệt: chuỗi ghép biến, ngày tháng và chữ không dấu (bộ lọc theo dấu bỏ sót).
 PRE = [('`còn ${left} giây`', '`${left}s left`'), ('T2 16 thg 11', 'Mon Nov 16'),
        ("'Pin', 'Giờ'", "'Battery', 'Giờ'"), ('<span class="wait">khay</span>', '<span class="wait">files</span>')]
