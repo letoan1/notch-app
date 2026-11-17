@@ -267,10 +267,10 @@ private struct UsageStyleSet {
             return .init(bg: CassettePalette.label, border: CassettePalette.line, text: CassettePalette.ink,
                          secondary: CassettePalette.faded, track: CassettePalette.ink.opacity(0.15), radius: 6)
         case .vangogh:
-            return .init(bg: VG.night.opacity(0.96), border: VG.yellow.opacity(0.85), text: VG.cream,
+            return .init(bg: VG.night, border: VG.yellow.opacity(0.85), text: VG.cream,
                          secondary: VG.muted, track: VG.cream.opacity(0.18), radius: 12)
         case .standard:
-            return .init(bg: Color(white: 0.1).opacity(0.97), border: .white.opacity(0.12), text: .white,
+            return .init(bg: Color(white: 0.1), border: .white.opacity(0.12), text: .white,
                          secondary: .white.opacity(0.55), track: .white.opacity(0.15), radius: 12)
         }
     }
@@ -286,6 +286,22 @@ struct ClaudeUsagePanel: View {
     var body: some View {
         let s = UsageStyleSet.current
         TimelineView(.everyMinute) { ctx in
+            // Notch thấp (giao diện nhỏ, có dòng lỗi, nhiều model) thì bảng cuộn thay vì bị đáy notch cắt mất.
+            ViewThatFits(in: .vertical) {
+                content(s, now: ctx.date)
+                ScrollView(.vertical, showsIndicators: false) { content(s, now: ctx.date) }
+            }
+        }
+        .padding(10)
+        .frame(width: 300, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: s.radius).fill(s.bg))
+        .overlay(RoundedRectangle(cornerRadius: s.radius).stroke(s.border, lineWidth: Theme.isPixel ? 2 : 1))
+        .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
+        .onAppear { api.retain() }
+        .onDisappear { api.release() }
+    }
+
+    @ViewBuilder private func content(_ s: UsageStyleSet, now: Date) -> some View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
                     Image(systemName: "sparkle").font(.system(size: 11, weight: .bold))
@@ -300,7 +316,7 @@ struct ClaudeUsagePanel: View {
                             if api.status == .loading {
                                 Text(L("đang lấy", "loading")).font(.ui(10))
                             } else if let at = usage.updatedAt {
-                                Text(Self.age(at, now: ctx.date)).font(.ui(10).monospacedDigit())
+                                Text(Self.age(at, now: now)).font(.ui(10).monospacedDigit())
                             }
                         }
                         .padding(.horizontal, 6).padding(.vertical, 2)
@@ -314,7 +330,7 @@ struct ClaudeUsagePanel: View {
                 }
                 HStack(spacing: 0) {
                     ForEach([ClaudeUsage.Window.fiveHour, .sevenDay], id: \.self) { w in
-                        bigRing(w, s, now: ctx.date).frame(maxWidth: .infinity)
+                        bigRing(w, s, now: now).frame(maxWidth: .infinity)
                     }
                 }
                 if !usage.scoped.isEmpty {
@@ -331,14 +347,6 @@ struct ClaudeUsagePanel: View {
                         .font(.ui(10)).foregroundStyle(s.secondary).fixedSize(horizontal: false, vertical: true)
                 }
             }
-        }
-        .padding(10)
-        .frame(width: 300, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: s.radius).fill(s.bg))
-        .overlay(RoundedRectangle(cornerRadius: s.radius).stroke(s.border, lineWidth: Theme.isPixel ? 2 : 1))
-        .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
-        .onAppear { api.retain() }
-        .onDisappear { api.release() }
     }
 
     @ViewBuilder private func bigRing(_ w: ClaudeUsage.Window, _ s: UsageStyleSet, now: Date) -> some View {
@@ -409,6 +417,8 @@ struct ClaudeUsagePanelHost: View {
     var body: some View {
         if api.panelOpen {
             ClaudeUsagePanel()
+                .padding(.bottom, 8)
+                .frame(maxHeight: .infinity, alignment: .top)
                 .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .topTrailing)))
         }
     }
