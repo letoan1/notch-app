@@ -120,12 +120,16 @@ final class VietQRStore: ObservableObject {
     }
 
     /// Mã nội dung chuyển khoản riêng cho mỗi lần nhận, để SePay khớp đúng giao dịch ("RST4K9P2").
-    @Published private(set) var code = VietQRStore.newCode()
+    /// Yêu cầu nhận tiền đang chờ (mã nội dung RST… + hạn 10 phút). nil = chưa tạo: QR thường, không chờ gì.
+    struct Request: Equatable { let code: String; let expiresAt: Date }
+    @Published private(set) var request: Request?
 
-    /// Mỗi mã chờ tối đa 10 phút tính từ lúc tạo; đóng / mở lại màn hình không làm lại từ đầu.
-    @Published private(set) var expiresAt = Date().addingTimeInterval(600)
-
-    func newRequest() { code = Self.newCode(); amount = nil; expiresAt = Date().addingTimeInterval(600) }
+    /// Tạo yêu cầu mới (giữ số tiền đang chọn nếu `keepAmount`).
+    func newRequest(keepAmount: Bool = false) {
+        if !keepAmount { amount = nil }
+        request = Request(code: Self.newCode(), expiresAt: Date().addingTimeInterval(600))
+    }
+    func cancelRequest() { request = nil; amount = nil }
 
     static func newCode() -> String {
         let chars = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")   // bỏ 0/O, 1/I cho dễ đọc
@@ -259,18 +263,28 @@ struct BankPanel: View {
         .padding(.horizontal, 16)
         .padding(.bottom, 12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .onAppear(perform: restart)
+        .onAppear {
+            // Mở lại sau khi đã nhận tiền / mã đã hết hạn: về trạng thái ban đầu, chưa chờ gì.
+            if case .received = sepay.state { store.cancelRequest() }
+            if let r = store.request, r.expiresAt <= Date() { store.cancelRequest() }
+            restart()
+        }
         .onDisappear { sepay.stop() }
         .onChange(of: store.amount) { _, _ in restart() }
-        .onChange(of: store.code) { _, _ in restart() }
+        .onChange(of: store.request) { _, _ in restart() }
         // Bật SePay / dán token khi màn hình đang mở: bắt đầu chờ ngay.
         .onChange(of: sepay.enabled) { _, _ in restart() }
         .onChange(of: sepay.hasToken) { _, _ in restart() }
     }
 
     private func restart() {
-        guard store.configured else { return }
-        sepay.watch(code: store.code, amount: store.amount, account: store.account, until: store.expiresAt)
+        guard store.configured, let r = store.request else { sepay.stop(); return }
+        sepay.watch(code: r.code, amount: store.amount, account: store.account, until: r.expiresAt)
+    }
+
+    /// Chọn / gõ số tiền khi chưa có yêu cầu: tạo yêu cầu luôn (nếu đã bật SePay) để bắt đầu chờ.
+    private func amountPicked() {
+        if store.request == nil, sepay.ready { store.newRequest(keepAmount: true) }
     }
 
     private var content: some View {
@@ -283,7 +297,7 @@ struct BankPanel: View {
     }
 
     private var qr: some View {
-        let text = VietQR.payload(bin: store.bin, account: store.account, amount: store.amount, note: store.code)
+        let text = VietQR.payload(bin: store.bin, account: store.account, amount: store.amount, note: store.request?.code)
         return Group {
             if let img = VietQR.image(text) {
                 Image(nsImage: img).interpolation(.none).resizable().scaledToFit()
@@ -304,7 +318,7 @@ struct BankPanel: View {
             .lineLimit(1)
             HStack(spacing: 10) {
                 copyChip(store.account.count > 4 ? "•••• " + store.account.suffix(4) : store.account, value: store.account, key: "stk")
-                copyChip(store.code, value: store.code, key: "code")
+                if let r = store.request { copyChip(r.code, value: r.code, key: "code") }
             }
             HStack(spacing: 4) { ForEach(Self.quick, id: \.self) { chip($0) } }
             TextField(L("Số tiền khác", "Other amount"), text: custom.projectedValue)
@@ -314,12 +328,27 @@ struct BankPanel: View {
                 .background(RoundedRectangle(cornerRadius: 7).fill(.white.opacity(0.08)))
                 .onChange(of: custom.wrappedValue) { _, v in
                     store.amount = Int(v.filter(\.isNumber)).flatMap { $0 > 0 ? $0 : nil }
+                    if store.amount != nil { amountPicked() }
                 }
         }
     }
 
     @ViewBuilder private var status: some View {
         VStack(alignment: .leading, spacing: 6) {
+            if store.request == nil {
+                if sepay.ready {
+                    Text(L("Nhận tiền", "Receive money")).font(.ui(11.5, weight: .semibold)).foregroundStyle(.white)
+                    Text(L("Chọn số tiền hoặc tạo mã để Roost chờ và báo khi tiền vào (tối đa 10 phút).",
+                           "Pick an amount or make a code so Roost waits and tells you when money arrives (up to 10 minutes)."))
+                        .font(.ui(10)).foregroundStyle(.white.opacity(0.5)).fixedSize(horizontal: false, vertical: true)
+                    pill(L("Tạo mã nhận tiền", "Make a code")) { store.newRequest(keepAmount: true) }
+                } else {
+                    Text(L("Báo khi nhận tiền", "Payment alerts")).font(.ui(11.5, weight: .semibold)).foregroundStyle(.white)
+                    Text(L("Bật SePay để notch báo ngay khi tiền vào tài khoản.", "Turn on SePay to get a notch alert when money arrives."))
+                        .font(.ui(10)).foregroundStyle(.white.opacity(0.5)).fixedSize(horizontal: false, vertical: true)
+                    pill(L("Thiết lập", "Set up")) { SettingsWindowController.shared.show(pane: "bank") }
+                }
+            } else {
             switch sepay.state {
             case .received(let r):
                 Label(L("Đã nhận", "Received"), systemImage: "checkmark.seal.fill")
@@ -333,8 +362,8 @@ struct BankPanel: View {
                     ProgressView().controlSize(.small)
                     Text(L("Đang chờ chuyển khoản…", "Waiting for the transfer…")).font(.ui(11.5, weight: .semibold)).foregroundStyle(.white)
                 }
-                Text(L("Người chuyển giữ nguyên nội dung \(store.code) để Roost nhận ra.",
-                       "Ask the sender to keep \(store.code) in the transfer note."))
+                Text(L("Người chuyển giữ nguyên nội dung \(store.request?.code ?? "") để Roost nhận ra.",
+                       "Ask the sender to keep \(store.request?.code ?? "") in the transfer note."))
                     .font(.ui(10)).foregroundStyle(.white.opacity(0.5)).fixedSize(horizontal: false, vertical: true)
                 if sepay.sepayEmpty {
                     Text(L("SePay chưa có giao dịch nào của tài khoản này. Kiểm tra liên kết ngân hàng trên my.sepay.vn.",
@@ -343,11 +372,11 @@ struct BankPanel: View {
                 }
                 HStack(spacing: 8) {
                     TimelineView(.periodic(from: .now, by: 1)) { ctx in
-                        let left = max(0, Int(store.expiresAt.timeIntervalSince(ctx.date)))
+                        let left = max(0, Int((store.request?.expiresAt ?? ctx.date).timeIntervalSince(ctx.date)))
                         Text(L("Còn ", "") + String(format: "%d:%02d", left / 60, left % 60) + L("", " left"))
                             .font(.ui(10.5, weight: .semibold).monospacedDigit()).foregroundStyle(.white.opacity(0.7))
                     }
-                    pill(L("Tạo mã mới", "New code")) { custom.wrappedValue = ""; store.newRequest() }
+                    pill(L("Huỷ", "Cancel")) { custom.wrappedValue = ""; store.cancelRequest() }
                 }
             case .idle:
                 Label(L("Mã đã hết hạn", "Code expired"), systemImage: "clock.badge.xmark")
@@ -363,6 +392,7 @@ struct BankPanel: View {
                 Text(L("Bật SePay để notch báo ngay khi tiền vào tài khoản.", "Turn on SePay to get a notch alert when money arrives."))
                     .font(.ui(10)).foregroundStyle(.white.opacity(0.5)).fixedSize(horizontal: false, vertical: true)
                 pill(L("Thiết lập", "Set up")) { SettingsWindowController.shared.show(pane: "bank") }
+            }
             }
             if !sepay.recent.isEmpty, sepay.state != .waiting {
                 ForEach(sepay.recent.dropFirst().prefix(2)) { r in
@@ -410,6 +440,7 @@ struct BankPanel: View {
         return Button {
             store.amount = on ? nil : value
             custom.wrappedValue = ""
+            if !on { amountPicked() }
         } label: {
             Text(value >= 1_000_000 ? "\(value / 1_000_000)tr" : "\(value / 1000)k")
                 .font(.ui(11, weight: .semibold))
