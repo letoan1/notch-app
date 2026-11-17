@@ -98,19 +98,39 @@ final class ScriptRunner: @unchecked Sendable {
         return error == nil ? result : nil
     }
 
+    /// Chế độ trộn / lặp qua Apple event "get property" gửi thẳng, không qua NSAppleScript: biên dịch AppleScript
+    /// nạp bộ thông dịch (~4 MB) và giữ tới khi Roost thoát. Mã thuộc tính lấy từ sdef của Spotify / Music.
     func fetchModes(_ player: Player) -> PlayModes? {
-        let src = player == .spotify
-            ? "tell application \"Spotify\" to return {shuffling, repeating}"
-            : "tell application \"Music\" to return {shuffle enabled, song repeat as string}"
-        guard let d = run(src), d.numberOfItems == 2 else { return nil }
+        let spotify = player == .spotify
+        guard let shuffle = Self.property(spotify ? "pShu" : "pShE", of: player.bundleID),
+              let repeating = Self.property(spotify ? "pRep" : "pRpt", of: player.bundleID) else { return nil }
         let rep: RepeatMode
-        if player == .spotify {
-            rep = d.atIndex(2)?.booleanValue == true ? .all : .off
+        if spotify {
+            rep = repeating.booleanValue ? .all : .off
         } else {
-            switch d.atIndex(2)?.stringValue { case "one": rep = .one; case "all": rep = .all; default: rep = .off }
+            switch repeating.enumCodeValue {
+            case Self.code("kRp1"): rep = .one
+            case Self.code("kAll"): rep = .all
+            default: rep = .off
+            }
         }
-        return PlayModes(shuffle: d.atIndex(1)?.booleanValue ?? false, repeatMode: rep,
-                         supportsRepeatOne: player == .music, viaAdapter: false)
+        return PlayModes(shuffle: shuffle.booleanValue, repeatMode: rep, supportsRepeatOne: !spotify, viaAdapter: false)
+    }
+
+    static func code(_ s: String) -> FourCharCode { s.utf8.reduce(0) { $0 << 8 | FourCharCode($1) } }
+
+    /// `get <property> of application`: object specifier dạng formPropertyID, container null.
+    static func property(_ name: String, of bundleID: String) -> NSAppleEventDescriptor? {
+        let event = NSAppleEventDescriptor(eventClass: code("core"), eventID: code("getd"),
+                                           targetDescriptor: NSAppleEventDescriptor(bundleIdentifier: bundleID),
+                                           returnID: AEReturnID(kAutoGenerateReturnID), transactionID: AETransactionID(kAnyTransactionID))
+        guard let spec = NSAppleEventDescriptor.record().coerce(toDescriptorType: code("obj ")) else { return nil }
+        spec.setDescriptor(NSAppleEventDescriptor(typeCode: code("prop")), forKeyword: code("want"))
+        spec.setDescriptor(NSAppleEventDescriptor(enumCode: code("prop")), forKeyword: code("form"))
+        spec.setDescriptor(NSAppleEventDescriptor(typeCode: code(name)), forKeyword: code("seld"))
+        spec.setDescriptor(NSAppleEventDescriptor.null(), forKeyword: code("from"))
+        event.setParam(spec, forKeyword: code("----"))
+        return (try? event.sendEvent(options: [.waitForReply], timeout: 3))?.paramDescriptor(forKeyword: code("----"))
     }
 
     func fetch(_ player: Player) -> Track? {
@@ -301,6 +321,8 @@ final class NowPlaying: ObservableObject {
             if modes != nil { modes = nil }
             return
         }
+        // Chỉ hỏi khi trình phát đang hiện (force), không hỏi mỗi lần đổi bài lúc notch đóng.
+        guard force else { modesKey = ""; return }
         let bundle = track.bundleID
         runner.async { [weak self] r in
             let m = r.fetchModes(player)
