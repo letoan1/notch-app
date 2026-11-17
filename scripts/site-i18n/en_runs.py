@@ -258,7 +258,7 @@ EN = [
 "Only shown when your Mac has more than one camera.","built-in camera",
 "This is a convenience, not a security layer. A MacBook camera only sees a flat 2D image",
 "a video of your face could still get through. Doesn't work after a restart.",
-"Other","About","Version 1.0.5 · Your MacBook notch, doing more.",
+"Other","About","Version 1.1.0 · Your MacBook notch, doing more.",
 "Resources","Install guide","Grant permissions and connect Claude Code.","Open","Source code","License",
 "The ArcFace face recognition model isn't covered by the MIT license and is for non-commercial use only. The VT323 font is under SIL OFL, mediaremote-adapter under BSD 3-Clause.",
     "Releases",
@@ -309,4 +309,8 @@ EN = [
     "Does Roost work with Codex?",
     "Yes, since 1.0.5. Go to Settings › Claude Code › Codex CLI and copy the hook into ~/.codex/hooks.json. The next time you open Codex, trust the hook when it asks.",
     ": a button on the full-screen lyrics and lock screen player mutes the vocals, keeps the beat and fills in each word of the line being sung.",
+    "Hide while screen sharing",
+    ": the notch stays out of Zoom, Meet, recordings and screenshots.",
+    "Report crashes on GitHub after Roost quits unexpectedly; nothing is sent on its own.",
+    "Closing the Mirror tab now fully releases the camera and its frame buffers.",
 ]
