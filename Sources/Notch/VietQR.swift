@@ -154,6 +154,8 @@ final class SePayWatcher: ObservableObject {
 
     @Published private(set) var state: State = .off
     @Published private(set) var recent: [Received] = []
+    /// SePay trả về danh sách rỗng: tài khoản chưa liên kết xong / SePay chưa nhận được biến động từ ngân hàng.
+    @Published private(set) var sepayEmpty = false
     @Published var enabled: Bool = UserDefaults.standard.bool(forKey: "sepay.enabled") {
         didSet { UserDefaults.standard.set(enabled, forKey: "sepay.enabled"); if !enabled { stop() } }
     }
@@ -181,6 +183,7 @@ final class SePayWatcher: ObservableObject {
                 do {
                     let txs = try await Self.fetch(token: token, account: account)
                     guard let self, !Task.isCancelled else { return }
+                    if self.sepayEmpty != txs.isEmpty { self.sepayEmpty = txs.isEmpty }
                     if let hit = Self.match(txs, code: code, amount: amount), !self.seen.contains(hit.id) {
                         self.seen.insert(hit.id)
                         self.got(hit)
@@ -333,6 +336,11 @@ struct BankPanel: View {
                 Text(L("Người chuyển giữ nguyên nội dung \(store.code) để Roost nhận ra.",
                        "Ask the sender to keep \(store.code) in the transfer note."))
                     .font(.ui(10)).foregroundStyle(.white.opacity(0.5)).fixedSize(horizontal: false, vertical: true)
+                if sepay.sepayEmpty {
+                    Text(L("SePay chưa có giao dịch nào của tài khoản này. Kiểm tra liên kết ngân hàng trên my.sepay.vn.",
+                           "SePay has no transactions for this account yet. Check the bank link on my.sepay.vn."))
+                        .font(.ui(10)).foregroundStyle(.orange).fixedSize(horizontal: false, vertical: true)
+                }
                 HStack(spacing: 8) {
                     TimelineView(.periodic(from: .now, by: 1)) { ctx in
                         let left = max(0, Int(store.expiresAt.timeIntervalSince(ctx.date)))
