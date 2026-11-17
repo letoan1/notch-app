@@ -16,7 +16,10 @@ final class NotchPanel: NSPanel {
         hidesOnDeactivate = false
         level = NSWindow.Level(rawValue: NSWindow.Level.mainMenu.rawValue + 3)
         collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle]
+        applySharing()
     }
+
+    func applySharing() { sharingType = SettingsStore.shared.hideInScreenShare ? .none : .readOnly }
 
     /// Chỉ nhận bàn phím khi đang có câu hỏi của Claude (ô "Khác…"); còn lại click không lấy focus
     /// khỏi app đang dùng.

@@ -360,6 +360,10 @@ private struct AppearancePane: View {
                 SToggleRow(icon: "sun.max", title: L("Quầng sáng theo ảnh bìa", "Album-art glow"),
                            detail: L("Ánh màu ảnh bìa toả ra quanh notch thu gọn.", "The album colors glow around the closed notch."),
                            isOn: $settings.ambientGlow)
+                SToggleRow(icon: "eye.slash", title: L("Ẩn khi chia sẻ màn hình", "Hide while screen sharing"),
+                           detail: L("Notch không hiện trong Zoom, Meet, khi quay hay chụp màn hình. Bạn vẫn thấy notch bình thường.",
+                                     "The notch stays out of Zoom, Meet, recordings and screenshots. You still see it as usual."),
+                           isOn: $settings.hideInScreenShare)
             }
             SSection(L("Hai bên notch khi thu gọn", "Beside the closed notch"),
                      note: L("Tự động: ảnh bìa bên trái, sóng nhạc bên phải, chỉ khi có nhạc. Giờ, pin và cuộc họp hiện cả khi không có nhạc.",

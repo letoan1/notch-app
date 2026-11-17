@@ -178,8 +178,14 @@ final class CameraMirror: ObservableObject {
         frameTimer = nil
         painter.enabled = false
         let session = self.session
+        // Gỡ hết input/output: phiên chỉ dừng thì vẫn giữ bộ đệm hình 1080p (~35–50 MB). Lần mở sau cấu hình lại.
+        configured = false
         queue.async {
             if session.isRunning { session.stopRunning() }
+            session.beginConfiguration()
+            session.inputs.forEach(session.removeInput)
+            session.outputs.forEach(session.removeOutput)
+            session.commitConfiguration()
         }
     }
 

@@ -172,6 +172,13 @@ final class SettingsStore: ObservableObject {
     @Published var expandedSize: ExpandedSize { didSet { save(expandedSize.rawValue, "expandedSize") } }
     @Published var haptics: Bool { didSet { save(haptics, "haptics") } }
     @Published var ambientGlow: Bool { didSet { save(ambientGlow, "ambientGlow") } }
+    /// Notch không lọt vào chia sẻ / quay / chụp màn hình. Tắt mặc định để ảnh chụp màn hình vẫn có notch.
+    @Published var hideInScreenShare: Bool {
+        didSet {
+            save(hideInScreenShare, "hideInScreenShare")
+            for case let panel as NotchPanel in NSApp.windows { panel.applySharing() }
+        }
+    }
     @Published var autoMinimal: Bool { didSet { save(autoMinimal, "autoMinimal") } }
     @Published var powerSaver: Bool { didSet { save(powerSaver, "powerSaver") } }
     /// Lớp 1 của mở khoá bằng khuôn mặt: chỉ là hiệu ứng, chạy cả khi tính năng tắt.
@@ -207,6 +214,7 @@ final class SettingsStore: ObservableObject {
         expandedSize = ExpandedSize(rawValue: d.string(forKey: "expandedSize") ?? "") ?? .regular
         haptics = d.object(forKey: "haptics") as? Bool ?? true
         ambientGlow = d.object(forKey: "ambientGlow") as? Bool ?? true
+        hideInScreenShare = d.bool(forKey: "hideInScreenShare")
         autoMinimal = d.object(forKey: "autoMinimal") as? Bool ?? true
         powerSaver = d.object(forKey: "powerSaver") as? Bool ?? true
         unlockEffect = d.object(forKey: "unlockEffect") as? Bool ?? true

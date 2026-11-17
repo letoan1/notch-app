@@ -9,6 +9,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller = NotchController()
         _ = AppUpdater.shared
         OnboardingWindowController.shared.showIfNeeded()
+        // Lần mở sau một crash: hỏi có mở GitHub issue điền sẵn không (không tự gửi gì).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) { MainActor.assumeIsolated { CrashReport.checkOnLaunch() } }
     }
 
     // Quick Look của khay: panel tìm controller trong responder chain (kết thúc ở app delegate).
