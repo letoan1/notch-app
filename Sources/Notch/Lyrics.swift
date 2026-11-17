@@ -23,21 +23,38 @@ final class LyricsStore: ObservableObject {
         didSet { UserDefaults.standard.set(enabled, forKey: "lyrics.enabled"); refresh() }
     }
     /// Notch đang hiện lời thay cho trình phát.
-    /// Karaoke (nút ở toàn màn hình / màn hình khoá): bỏ giọng ca sĩ của app đang phát và tô dần từng chữ.
-    /// Không lưu: tự tắt khi rời màn hình lời, để nhạc không bị mất giọng lúc bạn không để ý.
+    /// Karaoke (màn hình lời toàn màn hình): tô dần từng chữ, không đụng âm thanh. Không lưu: tự tắt khi rời màn hình lời.
     @Published var karaoke = false {
         didSet {
             guard karaoke != oldValue else { return }
-            SoundCenter.shared.setKaraoke(karaoke, app: track?.bundleID)
+            if !karaoke { vocalLevel = 1; leaveAIVocals() }
+            // Nạp sẵn model (~5 s, ~200 MB) để lúc kéo thanh thì AI đã sẵn sàng; chưa kéo thì chưa có tap / chấm tím.
+            else if AIVocalSeparator.installed { AIVocals.shared.set(true) }
         }
     }
+    /// Mức giọng ca sĩ khi karaoke (1 = nguyên bản). Dưới 1 mới cần process tap: macOS hiện chấm tím suốt lúc đó.
+    @Published var vocalLevel: Double = 1 {
+        didSet { if vocalLevel != oldValue { pushVocal() } }
+    }
+    /// Giọng dẫn ở câu khó (KaraokeGuide): đang hạ giọng mà tới câu hát nhanh thì giọng ca sĩ hát nhỏ để dẫn.
+    @Published var guideHard: Bool = UserDefaults.standard.object(forKey: "karaoke.guideHard") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(guideHard, forKey: "karaoke.guideHard"); pushVocal() }
+    }
+    static let karaokeVocalLevel = 0.0   // phím V: tắt hẳn giọng; muốn nghe giọng dẫn thì kéo thanh lên
+    /// Trễ của đường âm thanh (loa Bluetooth, đi qua Roost khi hạ giọng), đo lại mỗi lần đồng bộ.
+    @Published private(set) var audioDelay: Double = 0
+    /// Vị trí bài mà bạn đang thật sự nghe thấy.
+    func heardPosition(_ track: Track, at date: Date) -> Double { track.position(at: date) - audioDelay }
+
     @Published var showInNotch: Bool = UserDefaults.standard.bool(forKey: "lyrics.inNotch") {
         didSet { UserDefaults.standard.set(showInNotch, forKey: "lyrics.inNotch") }
     }
     @Published private(set) var lines: [LyricLine] = []
     @Published private(set) var status: Status = .idle
     /// Dòng đang hát (nil = chưa tới dòng đầu).
-    @Published private(set) var current: Int?
+    @Published private(set) var current: Int? {
+        didSet { if current != oldValue { pushVocal() } }
+    }
 
     private weak var media: NowPlaying?
     private var trackSink: AnyCancellable?
@@ -52,10 +69,11 @@ final class LyricsStore: ObservableObject {
         self.media = media
         trackSink = media.$track.receive(on: RunLoop.main).sink { [weak self] track in
             MainActor.assumeIsolated {
+                self?.flushIfJumped(track)
                 self?.refresh()
-                // Đổi app phát (Spotify ↔ Music) khi đang karaoke: bỏ giọng ở app mới, trả giọng cho app cũ.
-                if self?.karaoke == true, let app = track?.bundleID, SoundCenter.shared.karaokeApp != app {
-                    SoundCenter.shared.setKaraoke(true, app: app)
+                // Đổi app phát (Spotify ↔ Music) khi đang bỏ giọng: bỏ giọng ở app mới, trả giọng cho app cũ.
+                if let self, AIVocals.shared.state == .on, let app = track?.bundleID, SoundCenter.shared.karaokeApp != app {
+                    self.pushVocal(force: true)
                 }
             }
         }
@@ -69,6 +87,61 @@ final class LyricsStore: ObservableObject {
     }
 
     var track: Track? { media?.track }
+
+    /// Đo lại độ trễ âm thanh và dòng đang hát (bật / tắt AI, đổi loa).
+    func resync() { pushVocal(force: true); sync() }   // gắn / gỡ tap trước rồi mới đo độ trễ
+
+    private var leavingAI = false
+    /// Tắt Karaoke khi đang tách bằng AI: nhạc đang nghe trễ ~1,6 s so với Spotify. Lùi Spotify lại đúng chỗ đang nghe,
+    /// phát nốt phần đệm ~0,25 s rồi mới gỡ tap, để bài chạy tiếp liền mạch (không nhảy cóc, không câm).
+    private func leaveAIVocals() {
+        guard AIVocals.shared.state == .on, SoundCenter.shared.karaokeApp != nil, let track, track.isPlaying else {
+            AIVocals.shared.set(false); return
+        }
+        leavingAI = true
+        media?.seek(max(track.position(at: Date()) - AIVocalSeparator.delaySeconds - 0.25, 0))
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                self.leavingAI = false
+                if !self.karaoke { AIVocals.shared.set(false) }
+            }
+        }
+    }
+
+    private var lastSeen: (key: String, playing: Bool, pos: Double, at: Date)?
+    /// Tách bằng AI làm nhạc trễ ~4,5 s: dừng, tua hay đổi bài thì bỏ phần nhạc cũ còn trong đệm ngay.
+    private func flushIfJumped(_ track: Track?) {
+        defer {
+            lastSeen = track.map { (Self.key($0), $0.isPlaying, $0.position(at: Date()), Date()) }
+        }
+        guard SoundCenter.shared.aiVocals, !leavingAI, let last = lastSeen else { return }
+        guard let track else { SoundCenter.shared.flushAIVocals(); return }
+        let now = Date()
+        let expected = last.pos + (last.playing ? now.timeIntervalSince(last.at) : 0)
+        if Self.key(track) != last.key || (last.playing && !track.isPlaying)
+            || abs(track.position(at: now) - expected) > 1.5 {
+            SoundCenter.shared.flushAIVocals()
+        }
+    }
+
+    /// Dòng đang hát có phải câu khó (để bật giọng dẫn)?
+    func isHard(_ index: Int?) -> Bool {
+        guard let index, lines.indices.contains(index), let start = lines[index].time else { return false }
+        let next = lines[(index + 1)...].first { $0.time != nil }?.time
+        return KaraokeGuide.isHard(lines[index].text, start: start, next: next)
+    }
+
+    private var sentVocal: Double = 1
+    /// Gửi mức giọng thật xuống âm thanh: mức của thanh trượt, hoặc giọng dẫn nếu đang ở câu khó.
+    private func pushVocal(force: Bool = false) {
+        var level = vocalLevel
+        if level < 1, guideHard, isHard(current) { level = max(level, KaraokeGuide.level) }
+        if AIVocals.shared.state != .on { level = 1 }   // chưa có AI thì không đụng âm thanh
+        guard force || level != sentVocal else { return }
+        sentVocal = level
+        SoundCenter.shared.setVocalCut(Float(1 - level), app: track?.bundleID)
+    }
 
     /// Chỉ Spotify và Apple Music: tên bài/ca sĩ chuẩn, khớp được với LRCLIB.
     nonisolated static let supportedApps: Set<String> = ["com.spotify.client", "com.apple.Music"]
@@ -123,7 +196,9 @@ final class LyricsStore: ObservableObject {
     private func sync() {
         lineTimer?.invalidate(); lineTimer = nil
         guard status == .synced, let track = self.track else { return }
-        let pos = track.position(at: Date())
+        let delay = SoundCenter.shared.heardDelay
+        if abs(delay - audioDelay) > 0.005 { audioDelay = delay }
+        let pos = heardPosition(track, at: Date())
         let idx = lines.lastIndex { ($0.time ?? .infinity) <= pos + 0.15 }
         if idx != current { current = idx }
         guard track.isPlaying, consumers > 0 else { return }

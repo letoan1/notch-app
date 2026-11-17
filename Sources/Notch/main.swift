@@ -51,6 +51,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
 // Dữ liệu bản cũ "Notch" → Roost, trước khi bất kỳ thứ gì đọc UserDefaults / Application Support
 // (kể cả màn chào: cờ "onboarded" phải có trước).
+// Roost --karaoke-selftest <file nhạc> <thư mục ra>: tự kiểm âm thanh karaoke rồi thoát (không mở giao diện).
+KaraokeSelfTest.runIfRequested()
+// NSLog của app không vào log hệ thống: ghi ra ~/Library/Logs/Roost.log (chỉ dòng chẩn đoán karaoke, mở lại app thì làm mới).
+if !CommandLine.arguments.contains(where: { $0.hasSuffix("selftest") }) {
+    freopen(NSHomeDirectory() + "/Library/Logs/Roost.log", "w", stderr)
+}
+KaraokeSelfTest.runTapTestIfRequested()
 RoostMigration.run()
 
 // pkill / build.sh gửi SIGTERM: thoát qua NSApp.terminate để dọn tiến trình con (MediaRemote stream).
