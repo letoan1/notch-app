@@ -258,7 +258,7 @@ EN = [
 "Only shown when your Mac has more than one camera.","built-in camera",
 "This is a convenience, not a security layer. A MacBook camera only sees a flat 2D image",
 "a video of your face could still get through. Doesn't work after a restart.",
-"Other","About","Version 1.1.0 · Your MacBook notch, doing more.",
+"Other","About","Version 1.2.0 · Your MacBook notch, doing more.",
 "Resources","Install guide","Grant permissions and connect Claude Code.","Open","Source code","License",
 "The ArcFace face recognition model isn't covered by the MIT license and is for non-commercial use only. The VT323 font is under SIL OFL, mediaremote-adapter under BSD 3-Clause.",
     "Releases",
