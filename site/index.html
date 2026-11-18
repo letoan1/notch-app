@@ -21,7 +21,7 @@
 <link rel="icon" href="assets/icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,700;1,800&family=Caveat:wght@600;700&family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,400;0,500;0,600;0,700;0,800;1,700;1,800&family=Patrick+Hand&family=VT323&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#fbfaf8; --bg2:#f3f1ee; --card:#fff; --ink:#111114; --ink2:#55555e; --ink3:#8a8a94;
@@ -414,7 +414,7 @@ footer .made a{color:var(--ink);font-weight:700}
 @media (max-width:860px){.rel{grid-template-columns:1fr;gap:32px}.rel-side{position:static}}
 
 /* ---------- Kiểu chữ ---------- */
-.hand{font-family:"Caveat",cursive;font-weight:700;font-size:30px;line-height:1;color:var(--accent);display:inline-block;transform:rotate(-3deg);margin-bottom:12px;letter-spacing:.01em}
+.hand{font-family:"Patrick Hand",cursive;font-weight:400;font-size:30px;line-height:1;color:var(--accent);display:inline-block;transform:rotate(-3deg);margin-bottom:12px;letter-spacing:.01em}
 .hand.orange{color:#c2410c}.hand.violet{color:#2563eb}.hand.light{color:#ffd1a8}
 .mark{position:relative;z-index:0;white-space:nowrap}
 .mark:before{content:"";position:absolute;z-index:-1;left:-.1em;right:-.12em;bottom:.04em;height:.42em;background:var(--mc,#fbbf24);opacity:.85;
@@ -468,6 +468,39 @@ footer .made a{color:var(--ink);font-weight:700}
 .acard small{display:block;font-size:11.5px;color:rgba(255,255,255,.62);margin-top:3px;line-height:1.35}
 .lyr-vis{width:100%;height:100%;min-height:200px;border-radius:18px;padding:22px;background:linear-gradient(160deg,#4a3527,#1d1a19 70%);transform:rotate(-4deg) translateX(14px);display:flex;flex-direction:column;justify-content:center;gap:10px;font:700 17px/1.25 var(--sys);color:rgba(255,255,255,.35);box-shadow:0 20px 40px -20px rgba(0,0,0,.5)}
 .lyr-vis .on{color:#fff;font-size:20px}
+.dlinks{margin-top:auto;display:flex;flex-wrap:wrap;gap:0 18px}
+.kara{position:absolute;inset:0;display:flex;gap:30px;padding:26px 30px;background:radial-gradient(120% 90% at 20% 30%,#8b7f8c,#6f6670 55%,#5d5560);font-family:var(--sys);color:#fff;text-align:left}
+.kara .kside{width:178px;flex:none;display:flex;flex-direction:column;justify-content:center}
+.kara .kside>*{flex-shrink:0}
+.kara .kart{position:relative;width:104px;height:104px;border-radius:8px;background:linear-gradient(150deg,#f3eef4,#d9cfdc 40%,#3b3340 41%,#3b3340 47%,#e9e2ea 48%);box-shadow:0 10px 24px -8px rgba(0,0,0,.45)}
+.kara .ksp{position:absolute;right:-6px;bottom:-6px;width:20px;height:20px;border-radius:50%;background:#000;color:#1ed760;display:grid;place-items:center}
+.kara .ksp .i{width:16px;height:16px}
+.kara .kt{margin-top:10px;font-size:14px}
+.kara .ka{font-size:11px;color:rgba(255,255,255,.65)}
+.kara .kpr{margin-top:8px;height:3px;border-radius:2px;background:rgba(255,255,255,.3);position:relative}
+.kara .kpr b{position:absolute;left:0;top:0;bottom:0;width:37%;background:#fff;border-radius:2px}
+.kara .ktm{display:flex;justify-content:space-between;font-size:8px;color:rgba(255,255,255,.6);margin-top:4px;font-variant-numeric:tabular-nums}
+.kara .kctl{display:flex;align-items:center;justify-content:space-between;margin:8px 4px}
+.kara .kctl span{display:grid;place-items:center}.kara .kctl .i{width:100%;height:100%}
+.kara .kctl span:first-child,.kara .kctl span:last-child{opacity:.55}
+.kara .kb{align-self:center;display:inline-flex;gap:5px;align-items:center;margin:4px 0 8px;padding:5px 11px;border-radius:99px;background:rgba(255,255,255,.14);font-weight:600;font-size:11px;transition:background .3s}
+.kara .kb.on{background:rgba(255,255,255,.3)}
+.kara .kb .i{width:11px;height:11px}
+.kara .kv,.kara .kg{display:flex;align-items:center;gap:6px;font-size:9.5px;color:rgba(255,255,255,.85);font-weight:600;opacity:.35;transition:opacity .4s}
+.kara.k .kv,.kara.k .kg{opacity:1}
+.kara .kv .i{width:10px;height:10px;opacity:.8}.kara .kv.off .i{opacity:.45}
+.kara .ks{flex:1;height:3px;border-radius:2px;background:rgba(255,255,255,.22);position:relative}
+.kara .ks b{position:absolute;left:0;top:0;bottom:0;width:100%;background:rgba(255,255,255,.4);border-radius:2px}
+.kara .ks b::after{content:'';position:absolute;right:-6px;top:-4.5px;width:12px;height:12px;border-radius:50%;background:#d1d1d6;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.kara .kv em{font-style:normal;width:26px;text-align:right;color:rgba(255,255,255,.6);font-variant-numeric:tabular-nums}
+.kara .kg{margin-top:6px;font-weight:500}
+.kara .ktg{width:20px;height:12px;border-radius:99px;background:rgba(255,255,255,.35);position:relative;flex:none}
+.kara .ktg::after{content:'';position:absolute;top:1.5px;right:1.5px;width:9px;height:9px;border-radius:50%;background:#fff}
+.kara .kw{flex:1;overflow:hidden;-webkit-mask-image:linear-gradient(transparent,#000 18%,#000 82%,transparent);mask-image:linear-gradient(transparent,#000 18%,#000 82%,transparent)}
+.kara .kl{display:flex;flex-direction:column;gap:12px;padding-top:128px;font:700 21px/1.25 var(--sys);transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+.kara .kl>div{color:rgba(255,255,255,.3);transform-origin:left;transition:color .45s,transform .6s cubic-bezier(.2,.8,.2,1),filter .6s}
+.kara .kl>div.on{color:#fff;transform:scale(1.04)}
+.kara .kl i{font-style:normal;transition:opacity .45s}
 
 .mini-sound{display:flex;gap:10px;align-items:flex-end;height:120px;padding:14px 18px;background:#000;border-radius:18px}
 .mini-sound span{width:26px;border-radius:8px;background:rgba(255,255,255,.12);position:relative;height:100%;overflow:hidden}
@@ -623,7 +656,7 @@ dialog.demo::backdrop{background:rgba(12,10,24,.55);backdrop-filter:blur(8px);-w
 .tips{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:22px;max-width:1000px;margin-left:auto;margin-right:auto;text-align:left}
 .tip{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px;cursor:pointer;transition:transform .2s}
 .tip:hover{transform:translateY(-3px)}
-.tip em{font:700 26px "Caveat",cursive;color:var(--accent);font-style:normal}
+.tip em{font:400 26px "Patrick Hand",cursive;color:var(--accent);font-style:normal}
 .tip b{display:block;font-size:16px;margin:2px 0 4px}
 .tip span{font-size:14px;color:var(--ink2)}
 .tip code{font-size:12.5px;background:var(--bg2);padding:1px 6px;border-radius:5px}
@@ -1086,8 +1119,8 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
       </div>
       <div class="bx w reveal">
         <div class="bt"><span class="ico" style="--c:#ff375f"><svg class="i"><use href="#i-quote"/></svg></span>
-          <h3>Lời bài hát</h3><p>Lời chạy theo nhạc ngay trong notch với Spotify và Apple Music. Có thể mở toàn màn hình.</p>
-          <button class="dlink" data-demo="lyrics">Xem demo →</button></div>
+          <h3>Lời bài hát</h3><p>Lời chạy theo nhạc ngay trong notch với Spotify và Apple Music. Mở toàn màn hình để hát karaoke: chữ sáng lên theo câu hát, giọng ca sĩ nhỏ dần chỉ còn beat.</p>
+          <div class="dlinks"><button class="dlink" data-demo="lyrics">Xem demo →</button><button class="dlink" data-demo="karaoke">Demo Karaoke →</button></div></div>
         <div class="vis"><div class="lyr-vis"><span>Phố đã lên đèn từ lúc nào</span><span class="on">Notch nhỏ thôi mà đủ chỗ</span><span>cho cả một buổi chiều</span></div></div>
       </div>
 
@@ -1258,10 +1291,10 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
 
     <div class="tc reveal">
       <h3 class="tc-h">Roost ra Internet ở đâu</h3>
-      <p class="tc-sub">Chỉ bốn nơi, và chỉ khi bạn dùng tính năng tương ứng.</p>
+      <p class="tc-sub">Chỉ sáu nơi, và chỉ khi bạn dùng tính năng tương ứng.</p>
       <div class="tc-scroll"><table class="tc-t">
         <thead><tr><th>Địa chỉ</th><th>Khi nào</th><th>Gửi đi những gì</th></tr></thead>
-        <tbody><tr><td><b>lrclib.net</b></td><td>Khi bạn mở lời bài hát (Spotify, Apple Music)</td><td>Tên bài, ca sĩ, album, độ dài bài. Lời trả về được lưu đệm trên máy.</td></tr><tr><td><b>api.anthropic.com</b></td><td>Chỉ khi bạn tự bật "Mức dùng Claude"</td><td>Token đăng nhập Claude Code của bạn, để hỏi hạn mức 5 giờ và 7 ngày. Token chỉ dùng trong bộ nhớ, không lưu, không ghi log, không đụng refresh token.</td></tr><tr><td><b>github.com</b></td><td>Mỗi ngày một lần (tắt được trong Cài đặt › Giới thiệu)</td><td>Chỉ tải danh sách bản mới. Bản cập nhật phải khớp chữ ký riêng của Roost, sai chữ ký thì không cài.</td></tr><tr><td><b>Máy chủ ảnh của Spotify</b></td><td>Khi Spotify đang phát</td><td>Tải ảnh bìa từ đường dẫn chính Spotify đưa ra.</td></tr></tbody>
+        <tbody><tr><td><b>lrclib.net</b></td><td>Khi bạn mở lời bài hát (Spotify, Apple Music)</td><td>Tên bài, ca sĩ, album, độ dài bài. Lời trả về được lưu đệm trên máy.</td></tr><tr><td><b>api.anthropic.com</b></td><td>Chỉ khi bạn tự bật "Mức dùng Claude"</td><td>Token đăng nhập Claude Code của bạn, để hỏi hạn mức 5 giờ và 7 ngày. Token chỉ dùng trong bộ nhớ, không lưu, không ghi log, không đụng refresh token.</td></tr><tr><td><b>github.com</b></td><td>Mỗi ngày một lần (tắt được trong Cài đặt › Giới thiệu)</td><td>Chỉ tải danh sách bản mới. Bản cập nhật phải khớp chữ ký riêng của Roost, sai chữ ký thì không cài.</td></tr><tr><td><b>huggingface.co</b></td><td>Chỉ khi bạn bấm Tải model ở Karaoke</td><td>Tải một lần model tách giọng (33 MB) và kiểm tra mã SHA-256. Không gửi gì về bài hát hay về bạn; model chạy ngay trên máy.</td></tr><tr><td><b>my.sepay.vn</b></td><td>Chỉ khi bạn bật SePay ở tab Ngân hàng, lúc đang hiện mã QR</td><td>Token SePay của bạn, để đọc giao dịch gần đây (10 giây một lần, tối đa 10 phút) và khớp mã RST… trong QR. Không lưu giao dịch xuống đĩa.</td></tr><tr><td><b>Máy chủ ảnh của Spotify</b></td><td>Khi Spotify đang phát</td><td>Tải ảnh bìa từ đường dẫn chính Spotify đưa ra.</td></tr></tbody>
       </table></div>
     </div>
 
@@ -1270,7 +1303,7 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
       <p class="tc-sub">Chỉ hỏi khi bạn mở đúng tính năng cần nó. Không cấp thì phần còn lại vẫn chạy. Roost không xin quyền ghi màn hình.</p>
       <div class="tc-scroll"><table class="tc-t">
         <thead><tr><th>Quyền</th><th>Dùng để</th><th>Khi nào hỏi</th><th>Không cấp thì</th></tr></thead>
-        <tbody><tr><td><b>Lịch</b></td><td>Hiện sự kiện, nút vào họp</td><td>Ở màn chào, hoặc khi bạn mở lịch</td><td>Không có lịch</td></tr><tr><td><b>Điều khiển Spotify, Music</b></td><td>Đọc bài đang phát, phát/dừng, chuyển bài</td><td>Lần đầu Roost cần điều khiển app đó</td><td>Không điều khiển được app đó từ notch</td></tr><tr><td><b>Ghi âm thanh hệ thống</b></td><td>Sóng nhạc chạy theo nhạc thật, âm lượng riêng từng app. Không ghi file, không lưu</td><td>Khi đang phát nhạc</td><td>Không có sóng nhạc thật và âm lượng từng app</td></tr><tr><td><b>Camera</b></td><td>Gương soi trước khi họp; mở khoá bằng khuôn mặt nếu bạn bật</td><td>Khi bạn mở tab Gương</td><td>Không có gương</td></tr><tr><td><b>Trợ năng</b></td><td>Thay HUD âm lượng và độ sáng, khoá bàn phím khi lau, gõ mật khẩu khi mở khoá bằng khuôn mặt</td><td>Khi bạn bật một trong các tính năng đó</td><td>Dùng HUD của macOS</td></tr><tr><td><b>Keychain (mục của Claude Code)</b></td><td>Đọc token cho "Mức dùng Claude"</td><td>Khi bạn bật mức dùng</td><td>Không có mức dùng</td></tr></tbody>
+        <tbody><tr><td><b>Lịch</b></td><td>Hiện sự kiện, nút vào họp</td><td>Ở màn chào, hoặc khi bạn mở lịch</td><td>Không có lịch</td></tr><tr><td><b>Điều khiển Spotify, Music</b></td><td>Đọc bài đang phát, phát/dừng, chuyển bài</td><td>Lần đầu Roost cần điều khiển app đó</td><td>Không điều khiển được app đó từ notch</td></tr><tr><td><b>Ghi âm thanh hệ thống</b></td><td>Sóng nhạc chạy theo nhạc thật, âm lượng riêng từng app, tắt giọng ca sĩ khi hát karaoke. Không ghi file, không lưu</td><td>Khi đang phát nhạc</td><td>Không có sóng nhạc thật và âm lượng từng app</td></tr><tr><td><b>Camera</b></td><td>Gương soi trước khi họp; mở khoá bằng khuôn mặt nếu bạn bật</td><td>Khi bạn mở tab Gương</td><td>Không có gương</td></tr><tr><td><b>Trợ năng</b></td><td>Thay HUD âm lượng và độ sáng, khoá bàn phím khi lau, gõ mật khẩu khi mở khoá bằng khuôn mặt</td><td>Khi bạn bật một trong các tính năng đó</td><td>Dùng HUD của macOS</td></tr><tr><td><b>Keychain (mục của Claude Code)</b></td><td>Đọc token cho "Mức dùng Claude"</td><td>Khi bạn bật mức dùng</td><td>Không có mức dùng</td></tr></tbody>
       </table></div>
     </div>
 
@@ -1296,7 +1329,11 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
       </div>
     </div>
     <ol class="log reveal">
-      <li class="cur"><details open><summary><span class="ver">1.1.0</span><span class="tag">Mới nhất</span><span class="when">17/11/2026</span></summary><div class="bd">
+      <li class="cur"><details open><summary><span class="ver">1.2.0</span><span class="tag">Mới nhất</span><span class="when">17/11/2026</span></summary><div class="bd">
+        <h4>Thêm</h4><ul><li><b>Karaoke tách giọng</b>: kéo thanh Giọng ca sĩ xuống là còn beat để hát. Phần tách giọng chạy ngay trên Mac, nhạc không gửi đi đâu.</li><li><b>Giọng dẫn ở câu khó</b>: tới đoạn rap hay câu dồn chữ, giọng ca sĩ hát nhỏ để bạn theo kịp.</li></ul>
+        <h4>Sửa</h4><ul><li>Chữ karaoke sáng dần theo từng ký tự thay vì nhảy theo từng từ.</li><li>Lời khớp nhạc cả khi nghe bằng loa Bluetooth.</li></ul>
+        <a class="rlink" href="https://github.com/letoan1/notch-app/releases/tag/v1.2.0">Ghi chú đầy đủ →</a></div></details></li>
+      <li><details><summary><span class="ver">1.1.0</span><span class="when">17/11/2026</span></summary><div class="bd">
         <h4>Thêm</h4><ul><li><b>Ẩn khi chia sẻ màn hình</b>: notch không hiện trong Zoom, Meet, khi quay hay chụp màn hình.</li><li>Báo lỗi qua GitHub khi Roost bị thoát đột ngột, không tự gửi gì.</li></ul>
         <h4>Sửa</h4><ul><li>Đóng tab Gương giờ nhả hẳn camera và bộ đệm hình.</li></ul>
         <a class="rlink" href="https://github.com/letoan1/notch-app/releases/tag/v1.1.0">Ghi chú đầy đủ →</a></div></details></li>
@@ -1444,7 +1481,7 @@ mountCard(document.getElementById('bigCard'));
 function fitBig(){ const s = bigWrap.clientWidth / 620; bigInner.style.transform = `scale(${s})`; bigWrap.style.height = (154 + 8) * s + 'px'; }
 addEventListener('resize', fitBig); fitBig();
 
-const chips = ['Nhạc mọi app','Lời bài hát','Sóng nhạc thật','Lịch 7 ngày','Vào họp một chạm','Âm thanh từng app','Khay file','Ảnh chụp màn hình','AirDrop','Gương camera','Đèn viền','Duyệt Claude Code','Mức dùng Claude','HUD âm lượng','Giữ máy thức','Lau phím','Nhạc trên màn hình khoá','Thú cưng','Pixel 8-bit','Cassette','Van Gogh','Nhiều màn hình','Tiếng Việt và English','0,01% CPU'];
+const chips = ['Nhạc mọi app','Lời bài hát','Karaoke tách giọng','Sóng nhạc thật','Lịch 7 ngày','Vào họp một chạm','Âm thanh từng app','Khay file','Ảnh chụp màn hình','AirDrop','Gương camera','Đèn viền','Duyệt Claude Code','Mức dùng Claude','HUD âm lượng','Giữ máy thức','Lau phím','Nhạc trên màn hình khoá','Thú cưng','Pixel 8-bit','Cassette','Van Gogh','Nhiều màn hình','Tiếng Việt và English','0,01% CPU'];
 document.getElementById('track').innerHTML = [...chips, ...chips].map(c => `<span class="mchip">${c}</span>`).join('');
 
 const T = {
@@ -1514,6 +1551,40 @@ const DEMOS = {
       dcontent.querySelectorAll('.tp').forEach(t => t.classList.toggle('on', t.dataset.v === 'media')); cap('Lời thay chỗ trình phát, lịch vẫn ở bên phải');
       const tr = () => dcontent.querySelector('.track2');
       for (let k = 0; k < LYR.length; k++) { if (!ok()) return; const t = tr(); t.querySelectorAll('div').forEach((d, j) => d.classList.toggle('on', j === k)); t.style.transform = `translateY(${-Math.max(0, k - 1) * 25}px)`; await sleep(1300); } } },
+  karaoke: { t:'Karaoke', c:'#bf5af2', i:'i-mic', d:'Mở lời toàn màn hình rồi bấm Karaoke: chữ sáng lên theo câu hát. Kéo thanh Giọng ca sĩ xuống để tắt bớt giọng, beat vẫn nguyên.',
+    run: async ok => {
+      const btn = (i, s) => `<span style="width:${s}px;height:${s}px">${ic(i)}</span>`;
+      setBig(`<div class="kara"><div class="kside">
+          <div class="kart"><span class="ksp">${ic('i-spotify')}</span></div>
+          <b class="kt">Chiều hôm ấy</b><span class="ka">Lofi Sài Gòn</span>
+          <i class="kpr"><b></b></i><span class="ktm"><span>1:13</span><span>3:17</span></span>
+          <div class="kctl">${btn('i-shuffle', 13)}${btn('i-back', 18)}${btn('i-pause', 22)}${btn('i-fwd', 18)}${btn('i-repeat', 13)}</div>
+          <span class="kb">${ic('i-mic')}Karaoke</span>
+          <div class="kv">${ic('i-mic')}<span>Giọng ca sĩ</span><i class="ks"><b></b></i><em>100%</em></div>
+          <div class="kg"><span>Giọng dẫn ở câu khó</span><i class="ktg"></i></div>
+        </div><div class="kw"><div class="kl">${LYR.map((l, j) => `<div data-j="${j}">${[...l].map(c => `<i>${c}</i>`).join('')}</div>`).join('')}</div></div></div>`, 640, 330);
+      const q = s => dcontent.querySelector(s);
+      const show = k => { dcontent.querySelectorAll('.kl > div').forEach((d, j) => { d.classList.toggle('on', j === k); d.style.filter = `blur(${Math.min(Math.abs(j - k), 3) * .6}px)`; });
+        q('.kl').style.transform = `translateY(${-k * 38}px)`; };
+      const fill = async (k, ms) => { const ch = [...dcontent.querySelectorAll(`.kl > div[data-j="${k}"] i`)], n = ch.length, t0 = performance.now();
+        ch.forEach(c => c.style.opacity = .38);
+        for (;;) { if (!ok()) return false; const p = Math.min(1, (performance.now() - t0) / ms), lit = p * (n + 3);
+          ch.forEach((c, i) => c.style.opacity = .38 + .62 * Math.min(1, Math.max(0, (lit - i) / 3)));
+          q('.kpr b').style.width = (37 + (k + p) * 2) + '%';
+          if (p >= 1) break; await sleep(16); }
+        ch.forEach(c => c.style.opacity = ''); return true; };
+      const slide = async to => { const b = q('.ks b'), e = q('.kv em'), from = parseFloat(b.style.width || '100'), t0 = performance.now();
+        for (;;) { if (!ok()) return false; const p = Math.min(1, (performance.now() - t0) / 900), v = from + (to - from) * (1 - Math.pow(1 - p, 3));
+          b.style.width = v + '%'; e.textContent = Math.round(v) + '%'; if (p >= 1) break; await sleep(16); }
+        q('.kv').classList.toggle('off', to < 100); return true; };
+      show(0); cap('Bấm Karaoke'); await sleep(1100); if (!ok()) return;
+      q('.kb').classList.add('on'); q('.kara').classList.add('k'); cap('Chữ sáng lên theo câu hát');
+      if (!await fill(0, 2000)) return; show(1);
+      cap('Kéo Giọng ca sĩ xuống, chỉ còn beat');
+      const s = slide(12); if (!await fill(1, 2600)) return; if (!await s) return; show(2);
+      cap('Câu dồn chữ có giọng dẫn hát nhỏ');
+      if (!await fill(2, 1500)) return; show(3);
+      if (!await fill(3, 1800)) return; show(4); if (!await fill(4, 2000)) return; await sleep(600); } },
   charge: { t:'Pin và sạc', c:'#22c55e', i:'i-bolt', d:'Cắm sạc thì hai cánh notch báo "Đang sạc" và phần trăm pin. Pin yếu thì notch thả xuống thẻ nhắc.',
     run: async ok => { setRow(P.charge(82)); cap('Vừa cắm sạc'); await sleep(2400); if (!ok()) return;
       setRow(P.music()); await sleep(700); if (!ok()) return;
