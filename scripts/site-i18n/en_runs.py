@@ -330,4 +330,5 @@ EN = [
     "Words light up as they’re sung",
     "Drag Vocals down, just the beat is left",
     "Fast, wordy lines get a soft guide vocal",
+    "Open lyrics full screen",
 ]

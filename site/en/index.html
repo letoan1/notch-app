@@ -469,7 +469,11 @@ footer .made a{color:var(--ink);font-weight:700}
 .lyr-vis{width:100%;height:100%;min-height:200px;border-radius:18px;padding:22px;background:linear-gradient(160deg,#4a3527,#1d1a19 70%);transform:rotate(-4deg) translateX(14px);display:flex;flex-direction:column;justify-content:center;gap:10px;font:700 17px/1.25 var(--sys);color:rgba(255,255,255,.35);box-shadow:0 20px 40px -20px rgba(0,0,0,.5)}
 .lyr-vis .on{color:#fff;font-size:20px}
 .dlinks{margin-top:auto;display:flex;flex-wrap:wrap;gap:0 18px}
-.kara{position:absolute;inset:0;display:flex;gap:30px;padding:26px 30px;background:radial-gradient(120% 90% at 20% 30%,#8b7f8c,#6f6670 55%,#5d5560);font-family:var(--sys);color:#fff;text-align:left}
+.kfull{position:absolute;inset:0;z-index:2;opacity:0;pointer-events:none;transition:opacity .5s;overflow:hidden}
+.kfull.on{opacity:1}
+.kfull .kara{width:640px;height:400px;transform-origin:0 0;transform:scale(var(--ks,1))}
+.kara .kx{position:absolute;right:16px;top:14px;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.14);display:grid;place-items:center;font-size:13px;color:rgba(255,255,255,.85)}
+.kara{position:absolute;left:0;top:0;display:flex;gap:34px;padding:40px 40px 30px;background:radial-gradient(120% 90% at 20% 30%,#8b7f8c,#6f6670 55%,#5d5560);font-family:var(--sys);color:#fff;text-align:left}
 .kara .kside{width:178px;flex:none;display:flex;flex-direction:column;justify-content:center}
 .kara .kside>*{flex-shrink:0}
 .kara .kart{position:relative;width:104px;height:104px;border-radius:8px;background:linear-gradient(150deg,#f3eef4,#d9cfdc 40%,#3b3340 41%,#3b3340 47%,#e9e2ea 48%);box-shadow:0 10px 24px -8px rgba(0,0,0,.45)}
@@ -497,7 +501,7 @@ footer .made a{color:var(--ink);font-weight:700}
 .kara .ktg{width:20px;height:12px;border-radius:99px;background:rgba(255,255,255,.35);position:relative;flex:none}
 .kara .ktg::after{content:'';position:absolute;top:1.5px;right:1.5px;width:9px;height:9px;border-radius:50%;background:#fff}
 .kara .kw{flex:1;overflow:hidden;-webkit-mask-image:linear-gradient(transparent,#000 18%,#000 82%,transparent);mask-image:linear-gradient(transparent,#000 18%,#000 82%,transparent)}
-.kara .kl{display:flex;flex-direction:column;gap:12px;padding-top:128px;font:700 21px/1.25 var(--sys);transition:transform .7s cubic-bezier(.2,.8,.2,1)}
+.kara .kl{display:flex;flex-direction:column;gap:12px;padding-top:150px;font:700 21px/1.25 var(--sys);transition:transform .7s cubic-bezier(.2,.8,.2,1)}
 .kara .kl>div{color:rgba(255,255,255,.3);transform-origin:left;transition:color .45s,transform .6s cubic-bezier(.2,.8,.2,1),filter .6s}
 .kara .kl>div.on{color:#fff;transform:scale(1.04)}
 .kara .kl i{font-style:normal;transition:opacity .45s}
@@ -585,7 +589,7 @@ dialog.demo::backdrop{background:rgba(12,10,24,.55);backdrop-filter:blur(8px);-w
 .dbtn{all:unset;cursor:pointer;font:600 14px var(--sys);padding:10px 16px;border-radius:999px;background:var(--card);border:1px solid var(--line);color:var(--ink)}
 .dbtn:hover{background:var(--bg2)}
 .dbtn.pri{background:var(--ink);color:#fff;border-color:var(--ink)}
-.dcap{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);font:600 12px var(--sys);color:#fff;background:rgba(0,0,0,.45);padding:5px 12px;border-radius:999px;white-space:nowrap}
+.dcap{z-index:4;position:absolute;left:50%;bottom:14px;transform:translateX(-50%);font:600 12px var(--sys);color:#fff;background:rgba(0,0,0,.45);padding:5px 12px;border-radius:999px;white-space:nowrap}
 .dcap:empty{display:none}
 .lyrics{padding:0 18px 10px;display:flex;flex-direction:column;gap:6px;height:154px}
 .lhead{display:flex;align-items:center;gap:8px}
@@ -1213,6 +1217,7 @@ h2 .wd{display:inline-block;opacity:0;transform:translateY(.45em);transition:opa
   <ellipse cx="134" cy="112" rx="5" ry="3" fill="#ef9a8a" opacity=".35"/><ellipse cx="166" cy="112" rx="5" ry="3" fill="#ef9a8a" opacity=".35"/>
 </svg></span><b>Toan</b><span class="pw">Enter password</span></div>
     </div>
+    <div class="kfull" id="kfull"></div>
     <div class="dwrap" id="dwrap">
       <div class="dn" id="dn"><div class="row" id="drow"></div><div class="content" id="dcontent"></div></div>
       <span class="orb l1"><svg class="i"><use href="#i-phones"/></svg></span><span class="orb l2"><svg class="i"><use href="#i-keyboard"/></svg></span>
@@ -1526,7 +1531,7 @@ const dlg = document.getElementById('demo'), dn = document.getElementById('dn'),
       dcontent = document.getElementById('dcontent'), dwrap = document.getElementById('dwrap'), dstage = document.getElementById('dstage'), dcap = document.getElementById('dcap');
 let runId = 0;
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const dterm = document.getElementById('dterm');
+const dterm = document.getElementById('dterm'), kfull = document.getElementById('kfull');
 const TERM_IDLE = `~/notch-app $ claude<br><span style="color:#d97757">✻</span> Add a landing page for Roost<br><span style="color:#8e8e93">✻ Writing site/index.html…</span>`;
 const TERM_WAIT = `~/notch-app $ claude<br><span style="color:#d97757">✻</span> Add a landing page for Roost<br><span style="color:#30d158">⏺</span> Done: created site/index.html<br><br><span style="color:#fff">&gt;</span> <span style="background:#c7c7cc;color:#1e1e22">&nbsp;</span>`;
 function setRow([w, l, r, o = {}]){ dn.classList.remove('big'); dn.style.height = '32px'; dn.style.borderRadius = '0 0 12px 12px'; dn.style.width = (NOTCH_W + w * 2) + 'px';
@@ -1554,7 +1559,8 @@ const DEMOS = {
   karaoke: { t:'Karaoke', c:'#bf5af2', i:'i-mic', d:'Open the lyrics full screen and press Karaoke: the words light up as they’re sung. Drag the Vocals slider down to fade out the singer; the beat stays.',
     run: async ok => {
       const btn = (i, s) => `<span style="width:${s}px;height:${s}px">${ic(i)}</span>`;
-      setBig(`<div class="kara"><div class="kside">
+      cap('Open lyrics full screen'); await sleep(1000); if (!ok()) return;
+      kfull.innerHTML = `<div class="kara"><span class="kx">×</span><div class="kside">
           <div class="kart"><span class="ksp">${ic('i-spotify')}</span></div>
           <b class="kt">That Afternoon</b><span class="ka">Saigon Lofi</span>
           <i class="kpr"><b></b></i><span class="ktm"><span>1:13</span><span>3:17</span></span>
@@ -1562,11 +1568,12 @@ const DEMOS = {
           <span class="kb">${ic('i-mic')}Karaoke</span>
           <div class="kv">${ic('i-mic')}<span>Vocals</span><i class="ks"><b></b></i><em>100%</em></div>
           <div class="kg"><span>Guide vocals on hard lines</span><i class="ktg"></i></div>
-        </div><div class="kw"><div class="kl">${LYR.map((l, j) => `<div data-j="${j}">${[...l].map(c => `<i>${c}</i>`).join('')}</div>`).join('')}</div></div></div>`, 640, 330);
-      const q = s => dcontent.querySelector(s);
-      const show = k => { dcontent.querySelectorAll('.kl > div').forEach((d, j) => { d.classList.toggle('on', j === k); d.style.filter = `blur(${Math.min(Math.abs(j - k), 3) * .6}px)`; });
+        </div><div class="kw"><div class="kl">${LYR.map((l, j) => `<div data-j="${j}">${[...l].map(c => `<i>${c}</i>`).join('')}</div>`).join('')}</div></div></div>`;
+      kfull.style.setProperty('--ks', kfull.clientWidth / 640); kfull.classList.add('on');
+      const q = s => kfull.querySelector(s);
+      const show = k => { kfull.querySelectorAll('.kl > div').forEach((d, j) => { d.classList.toggle('on', j === k); d.style.filter = `blur(${Math.min(Math.abs(j - k), 3) * .6}px)`; });
         q('.kl').style.transform = `translateY(${-k * 38}px)`; };
-      const fill = async (k, ms) => { const ch = [...dcontent.querySelectorAll(`.kl > div[data-j="${k}"] i`)], n = ch.length, t0 = performance.now();
+      const fill = async (k, ms) => { const ch = [...kfull.querySelectorAll(`.kl > div[data-j="${k}"] i`)], n = ch.length, t0 = performance.now();
         ch.forEach(c => c.style.opacity = .38);
         for (;;) { if (!ok()) return false; const p = Math.min(1, (performance.now() - t0) / ms), lit = p * (n + 3);
           ch.forEach((c, i) => c.style.opacity = .38 + .62 * Math.min(1, Math.max(0, (lit - i) / 3)));
@@ -1577,14 +1584,16 @@ const DEMOS = {
         for (;;) { if (!ok()) return false; const p = Math.min(1, (performance.now() - t0) / 900), v = from + (to - from) * (1 - Math.pow(1 - p, 3));
           b.style.width = v + '%'; e.textContent = Math.round(v) + '%'; if (p >= 1) break; await sleep(16); }
         q('.kv').classList.toggle('off', to < 100); return true; };
-      show(0); cap('Press Karaoke'); await sleep(1100); if (!ok()) return;
+      show(0); await sleep(900); if (!ok()) return;
+      cap('Press Karaoke'); await sleep(900); if (!ok()) return;
       q('.kb').classList.add('on'); q('.kara').classList.add('k'); cap('Words light up as they’re sung');
       if (!await fill(0, 2000)) return; show(1);
       cap('Drag Vocals down, just the beat is left');
       const s = slide(12); if (!await fill(1, 2600)) return; if (!await s) return; show(2);
       cap('Fast, wordy lines get a soft guide vocal');
       if (!await fill(2, 1500)) return; show(3);
-      if (!await fill(3, 1800)) return; show(4); if (!await fill(4, 2000)) return; await sleep(600); } },
+      if (!await fill(3, 1800)) return; show(4); if (!await fill(4, 2000)) return; await sleep(600);
+      kfull.classList.remove('on'); await sleep(500); } },
   charge: { t:'Battery and charging', c:'#22c55e', i:'i-bolt', d:'Plug in and the notch wings show "Charging" and the battery percentage. When the battery runs low, the notch drops down a reminder.',
     run: async ok => { setRow(P.charge(82)); cap('Just plugged in'); await sleep(2400); if (!ok()) return;
       setRow(P.music()); await sleep(700); if (!ok()) return;
@@ -1637,7 +1646,7 @@ const DEMOS = {
 };
 async function play(key){
   const id = ++runId, ok = () => id === runId && dlg.open, D = DEMOS[key];
-  dstage.classList.remove('locked', 'fu'); dwrap.style.opacity = ''; dwrap.classList.remove('orbs-on'); cap(''); dterm.innerHTML = TERM_IDLE;
+  dstage.classList.remove('locked', 'fu'); kfull.classList.remove('on'); dwrap.style.opacity = ''; dwrap.classList.remove('orbs-on'); cap(''); dterm.innerHTML = TERM_IDLE;
   const pw = document.querySelector('.lockuser .pw'); pw.classList.remove('typed'); pw.textContent = 'Enter password';
   setRow(P.music()); fitDemo(); await sleep(350);
   if (!ok()) return; await D.run(ok);
