@@ -51,13 +51,13 @@ final class AlertSettings: ObservableObject {
 
 /// Thẻ thông báo: notch thả xuống thành một thẻ rộng có icon, tiêu đề đậm và 1-2 dòng mô tả.
 struct NotchAlert: Equatable, Identifiable {
-    enum Kind: String { case lowBattery, batteryFull, networkLost, networkBack, awakeEnding, awakeOff, device, keyboardLock, permissionLost, moneyReceived }
+    enum Kind: String { case lowBattery, batteryFull, networkLost, networkBack, awakeEnding, awakeOff, device, keyboardLock, permissionLost, automationDenied, moneyReceived }
     enum Tone { case red, green, yellow, blue, neutral }
     enum Icon: Equatable {
         case battery(Double)
         case symbol(String)
     }
-    enum Action { case none, batterySettings, networkSettings, extendAwake, unlockKeyboard, grantPermission }
+    enum Action { case none, batterySettings, networkSettings, extendAwake, unlockKeyboard, grantPermission, automationSettings }
 
     let id = UUID()
     let kind: Kind
@@ -133,6 +133,8 @@ final class AlertCenter {
             KeyboardCleaner.shared.unlock()
         case .grantPermission:
             PermissionWatch.shared.grantFirstMissing()
+        case .automationSettings:
+            openPrivacyPane("Privacy_Automation")
         }
         hovering = false
         finish()

@@ -43,6 +43,9 @@ final class PermissionWatch: ObservableObject {
     /// Các quyền đang thiếu đã báo trên thẻ.
     private(set) var missing: [Perm] = []
 
+    /// Trình phát đang từ chối quyền Tự động hoá (Apple Events): Cài đặt hiện cảnh báo khi khác rỗng.
+    @Published private(set) var automationDenied: [Player] = []
+
     private var observers: [NSObjectProtocol] = []
     private let defaults = UserDefaults.standard
     private static let bootstrapKey = "perm.watch.v1"
@@ -166,9 +169,54 @@ final class PermissionWatch: ObservableObject {
         }
     }
 
+    /// AutomationGuard báo một trình phát vừa từ chối (hoặc lại cho phép) Apple Events của Roost.
+    /// Thẻ hiện tối đa một lần mỗi trình phát mỗi bản build, giống các quyền khác.
+    func automation(_ player: Player, denied: Bool) {
+        guard denied else {
+            automationDenied.removeAll { $0 == player }
+            if automationDenied.isEmpty { AlertCenter.shared.dismiss(.automationDenied) }
+            return
+        }
+        guard !automationDenied.contains(player) else { return }
+        automationDenied.append(player)
+        let key = "perm.alerted.automation.\(player.rawValue)"
+        guard defaults.string(forKey: key) != build else { return }
+        defaults.set(build, forKey: key)
+        let names = ListFormatter.localizedString(byJoining: automationDenied.map(\.displayName))
+        AlertCenter.shared.post(NotchAlert(
+            kind: .automationDenied,
+            title: L("Roost chưa được phép điều khiển \(names)", "Roost isn't allowed to control \(names)"),
+            highlight: nil,
+            subtitle: L("Một số điều khiển nhạc và lời bài hát sẽ không chạy. Bấm để bật Roost trong mục Tự động hoá.",
+                        "Some music controls and lyrics won't work. Click to turn on Roost under Automation."),
+            icon: .symbol("applescript"), tone: .yellow, priority: 1, duration: 12, action: .automationSettings))
+    }
+
     private func openPane(_ perm: Perm) {
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(perm.pane)") {
             NSWorkspace.shared.open(url)
+        }
+    }
+}
+
+/// macOS không cho đọc quyền Tự động hoá mà không gửi Apple Event, nên Roost nhận biết bị từ chối
+/// từ chính lỗi -1743 (errAEEventNotPermitted) của các AppleScript gửi tới Spotify / Music.
+/// Gọi được từ mọi luồng; chỉ báo lên main khi trạng thái đổi.
+enum AutomationGuard {
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var denied: Set<Player> = []
+
+    static func report(source: String, error: NSDictionary?) {
+        guard let player = Player.target(of: source) else { return }
+        let code = (error?[NSAppleScript.errorNumber] as? NSNumber)?.intValue
+        let isDenied = code == Int(errAEEventNotPermitted)
+        guard isDenied || error == nil else { return }
+        lock.lock()
+        let changed = isDenied ? denied.insert(player).inserted : denied.remove(player) != nil
+        lock.unlock()
+        guard changed else { return }
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated { PermissionWatch.shared.automation(player, denied: isDenied) }
         }
     }
 }

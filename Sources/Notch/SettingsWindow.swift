@@ -600,9 +600,22 @@ private struct MusicPane: View {
     @ObservedObject var settings: SettingsStore
     @ObservedObject var lock = LockScreenMusic.shared
     @ObservedObject var lyrics = LyricsStore.shared
+    @ObservedObject var perms = PermissionWatch.shared
 
     var body: some View {
         SPage {
+            if !perms.automationDenied.isEmpty {
+                let names = ListFormatter.localizedString(byJoining: perms.automationDenied.map(\.displayName))
+                SSection(nil) {
+                    SRow("exclamationmark.triangle", L("Chưa được phép điều khiển \(names)", "Not allowed to control \(names)"),
+                         detail: L("macOS đang chặn Roost gửi lệnh tới \(names), nên một số điều khiển nhạc và lời bài hát không chạy. Bật Roost trong Quyền riêng tư và Bảo mật, mục Tự động hoá.",
+                                   "macOS is blocking Roost from sending commands to \(names), so some music controls and lyrics don't work. Turn on Roost in Privacy and Security under Automation."),
+                         divider: false) {
+                        Button(L("Mở Cài đặt hệ thống", "Open System Settings")) { openPrivacyPane("Privacy_Automation") }
+                            .controlSize(.small)
+                    }
+                }
+            }
             SSection(L("Trình phát", "Player"),
                      note: L("Sóng nhạc thật cần quyền \"Chỉ ghi âm thanh hệ thống\": Roost chỉ nghe app đang phát, không ghi lại gì. Khi bật, macOS hiện chấm tím trên thanh menu lúc đang phát.",
                              "The live visualizer needs the \"System Audio Recording Only\" permission: Roost only listens to the playing app and records nothing. While on, macOS shows a purple dot in the menu bar during playback.")) {
