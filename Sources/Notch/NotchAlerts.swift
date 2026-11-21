@@ -10,6 +10,8 @@ final class AlertSettings: ObservableObject {
 
     @Published var battery: Bool { didSet { save(battery, "alerts.battery") } }
     @Published var capsLock: Bool { didSet { save(capsLock, "alerts.capsLock") } }
+    /// Đổi bộ gõ tiếng Việt / tiếng Anh của macOS: hiện V hoặc E.
+    @Published var inputSource: Bool { didSet { save(inputSource, "alerts.inputSource") } }
     @Published var network: Bool { didSet { save(network, "alerts.network") } }
     @Published var downloadsToTray: Bool { didSet { save(downloadsToTray, "alerts.downloadsToTray") } }
     /// Thay HUD âm lượng / độ sáng / đèn bàn phím của macOS (cần quyền Trợ năng).
@@ -25,6 +27,7 @@ final class AlertSettings: ObservableObject {
         let d = UserDefaults.standard
         battery = d.object(forKey: "alerts.battery") as? Bool ?? true
         capsLock = d.object(forKey: "alerts.capsLock") as? Bool ?? true
+        inputSource = d.object(forKey: "alerts.inputSource") as? Bool ?? true
         network = d.object(forKey: "alerts.network") as? Bool ?? true
         downloadsToTray = d.object(forKey: "alerts.downloadsToTray") as? Bool ?? true
         hud = d.object(forKey: "alerts.hud") as? Bool ?? true
@@ -403,4 +406,28 @@ struct CapsLockWings: View {
     }
 }
 
+/// Đổi bộ gõ: bàn phím bên trái, chữ V (tiếng Việt) hoặc E (tiếng Anh) bên phải.
+struct InputSourceWings: View {
+    let vietnamese: Bool
+    let wing: CGFloat
 
+    var body: some View {
+        HStack(spacing: 0) {
+            Image(systemName: "keyboard")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(tint)
+                .frame(width: wing)
+            Spacer(minLength: 0)
+            Text(vietnamese ? "V" : "E")
+                .font(Theme.isCassette ? .hand(16) : .ui(14, weight: .heavy))
+                .foregroundStyle(tint)
+                .frame(width: wing)
+        }
+    }
+
+    private var tint: Color { vietnamese ? AlertCard.color(.green) : ink.opacity(0.75) }
+
+    private var ink: Color {
+        Theme.isCassette ? CassettePalette.label : Theme.isVanGogh ? VG.cream : .white
+    }
+}

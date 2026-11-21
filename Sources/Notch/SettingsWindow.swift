@@ -810,13 +810,17 @@ struct AlertsPane: View {
             SSection(L("Báo trên notch", "Notch alerts"),
                      note: L("Mất mạng chỉ báo khi kéo dài hơn vài giây, Wi-Fi chập chờn thoáng qua sẽ không làm phiền bạn. Cắm sạc luôn được báo.",
                              "Connection loss only shows when it lasts more than a few seconds. Plugging in the charger is always shown."),
-                     reset: { alerts.battery = true; alerts.capsLock = true; alerts.network = true; alerts.hud = true }) {
+                     reset: { alerts.battery = true; alerts.capsLock = true; alerts.inputSource = true; alerts.network = true; alerts.hud = true }) {
                 SToggleRow(icon: "battery.25percent", title: L("Pin yếu và pin đầy", "Low and full battery"),
                            detail: L("Báo ở 20% và 10%, và khi sạc đầy.", "At 20% and 10%, and when charging finishes."),
                            divider: false, isOn: $alerts.battery)
                 SToggleRow(icon: "capslock", title: L("Bật tắt Caps Lock", "Caps Lock on and off"),
                            detail: L("Hiện ON hoặc OFF mỗi lần bấm.", "Shows ON or OFF every time you press it."),
                            isOn: $alerts.capsLock)
+                SToggleRow(icon: "keyboard", title: L("Đổi bộ gõ tiếng Việt", "Vietnamese input switch"),
+                           detail: L("Hiện V hoặc E khi bạn chuyển bộ gõ tiếng Việt có sẵn của macOS.",
+                                     "Shows V or E when you switch macOS's built-in Vietnamese input."),
+                           isOn: $alerts.inputSource)
                 SToggleRow(icon: "wifi.slash", title: L("Mất kết nối Internet", "Internet connection lost"),
                            detail: L("Và báo lại khi có mạng trở lại.", "And again when you're back online."),
                            isOn: $alerts.network)

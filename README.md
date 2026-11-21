@@ -153,7 +153,7 @@ Mỗi giao diện có một thú cưng ngồi ở cánh notch: nhảy theo nhạ
 - **HUD âm lượng và độ sáng**: bấm phím âm lượng, độ sáng hay đèn bàn phím thì giá trị hiện ở hai cánh notch thay cho HUD của macOS (cần quyền Trợ năng).
 - **Giữ máy thức**: giữ Mac và màn hình thức theo giờ, tự tắt khi pin còn 10%, khi gập máy hoặc khi app bạn chọn thoát.
 - **Lau phím**: khoá bàn phím để lau. Bấm Esc 5 lần hoặc bấm thẻ trên notch để mở, tự mở sau 3 phút.
-- **Thông báo nhanh**: cắm sạc, kết nối tai nghe, bật Caps Lock, Claude đang chờ bạn đều hiện vài giây ở hai cánh notch.
+- **Thông báo nhanh**: cắm sạc, kết nối tai nghe, bật Caps Lock, đổi bộ gõ tiếng Việt (V/E), Claude đang chờ bạn đều hiện vài giây ở hai cánh notch.
 
 <details>
 <summary><b>🧪 Mở khoá bằng khuôn mặt (thử nghiệm, mặc định tắt)</b></summary>
