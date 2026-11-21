@@ -15,7 +15,7 @@ Máy đo: MacBook Air M2 (Mac14,2), macOS 27.2.1, màn hình có notch. Trong l�
 | 5. Quyền được xin | ✅ | Lúc mở app không có yêu cầu quyền nào hiện hộp thoại (log TCC chỉ có preflight). Trợ năng chỉ xin khi bấm nút trong mục Khuôn mặt | Automation (Spotify/Music) vẫn có thể tự hỏi khi MediaRemote không có bài mà Spotify/Music đang mở |
 | 6. Khi bị từ chối quyền | ⚠️ | Lịch, Camera gương, Automation (màn chào) có nút mở Cài đặt hệ thống. Đã thêm cho Camera và Trợ năng ở mục Khuôn mặt, và cho âm thanh hệ thống | Automation bị từ chối: notch không báo gì |
 | 7. Lưu trạng thái | ⚠️ | Cài đặt, khay, giao diện, thú cưng, khuôn mặt, quyền "Luôn cho phép" của Claude đều còn sau khi khởi động lại | Lịch sử Claude và tab đang mở không được lưu. Khay có thể tự bỏ file khi tạm thời không đọc được file |
-| 8. Hook Claude khi app chết | ✅ | `test_hook.py --real`: 16/16 PASS. Sau `kill -9`, hook thoát trong 0,015 s, mở lại app thì socket được tạo mới và nhận yêu cầu | Không có |
+| 8. Hook Claude khi app chết | ✅ | `test_hook.py --real` (bản cũ, nay là `scripts/test_hook.py` chỉ dùng socket giả): 16/16 PASS. Sau `kill -9`, hook thoát trong 0,015 s, mở lại app thì socket được tạo mới và nhận yêu cầu | Không có |
 | 9. Phân phối | ❌ | Ký bằng chứng chỉ tự tạo "Notch Local Signing", không có Team ID, không hardened runtime, không entitlement, chưa notarize, Gatekeeper từ chối (`spctl`: rejected) | Cần Developer ID, hardened runtime, entitlement, notarize, cơ chế cập nhật. Giấy phép model ArcFace chỉ cho dùng phi thương mại |
 | 10. Tương thích | ⚠️ | Mục tiêu tối thiểu macOS 14.0 ở cả Package.swift, Info.plist và binary. Process tap được bọc `#available(macOS 14.2, *)`. Chỉ có arm64 | Chưa chạy thử trên macOS 14, 15, 26, máy Intel, máy không có notch |
 
@@ -213,6 +213,8 @@ Lưu ý về khay: trong buổi đo, `trayItems` có lúc thành rỗng dù file
 ## 8. Hook Claude khi app chết
 
 Chạy lại `python3 -I test_hook.py --real` (script có sẵn, không sửa). Script dùng socket giả cho ca 1-10. Ca 11-14 gửi yêu cầu thật tới Roost, `pkill` Roost rồi mở lại.
+
+Script gốc không có trong repo. Bản viết lại ở `scripts/test_hook.py` (chạy trong CI) chỉ giữ các ca dùng socket giả: `swift build --product notch-hook && python3 -I scripts/test_hook.py`. Các ca với Roost thật (kill app giữa lúc chờ, mở lại app) vẫn kiểm bằng tay.
 
 Kết quả: 16/16 PASS.
 
