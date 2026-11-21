@@ -19,5 +19,7 @@ let package = Package(
                           linkerSettings: [.unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])]),
         // Hook PermissionRequest của Claude Code: chuyển yêu cầu lên notch qua Unix socket.
         .executableTarget(name: "notch-hook", path: "Sources/NotchHook"),
+        // Unit test cho phần logic không cần giao diện (`swift test`). Hook được thử riêng bằng scripts/test_hook.py.
+        .testTarget(name: "NotchTests", dependencies: ["Notch"], path: "Tests/NotchTests"),
     ]
 )

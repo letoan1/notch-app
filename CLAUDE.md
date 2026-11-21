@@ -8,6 +8,7 @@ Roost: app notch cho macOS (SwiftUI + AppKit), build không cần Xcode. Đọc 
 - `scripts/make-dmg.sh`: đóng gói `dist/Roost-<ver>.dmg` universal (arm64 + x86_64), ký bằng "Roost Release Signing" (không bao giờ ad-hoc: ad-hoc làm người dùng mất quyền sau mỗi bản cập nhật), chưa notarize. Phiên bản lấy từ `CFBundleShortVersionString` trong `Info.plist`.
 - `scripts/bump-cask.sh`: sau khi đăng GitHub Release, sửa version + sha256 trong cask Homebrew (`../homebrew-tap`, repo `letoan1/homebrew-tap`, push qua SSH) để `brew install --cask letoan1/tap/roost` lấy bản mới.
 - `scripts/demo-claude.sh [--question]`: gửi yêu cầu Claude giả lên notch để thử thẻ xin quyền / câu hỏi.
+- Kiểm tra: `swift test` (unit test logic trong `Tests/NotchTests`, `@testable import Notch`) và `swift build --product notch-hook && python3 -I scripts/test_hook.py` (giao thức socket của hook, dùng app giả). CI (`.github/workflows/ci.yml`) chạy cả hai trên macOS.
 - Chỉ có Command Line Tools, SDK macOS 27. Không có `xcrun metal`, không có plugin macro của Xcode.
 
 ## Quy tắc code
