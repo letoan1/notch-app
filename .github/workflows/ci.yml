@@ -12,14 +12,16 @@ concurrency:
 
 jobs:
   build-and-test:
-    # SDK macOS 26 trở lên (LockScreenMusic dùng glassEffect).
-    runs-on: macos-26
+    # Cần SDK macOS 26 trở lên (LockScreenMusic dùng glassEffect): chọn Xcode 26 mới nhất có trên runner.
+    runs-on: macos-15
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
       - name: Toolchain
         run: |
+          XCODE=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE"; fi
           xcodebuild -version || true
           swift --version
 
