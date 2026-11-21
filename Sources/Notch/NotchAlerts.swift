@@ -287,7 +287,7 @@ struct AlertCard: View {
             .padding(.top, notchHeight + 6)
             .padding(.bottom, 10)
             .background(alignment: .bottom) {
-                if Theme.isCassette {
+                if Theme.isCassette, alert.progress == nil {
                     // Tờ giấy dán: mép dưới hơi lệch như nhãn băng.
                     Rectangle().fill(CassettePalette.marker.opacity(0.85)).frame(height: 3)
                         .padding(.horizontal, 30).offset(y: -4)
