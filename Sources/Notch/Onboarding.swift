@@ -11,11 +11,17 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
     private var window: NSWindow?
     private static let doneKey = "onboarded"
 
-    /// Lần đầu mở app thì hiện. Người đã dùng bản cũ (đã có cài đặt) thì bỏ qua.
+    /// Chưa qua màn hướng dẫn. Người đã dùng bản cũ (đã có cài đặt) coi như đã qua.
+    var needsOnboarding: Bool {
+        let d = UserDefaults.standard
+        return !d.bool(forKey: Self.doneKey) && d.object(forKey: "theme") == nil && d.object(forKey: "language") == nil
+    }
+
+    /// Lần đầu mở app thì hiện.
     func showIfNeeded() {
         let d = UserDefaults.standard
         guard !d.bool(forKey: Self.doneKey) else { return }
-        if d.object(forKey: "theme") != nil || d.object(forKey: "language") != nil {
+        guard needsOnboarding else {
             d.set(true, forKey: Self.doneKey)
             return
         }

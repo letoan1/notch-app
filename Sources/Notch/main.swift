@@ -9,9 +9,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // App nền không có menu Edit → ⌘C / ⌘V / ⌘X / ⌘A không tới được ô nhập. Menu chính không hiện ra
         // (app không có thanh menu), chỉ để phím tắt có chỗ đi qua.
         NSApp.mainMenu = Self.editMenu()
-        controller = NotchController()
+        let controller = NotchController()
+        self.controller = controller
         _ = AppUpdater.shared
-        OnboardingWindowController.shared.showIfNeeded()
+        // Lời chào trên notch trước; nút "Bắt đầu" (hoặc thẻ tự thu) mới mở màn hướng dẫn lần đầu.
+        if !controller.launchWelcome() { OnboardingWindowController.shared.showIfNeeded() }
         // Lần mở sau một crash: hỏi có mở GitHub issue điền sẵn không (không tự gửi gì).
         DispatchQueue.main.asyncAfter(deadline: .now() + 4) { MainActor.assumeIsolated { CrashReport.checkOnLaunch() } }
     }

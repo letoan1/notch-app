@@ -21,8 +21,17 @@ struct NotchRootView: View {
                                        battery: system.batteryPercent, height: model.notchSize.height)
         let size = model.shapeSize(wing: wings.width)
         let shape = NotchShape(topRadius: model.topRadius, bottomRadius: model.bottomRadius,
-                               pixel: Theme.isPixel && (model.expanded || model.pill), pill: model.pill)
+                               pixel: Theme.isPixel && (model.expanded || model.welcome || model.pill), pill: model.pill)
         let notch = model.notchSize
+        // Tách biểu thức để trình biên dịch không quá tải khi type-check chuỗi modifier dài.
+        let open = model.expanded || model.welcome
+        let strokeColor: Color = Theme.isPixel ? PixelPalette.border.opacity(open ? 1 : 0)
+            : Theme.isVanGogh ? VG.ink.opacity(open ? 1 : 0)
+            : Color.white.opacity(open ? 0.08 : 0)
+        let strokeWidth: CGFloat = Theme.isPixel ? 3 : Theme.isVanGogh ? 2.5 : 1
+        let shadowOpacity: Double = open ? 0.6 : model.pill && !model.minimal ? 0.35 : 0
+        let welcomeAnim: Animation = model.welcome ? .spring(response: 0.55, dampingFraction: 0.74)
+                                                   : .spring(response: 0.38, dampingFraction: 0.92)
 
         // Nội dung có kích thước cố định ở trạng thái cuối; khung shape lớn dần và "lộ" nó ra
         // thay vì layout lại chữ ở mỗi frame animation.
@@ -46,6 +55,10 @@ struct NotchRootView: View {
                            height: notch.height / NotchModel.scale + model.expandedBodyHeight)
                     .scaleEffect(NotchModel.scale, anchor: .top)
                     .transition(.notchContent)
+            } else if model.welcome {
+                WelcomeCard(notchHeight: notch.height) { model.onWelcomeStart?() }
+                    .frame(width: size.width, height: size.height)
+                    .transition(.welcomeContent)
             } else if let alert = model.alert {
                 AlertCard(alert: alert, notchHeight: notch.height)
                     .frame(width: size.width, height: size.height)
@@ -92,17 +105,13 @@ struct NotchRootView: View {
                     .transition(.opacity)
             }
         }
-        .overlay(shape.stroke(Theme.isPixel ? PixelPalette.border.opacity(model.expanded ? 1 : 0)
-                              : Theme.isVanGogh ? VG.ink.opacity(model.expanded ? 1 : 0)
-                              : Color.white.opacity(model.expanded ? 0.08 : 0),
-                              lineWidth: Theme.isPixel ? 3 : Theme.isVanGogh ? 2.5 : 1))
+        .overlay(shape.stroke(strokeColor, lineWidth: strokeWidth))
         // Bóng đổ chỉ tính trên khung (không trên cả nội dung) → co / giãn không phải dựng lại bóng của
         // ảnh bìa, lịch, chữ ở mỗi khung hình.
         .background {
             shape.fill(Color.black)
                 // Viên nổi tách khỏi mép trên → có bóng nhẹ cả khi thu gọn.
-                .shadow(color: .black.opacity(model.expanded ? 0.6 : model.pill && !model.minimal ? 0.35 : 0),
-                        radius: model.expanded ? 18 : 6, y: model.expanded ? 8 : 2)
+                .shadow(color: .black.opacity(shadowOpacity), radius: open ? 18 : 6, y: open ? 8 : 2)
         }
         // Quầng sáng màu ảnh bìa: chỉ khi thu gọn, hiện dần sau khi co xong (không làm nhoè khung đang co).
         .background {
@@ -154,6 +163,8 @@ struct NotchRootView: View {
         .animation(spring, value: model.mirrorMode)
         .animation(spring, value: model.peek)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: model.alert)
+        // Lời chào: giãn ra có nảy nhẹ, thu về êm không nảy.
+        .animation(welcomeAnim, value: model.welcome)
         .animation(spring, value: wings)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .environment(\.locale, settings.locale)
@@ -167,6 +178,12 @@ private struct BlurModifier: ViewModifier {
 }
 
 extension AnyTransition {
+    /// Lời chào: nét chữ tự vẽ bằng Core Animation nên chỉ cần hiện ngay; ẩn thì mờ + thu về mép trên.
+    static var welcomeContent: AnyTransition {
+        .asymmetric(insertion: .identity,
+                    removal: .opacity.combined(with: .scale(scale: 0.94, anchor: .top)).animation(.easeOut(duration: 0.18)))
+    }
+
     /// Hiện: mờ → rõ + phóng nhẹ, trễ một nhịp sau khi khung bắt đầu phình. Ẩn: tắt nhanh.
     static var notchContent: AnyTransition {
         .asymmetric(
