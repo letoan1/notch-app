@@ -26,7 +26,7 @@ final class SettingsWindowController {
 
     /// id dạng chuỗi để thêm / bớt mục không làm lệch mục đã nhớ.
     enum PaneID: String, CaseIterable, Identifiable {
-        case general, appearance, music, sound, calendar, tray, mirror, bank, claude, usage, alerts, awake, pet, face, about
+        case general, appearance, music, sound, calendar, tray, portal, mirror, bank, claude, usage, alerts, awake, pet, face, about
         var id: String { rawValue }
 
         var title: String {
@@ -37,6 +37,7 @@ final class SettingsWindowController {
             case .sound: return L("Âm thanh", "Sound")
             case .calendar: return L("Lịch", "Calendar")
             case .tray: return L("Khay file", "File tray")
+            case .portal: return "Portal"
             case .mirror: return L("Gương", "Mirror")
             case .claude: return "Claude Code"
             case .usage: return L("Mức dùng Claude", "Claude usage")
@@ -57,6 +58,7 @@ final class SettingsWindowController {
             case .sound: return "speaker.wave.2.fill"
             case .calendar: return "calendar"
             case .tray: return "tray.full.fill"
+            case .portal: return "iphone.and.arrow.forward"
             case .mirror: return "camera.fill"
             case .claude: return "sparkle"
             case .usage: return "gauge.with.dots.needle.67percent"
@@ -77,6 +79,7 @@ final class SettingsWindowController {
             case .sound: return Color(red: 0.95, green: 0.45, blue: 0.2)
             case .calendar: return Color(red: 0.95, green: 0.3, blue: 0.27)
             case .tray: return Color(red: 0.2, green: 0.74, blue: 0.4)
+            case .portal: return Color(red: 0.15, green: 0.62, blue: 0.95)
             case .mirror: return Color(red: 0.16, green: 0.68, blue: 0.78)
             case .claude: return Color(red: 0.85, green: 0.47, blue: 0.34)
             case .usage: return Color(red: 0.6, green: 0.42, blue: 0.95)
@@ -98,6 +101,7 @@ final class SettingsWindowController {
             case .sound: SoundPane(settings: s)
             case .calendar: CalendarPane(settings: s)
             case .tray: TrayPane(settings: s)
+            case .portal: PortalPane(settings: s)
             case .mirror: MirrorPane(settings: s)
             case .claude: ClaudePane()
             case .usage: ClaudeUsagePane()
@@ -113,7 +117,7 @@ final class SettingsWindowController {
         /// Các nhóm trên thanh bên (nhóm đầu không có tiêu đề).
         static var groups: [(String?, [PaneID])] {
             [(nil, [.general, .appearance]),
-             (L("Tính năng", "Features"), [.music, .sound, .calendar, .tray, .mirror, .bank, .claude, .usage]),
+             (L("Tính năng", "Features"), [.music, .sound, .calendar, .tray, .portal, .mirror, .bank, .claude, .usage]),
              (L("Trải nghiệm", "Experiences"), [.alerts, .awake, .pet, .face]),
              (L("Khác", "Other"), [.about])]
         }

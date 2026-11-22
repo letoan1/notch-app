@@ -11,3 +11,7 @@ build/
 settings.local.json.bak-*
 .build-x86/
 dist/
+
+# App iPhone (Xcode): giữ project, bỏ dữ liệu cá nhân của Xcode
+!ios/RoostPortal.xcodeproj/
+xcuserdata/
