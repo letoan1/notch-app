@@ -40,7 +40,10 @@ final class LockScreenMusic: ObservableObject {
     @Published var style: Style { didSet { UserDefaults.standard.set(style.rawValue, forKey: "lockMusic.style"); refresh() } }
 
     private var media: NowPlaying?
+    private var calendar: CalendarStore?
     private var window: LockMusicWindow?
+    /// Dòng thông tin dưới đồng hồ (LockScreenInfo).
+    private var infoWindow: LockInfoWindow?
     private var locked = false
     private var observers: [NSObjectProtocol] = []
     private var cancellables = Set<AnyCancellable>()
@@ -55,9 +58,13 @@ final class LockScreenMusic: ObservableObject {
         mode = savedMode == .off ? .playing : savedMode
     }
 
-    func start(media: NowPlaying) {
+    func start(media: NowPlaying, calendar: CalendarStore) {
         guard self.media == nil else { return }
         self.media = media
+        self.calendar = calendar
+        LockScreenInfo.shared.onChange = { [weak self] in
+            DispatchQueue.main.async { MainActor.assumeIsolated { self?.refresh() } }
+        }
         let center = DistributedNotificationCenter.default()
         // Thông báo khoá / mở khoá giả mạo được → chỉ là tín hiệu, luôn xác nhận lại bằng CGSession.
         observers.append(center.addObserver(forName: Notification.Name("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in
@@ -104,6 +111,28 @@ final class LockScreenMusic: ObservableObject {
 
     private func refresh() {
         if shouldShow { show() } else { hide() }
+        if locked, !asleep, LockScreenInfo.shared.hasContent { showInfo() } else { hideInfo() }
+    }
+
+    private func showInfo() {
+        guard let calendar else { return }
+        let w = infoWindow ?? LockInfoWindow(calendar: calendar)
+        infoWindow = w
+        guard !w.isVisible else { return }
+        w.place()
+        w.orderFrontRegardless()
+        if !FaceUnlockService.moveToLockScreen(w) { w.orderOut(nil) }
+    }
+
+    private func hideInfo() {
+        guard let w = infoWindow else { return }
+        if w.isVisible {
+            FaceUnlockService.restoreFromLockScreen(w)
+            w.orderOut(nil)
+        }
+        // Huỷ hẳn view như cửa sổ nhạc: ẩn mà còn sống thì vẫn theo dõi lịch, pin.
+        w.contentView = nil
+        infoWindow = nil
     }
 
     private func show() {

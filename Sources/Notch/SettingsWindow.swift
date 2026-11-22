@@ -612,6 +612,7 @@ struct ThemeSwatch: View {
 private struct MusicPane: View {
     @ObservedObject var settings: SettingsStore
     @ObservedObject var lock = LockScreenMusic.shared
+    @ObservedObject var info = LockScreenInfo.shared
     @ObservedObject var lyrics = LyricsStore.shared
     @ObservedObject var perms = PermissionWatch.shared
 
@@ -677,6 +678,21 @@ private struct MusicPane: View {
                 if lock.style != .off {
                     SRow("clock", L("Hiện khi", "Show")) {
                         SPicker($lock.mode, Array([LockScreenMusic.Mode.playing, .always]), title: { $0.title })
+                    }
+                }
+            }
+            SSection(L("Dưới đồng hồ màn hình khoá", "Under the lock screen clock"),
+                     note: L("Đồng hồ là của macOS nên không đổi được font hay màu. Roost thêm một dòng của riêng bạn ngay bên dưới, chỉ hiện khi máy đang khoá.",
+                             "The clock belongs to macOS, so its font and color can't change. Roost adds your own line right below it, only while the Mac is locked.")) {
+                SToggleRow(icon: "text.below.photo", title: L("Dòng thông tin dưới đồng hồ", "Info line under the clock"),
+                           divider: false, isOn: $info.enabled)
+                if info.enabled {
+                    SToggleRow(icon: "moon.stars", title: L("Ngày âm lịch", "Lunar date"),
+                               detail: LockScreenInfo.lunarText(Date()), isOn: $info.lunar)
+                    SToggleRow(icon: "calendar", title: L("Cuộc họp kế tiếp hôm nay", "Next meeting today"), isOn: $info.meeting)
+                    SToggleRow(icon: "battery.75", title: L("Pin", "Battery"), isOn: $info.battery)
+                    SRow("quote.opening", L("Câu của bạn", "Your line")) {
+                        STextField(L("Ví dụ: Về nhà sớm nhé", "e.g. Go home early"), text: $info.note, width: 220)
                     }
                 }
             }
