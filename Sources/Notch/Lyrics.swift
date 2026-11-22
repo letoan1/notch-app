@@ -338,8 +338,10 @@ enum LyricsSource {
         guard t.bundleID == "com.apple.Music" else { return nil }
         return await Task.detached(priority: .utility) { () -> Result? in
             var err: NSDictionary?
-            let script = NSAppleScript(source: "tell application \"Music\" to get lyrics of current track")
-            guard let text = script?.executeAndReturnError(&err).stringValue,
+            let source = "tell application \"Music\" to get lyrics of current track"
+            let result = NSAppleScript(source: source)?.executeAndReturnError(&err)
+            AutomationGuard.report(source: source, error: err)
+            guard let text = result?.stringValue,
                   !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
             return .plain(plainLines(text))
         }.value

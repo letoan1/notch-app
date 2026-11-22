@@ -57,13 +57,13 @@ final class AlertSettings: ObservableObject {
 
 /// Thẻ thông báo: notch thả xuống thành một thẻ rộng có icon, tiêu đề đậm và 1-2 dòng mô tả.
 struct NotchAlert: Equatable, Identifiable {
-    enum Kind: String { case lowBattery, batteryFull, networkLost, networkBack, awakeEnding, awakeOff, device, keyboardLock, permissionLost, moneyReceived, push }
+    enum Kind: String { case lowBattery, batteryFull, networkLost, networkBack, awakeEnding, awakeOff, device, keyboardLock, permissionLost, automationDenied, moneyReceived, push }
     enum Tone { case red, green, yellow, blue, neutral }
     enum Icon: Equatable {
         case battery(Double)
         case symbol(String)
     }
-    enum Action: Equatable { case none, batterySettings, networkSettings, extendAwake, unlockKeyboard, grantPermission, open(URL) }
+    enum Action: Equatable { case none, batterySettings, networkSettings, extendAwake, unlockKeyboard, grantPermission, automationSettings, open(URL) }
 
     /// Cập nhật thẻ đang hiện (cùng `key`) thì giữ id cũ để SwiftUI chỉ đổi nội dung, không thả lại.
     var id = UUID()
@@ -156,6 +156,8 @@ final class AlertCenter {
             KeyboardCleaner.shared.unlock()
         case .grantPermission:
             PermissionWatch.shared.grantFirstMissing()
+        case .automationSettings:
+            openPrivacyPane("Privacy_Automation")
         case let .open(url):
             NSWorkspace.shared.open(url)
         }
