@@ -191,6 +191,8 @@ final class SettingsStore: ObservableObject {
     /// Thứ tự tab trên hàng tab (gồm cả tab đang tắt).
     @Published var tabOrder: [NotchModel.Tab] { didSet { save(tabOrder.map(\.rawValue), "tabOrder") } }
     @Published var openTab: OpenTab { didSet { save(openTab.rawValue, "openTab") } }
+    /// Lời chào "hello" trên notch mỗi lần mở app (lần đầu luôn chào).
+    @Published var welcomeOnLaunch: Bool { didSet { save(welcomeOnLaunch, "welcomeOnLaunch") } }
 
     private init() {
         let d = UserDefaults.standard
@@ -229,6 +231,7 @@ final class SettingsStore: ObservableObject {
         order += NotchModel.Tab.allCases.filter { !order.contains($0) }
         tabOrder = order
         openTab = OpenTab(rawValue: d.string(forKey: "openTab") ?? "") ?? .last
+        welcomeOnLaunch = d.object(forKey: "welcomeOnLaunch") as? Bool ?? true
     }
 
     /// Màu nhấn cố định (nil = lấy theo ảnh bìa).
