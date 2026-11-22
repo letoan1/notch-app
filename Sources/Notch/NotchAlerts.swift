@@ -12,6 +12,8 @@ final class AlertSettings: ObservableObject {
     @Published var capsLock: Bool { didSet { save(capsLock, "alerts.capsLock") } }
     @Published var network: Bool { didSet { save(network, "alerts.network") } }
     @Published var downloadsToTray: Bool { didSet { save(downloadsToTray, "alerts.downloadsToTray") } }
+    /// Thẻ từ lệnh `roost push` (script, cron, n8n trên máy này).
+    @Published var push: Bool { didSet { save(push, "alerts.push") } }
     /// Thay HUD âm lượng / độ sáng / đèn bàn phím của macOS (cần quyền Trợ năng).
     @Published var hud: Bool { didSet { save(hud, "alerts.hud"); SystemHUD.shared.sync() } }
     /// Giờ hết làm, tính bằng phút từ 0:00 (mặc định 18:00).
@@ -27,6 +29,7 @@ final class AlertSettings: ObservableObject {
         capsLock = d.object(forKey: "alerts.capsLock") as? Bool ?? true
         network = d.object(forKey: "alerts.network") as? Bool ?? true
         downloadsToTray = d.object(forKey: "alerts.downloadsToTray") as? Bool ?? true
+        push = d.object(forKey: "alerts.push") as? Bool ?? true
         hud = d.object(forKey: "alerts.hud") as? Bool ?? true
         workEndMinutes = d.object(forKey: "awake.workEnd") as? Int ?? 18 * 60
         awakeStopOnLowBattery = d.object(forKey: "awake.stopLowBattery") as? Bool ?? true
@@ -51,15 +54,16 @@ final class AlertSettings: ObservableObject {
 
 /// Thẻ thông báo: notch thả xuống thành một thẻ rộng có icon, tiêu đề đậm và 1-2 dòng mô tả.
 struct NotchAlert: Equatable, Identifiable {
-    enum Kind: String { case lowBattery, batteryFull, networkLost, networkBack, awakeEnding, awakeOff, device, keyboardLock, permissionLost, moneyReceived }
+    enum Kind: String { case lowBattery, batteryFull, networkLost, networkBack, awakeEnding, awakeOff, device, keyboardLock, permissionLost, moneyReceived, push }
     enum Tone { case red, green, yellow, blue, neutral }
     enum Icon: Equatable {
         case battery(Double)
         case symbol(String)
     }
-    enum Action { case none, batterySettings, networkSettings, extendAwake, unlockKeyboard, grantPermission }
+    enum Action: Equatable { case none, batterySettings, networkSettings, extendAwake, unlockKeyboard, grantPermission, open(URL) }
 
-    let id = UUID()
+    /// Cập nhật thẻ đang hiện (cùng `key`) thì giữ id cũ để SwiftUI chỉ đổi nội dung, không thả lại.
+    var id = UUID()
     let kind: Kind
     var title: String
     /// Phần tô màu theo tone ngay sau tiêu đề (ví dụ "10%").
@@ -73,12 +77,21 @@ struct NotchAlert: Equatable, Identifiable {
     var action: Action
     /// Thẻ thiết bị: % pin vẽ thành vòng bên phải (nil = không đọc được).
     var ring: Int? = nil
+    /// Thẻ `roost push`: ID do script đặt (cùng ID thì thay thế nhau).
+    var pushID: String? = nil
+    /// Thanh tiến độ 0...1 dưới mô tả (nil = không có).
+    var progress: Double? = nil
 
     static func == (a: NotchAlert, b: NotchAlert) -> Bool { a.id == b.id }
 
+    /// Khoá thay thế: cùng loại thì thay nhau, riêng thẻ push theo ID của script.
+    var key: String {
+        kind == .push ? "push:" + (pushID ?? id.uuidString) : kind.rawValue
+    }
+
     static let cardHeight: CGFloat = 62
-    /// Thẻ thiết bị chỉ có một dòng tên + vòng pin nhỏ: thấp hơn.
-    var height: CGFloat { kind == .device ? 46 : Self.cardHeight }
+    /// Thẻ thiết bị chỉ có một dòng tên + vòng pin nhỏ: thấp hơn. Có thanh tiến độ: cao hơn chút.
+    var height: CGFloat { kind == .device ? 46 : progress != nil ? 70 : Self.cardHeight }
     static let cardWidth: CGFloat = 420
 }
 
@@ -95,10 +108,11 @@ final class AlertCenter {
     private var hovering = false
 
     func post(_ alert: NotchAlert) {
-        queue.removeAll { $0.kind == alert.kind }
+        var alert = alert
+        queue.removeAll { $0.key == alert.key }
         if let c = current {
-            if c.kind == alert.kind || alert.priority > c.priority {
-                if c.kind != alert.kind { queue.insert(c, at: 0) }
+            if c.key == alert.key || alert.priority > c.priority {
+                if c.key == alert.key { alert.id = c.id } else { queue.insert(c, at: 0) }
                 show(alert)
             } else {
                 queue.append(alert)
@@ -113,6 +127,12 @@ final class AlertCenter {
     func dismiss(_ kind: NotchAlert.Kind) {
         queue.removeAll { $0.kind == kind }
         if current?.kind == kind { finish() }
+    }
+
+    /// Gỡ thẻ theo khoá (thẻ `roost push --clear --id …`).
+    func dismiss(key: String) {
+        queue.removeAll { $0.key == key }
+        if current?.key == key { finish() }
     }
 
     /// Chuột trên thẻ: giữ thẻ mở.
@@ -133,6 +153,8 @@ final class AlertCenter {
             KeyboardCleaner.shared.unlock()
         case .grantPermission:
             PermissionWatch.shared.grantFirstMissing()
+        case let .open(url):
+            NSWorkspace.shared.open(url)
         }
         hovering = false
         finish()
@@ -241,11 +263,18 @@ struct AlertCard: View {
                         .font(titleFont)
                         .foregroundStyle(ink)
                         .lineLimit(1)
-                    Text(alert.subtitle)
-                        .font(subtitleFont)
-                        .foregroundStyle(ink.opacity(Theme.isCassette ? 0.75 : 0.62))
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if !alert.subtitle.isEmpty {
+                        Text(alert.subtitle)
+                            .font(subtitleFont)
+                            .foregroundStyle(ink.opacity(Theme.isCassette ? 0.75 : 0.62))
+                            .lineLimit(alert.progress == nil ? 2 : 1)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    if let progress = alert.progress {
+                        AlertProgressBar(value: progress, color: Self.color(alert.tone), ink: ink)
+                            .frame(height: Theme.isPixel ? 6 : 5)
+                            .padding(.top, 4)
+                    }
                 }
                 Spacer(minLength: 0)
                 if alert.action != .none {
@@ -258,7 +287,7 @@ struct AlertCard: View {
             .padding(.top, notchHeight + 6)
             .padding(.bottom, 10)
             .background(alignment: .bottom) {
-                if Theme.isCassette {
+                if Theme.isCassette, alert.progress == nil {
                     // Tờ giấy dán: mép dưới hơi lệch như nhãn băng.
                     Rectangle().fill(CassettePalette.marker.opacity(0.85)).frame(height: 3)
                         .padding(.horizontal, 30).offset(y: -4)
@@ -353,6 +382,32 @@ private struct AlertIcon: View {
                     .foregroundStyle(color)
             }
         }
+    }
+}
+
+/// Thanh tiến độ của thẻ push: ô vuông ở Pixel, vạch bút dạ ở Cassette, bo tròn ở các theme còn lại.
+private struct AlertProgressBar: View {
+    let value: Double
+    let color: Color
+    let ink: Color
+
+    var body: some View {
+        GeometryReader { geo in
+            let fill = geo.size.width * CGFloat(min(max(value, 0), 1))
+            ZStack(alignment: .leading) {
+                if Theme.isPixel {
+                    Rectangle().fill(ink.opacity(0.15))
+                    Rectangle().fill(color).frame(width: (fill / 6).rounded(.down) * 6)
+                } else if Theme.isCassette {
+                    Rectangle().fill(CassettePalette.label.opacity(0.15))
+                    Rectangle().fill(CassettePalette.marker).frame(width: fill)
+                } else {
+                    Capsule().fill(ink.opacity(0.15))
+                    Capsule().fill(color).frame(width: max(fill, geo.size.height))
+                }
+            }
+        }
+        .animation(.easeOut(duration: 0.35), value: value)
     }
 }
 
