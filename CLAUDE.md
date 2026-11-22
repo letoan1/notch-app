@@ -29,7 +29,7 @@ Roost: app notch cho macOS (SwiftUI + AppKit), build không cần Xcode. Đọc 
 - Nhạc: `NowPlaying` (MediaRemote qua `Vendor/MediaRemoteAdapter`, AppleScript dự phòng), `PlayerExtras` (shuffle/repeat, icon app), `Lyrics*` (LRCLIB, chỉ Spotify và Apple Music), `LockScreenMusic` (màn hình khoá, chỉ Spotify và Apple Music).
 - Âm thanh: `SoundMixer` (thiết bị, âm lượng tổng/mic, âm lượng từng app bằng process tap; về 100% thì gỡ tap), `SoundViews`.
 - Claude Code: `Sources/NotchHook` (binary `roost-hook`, socket `~/Library/Application Support/Roost/claude.sock`), `PermissionCenter`, `PermissionCard`, `QuestionCard`, `ClaudeUsage` + `ClaudeUsageAPI` (đọc access token trong Keychain, KHÔNG đụng refresh token, chỉ gửi tới api.anthropic.com).
-- Portal (iPhone gửi file sang Mac): `Portal` (NWListener + Bonjour `_roost-portal._tcp`, HTTP, token trong Keychain), `PortalLanding` (hiệu ứng rơi ra từ notch, clipboard, thẻ duyệt ghép), `PortalSettingsPane`. Giao thức ở `docs/PORTAL.md`. App iPhone ở `ios/`.
+- Portal (iPhone gửi file sang Mac): `Portal` (NWListener + Bonjour `_roost-portal._tcp`, HTTP, token trong Keychain), `PortalLanding` (lưu file, clipboard, thẻ duyệt ghép), `PortalOrigami` (máy bay giấy SceneKit, mép phải sáng khi iPhone đang kéo), `PortalSettingsPane`. Giao thức ở `docs/PORTAL.md`. App iPhone ở `ios/`.
 - Hệ thống: `NotchAlerts` (thẻ thông báo), `PushAlerts` (thẻ từ `roost push`, nhận qua socket của roost-hook), `SystemWatchers` (pin, Caps Lock, mạng, Downloads), `KeepAwake`.
 - Cài đặt: `SettingsWindow` + `SettingsUI` (sidebar + thẻ), `ClaudeSettingsPane`, `FaceUnlockViews`.
 - Mở khoá bằng khuôn mặt: `Packages/FaceUnlockKit` (port từ Glance, MIT; model ArcFace chỉ phi thương mại).

@@ -163,6 +163,8 @@ final class PortalServer: @unchecked Sendable {
 
     let queue = DispatchQueue(label: "roost.portal")
     private var listener: NWListener?
+    private var pathMonitor: NWPathMonitor?
+    private var serviceName = "", serviceID = ""
     private var sessions: [ObjectIdentifier: PortalSession] = [:]
     private let lock = NSLock()
     private var byHash: [String: PortalDevice] = [:]
@@ -200,13 +202,15 @@ final class PortalServer: @unchecked Sendable {
             if port != nil { start(name: name, macID: macID, port: nil) } else { publish(.failed("listener")) }
             return
         }
-        let txt = NWTXTRecord(["id": macID, "v": "1"])
-        listener.service = NWListener.Service(name: name, type: Self.serviceType, domain: nil, txtRecord: txt.data)
+        serviceName = name
+        serviceID = macID
+        advertise(listener)
         listener.stateUpdateHandler = { [weak self, weak listener] state in
             guard let self else { return }
             switch state {
             case .ready:
                 self.publish(.ready(listener?.port?.rawValue ?? 0))
+                if let listener { self.advertise(listener) }   // giờ mới biết cổng thật
             case .failed(let error):
                 listener?.cancel()
                 if self.listener === listener { self.listener = nil }
@@ -229,9 +233,47 @@ final class PortalServer: @unchecked Sendable {
         }
         self.listener = listener
         listener.start(queue: queue)
+        // Đổi mạng (Wi-Fi khác, cắm cáp) thì cập nhật địa chỉ trong TXT. Chỉ chạy khi Portal bật.
+        let monitor = NWPathMonitor()
+        monitor.pathUpdateHandler = { [weak self] _ in
+            guard let self, let l = self.listener else { return }
+            self.advertise(l)
+        }
+        monitor.start(queue: queue)
+        pathMonitor = monitor
+    }
+
+    /// TXT gồm id, cổng và các địa chỉ IPv4 của Mac: iPhone nối thẳng IP (nhanh, chắc) trước,
+    /// không được mới nhờ Bonjour phân giải (có lúc treo ở tên máy ngẫu nhiên *.local).
+    private func advertise(_ listener: NWListener) {
+        var fields = ["id": serviceID, "v": "1", "ip": Self.ipv4Addresses().joined(separator: ",")]
+        if let port = listener.port?.rawValue { fields["port"] = String(port) }
+        listener.service = NWListener.Service(name: serviceName, type: Self.serviceType, domain: nil,
+                                              txtRecord: NWTXTRecord(fields).data)
+    }
+
+    static func ipv4Addresses() -> [String] {
+        var out: [String] = []
+        var list: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&list) == 0, let first = list else { return out }
+        defer { freeifaddrs(list) }
+        for p in sequence(first: first, next: { $0.pointee.ifa_next }) {
+            let a = p.pointee
+            guard let addr = a.ifa_addr, addr.pointee.sa_family == sa_family_t(AF_INET),
+                  (Int32(a.ifa_flags) & IFF_UP) != 0, (Int32(a.ifa_flags) & IFF_LOOPBACK) == 0 else { continue }
+            let name = String(cString: a.ifa_name)
+            guard name.hasPrefix("en") || name.hasPrefix("bridge") else { continue }
+            var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+            if getnameinfo(addr, socklen_t(addr.pointee.sa_len), &host, socklen_t(host.count), nil, 0, NI_NUMERICHOST) == 0 {
+                out.append(String(cString: host))
+            }
+        }
+        return out
     }
 
     private func stop() {
+        pathMonitor?.cancel()
+        pathMonitor = nil
         listener?.cancel()
         listener = nil
         for session in sessions.values { session.close() }
@@ -265,7 +307,7 @@ final class PortalServer: @unchecked Sendable {
 
 // MARK: - Một kết nối HTTP
 
-/// Đọc header, rồi theo đường dẫn: GET /hello, POST /pair, POST /send (file), POST /clipboard.
+/// Đọc header, rồi theo đường dẫn: GET /hello, POST /pair, POST /send (file), POST /clipboard, POST /hover.
 /// Mỗi kết nối một yêu cầu (Connection: close). Mọi thứ chạy trên hàng đợi của PortalServer.
 final class PortalSession {
     private let connection: NWConnection
@@ -415,6 +457,14 @@ final class PortalSession {
             if length == 0 { pair(Data()) }
         case ("POST", "/send"):
             beginFile(r)
+        case ("POST", "/hover"):
+            // iPhone đang kéo ảnh gần mép: Mac sáng mép phải trước khi file tới. Không có body.
+            guard authorize(r) else { return }
+            let y = r.headers["x-roost-y"].flatMap(Double.init) ?? 0.5
+            let near = r.headers["x-roost-near"].flatMap(Double.init) ?? 0
+            let phase = r.headers["x-roost-phase"] ?? "move"
+            DispatchQueue.main.async { MainActor.assumeIsolated { PortalHover.shared.update(y: y, near: near, phase: phase) } }
+            respond(200, ["ok": true])
         case ("POST", "/clipboard"):
             guard authorize(r) else { return }
             guard let length = r.contentLength else { respond(411, ["error": "length required"]); return }
@@ -511,8 +561,9 @@ final class PortalSession {
         self.expected = length
         let id = transferID
         let from = device?.name ?? "iPhone"
+        let entry = r.headers["x-roost-y"].flatMap(Double.init)
         DispatchQueue.main.async {
-            MainActor.assumeIsolated { PortalCenter.shared.incoming(id: id, name: name, size: length, from: from) }
+            MainActor.assumeIsolated { PortalCenter.shared.incoming(id: id, name: name, size: length, from: from, entry: entry) }
         }
         continueIfAsked(r)
         if length == 0 { completeFile(name: name) }

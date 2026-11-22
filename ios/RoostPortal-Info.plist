@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_roost-portal._tcp</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Roost Portal tìm và gửi ảnh, file tới Mac của bạn ở gần đây. / Finds your nearby Mac to send photos and files.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Hiện ảnh gần đây để bạn hất sang Mac. / Shows recent photos so you can fling them to your Mac.</string>
+</dict>
+</plist>
