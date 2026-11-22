@@ -8,6 +8,7 @@ Roost: app notch cho macOS (SwiftUI + AppKit), build không cần Xcode. Đọc 
 - `scripts/make-dmg.sh`: đóng gói `dist/Roost-<ver>.dmg` universal (arm64 + x86_64), ký bằng "Roost Release Signing" (không bao giờ ad-hoc: ad-hoc làm người dùng mất quyền sau mỗi bản cập nhật), chưa notarize. Phiên bản lấy từ `CFBundleShortVersionString` trong `Info.plist`.
 - `scripts/bump-cask.sh`: sau khi đăng GitHub Release, sửa version + sha256 trong cask Homebrew (`../homebrew-tap`, repo `letoan1/homebrew-tap`, push qua SSH) để `brew install --cask letoan1/tap/roost` lấy bản mới.
 - `scripts/demo-claude.sh [--question]`: gửi yêu cầu Claude giả lên notch để thử thẻ xin quyền / câu hỏi.
+- `scripts/demo-push.sh`: thử lệnh `roost push` (thẻ tiến độ cập nhật theo `--id`).
 - Chỉ có Command Line Tools, SDK macOS 27. Không có `xcrun metal`, không có plugin macro của Xcode.
 
 ## Quy tắc code
@@ -27,7 +28,7 @@ Roost: app notch cho macOS (SwiftUI + AppKit), build không cần Xcode. Đọc 
 - Nhạc: `NowPlaying` (MediaRemote qua `Vendor/MediaRemoteAdapter`, AppleScript dự phòng), `PlayerExtras` (shuffle/repeat, icon app), `Lyrics*` (LRCLIB, chỉ Spotify và Apple Music), `LockScreenMusic` (màn hình khoá, chỉ Spotify và Apple Music).
 - Âm thanh: `SoundMixer` (thiết bị, âm lượng tổng/mic, âm lượng từng app bằng process tap; về 100% thì gỡ tap), `SoundViews`.
 - Claude Code: `Sources/NotchHook` (binary `roost-hook`, socket `~/Library/Application Support/Roost/claude.sock`), `PermissionCenter`, `PermissionCard`, `QuestionCard`, `ClaudeUsage` + `ClaudeUsageAPI` (đọc access token trong Keychain, KHÔNG đụng refresh token, chỉ gửi tới api.anthropic.com).
-- Hệ thống: `NotchAlerts` (thẻ thông báo), `SystemWatchers` (pin, Caps Lock, mạng, Downloads), `KeepAwake`.
+- Hệ thống: `NotchAlerts` (thẻ thông báo), `PushAlerts` (thẻ từ `roost push`, nhận qua socket của roost-hook), `SystemWatchers` (pin, Caps Lock, mạng, Downloads), `KeepAwake`.
 - Cài đặt: `SettingsWindow` + `SettingsUI` (sidebar + thẻ), `ClaudeSettingsPane`, `FaceUnlockViews`.
 - Mở khoá bằng khuôn mặt: `Packages/FaceUnlockKit` (port từ Glance, MIT; model ArcFace chỉ phi thương mại).
 

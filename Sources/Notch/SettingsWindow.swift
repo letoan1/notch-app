@@ -810,7 +810,7 @@ struct AlertsPane: View {
             SSection(L("Báo trên notch", "Notch alerts"),
                      note: L("Mất mạng chỉ báo khi kéo dài hơn vài giây, Wi-Fi chập chờn thoáng qua sẽ không làm phiền bạn. Cắm sạc luôn được báo.",
                              "Connection loss only shows when it lasts more than a few seconds. Plugging in the charger is always shown."),
-                     reset: { alerts.battery = true; alerts.capsLock = true; alerts.inputSource = true; alerts.network = true; alerts.hud = true }) {
+                     reset: { alerts.battery = true; alerts.capsLock = true; alerts.inputSource = true; alerts.network = true; alerts.hud = true; alerts.push = true }) {
                 SToggleRow(icon: "battery.25percent", title: L("Pin yếu và pin đầy", "Low and full battery"),
                            detail: L("Báo ở 20% và 10%, và khi sạc đầy.", "At 20% and 10%, and when charging finishes."),
                            divider: false, isOn: $alerts.battery)
@@ -824,6 +824,10 @@ struct AlertsPane: View {
                 SToggleRow(icon: "wifi.slash", title: L("Mất kết nối Internet", "Internet connection lost"),
                            detail: L("Và báo lại khi có mạng trở lại.", "And again when you're back online."),
                            isOn: $alerts.network)
+                SToggleRow(icon: "terminal", title: L("Thông báo từ lệnh roost push", "Alerts from roost push"),
+                           detail: L("Script, cron hay n8n trên máy này gửi thẻ lên notch, kèm thanh tiến độ nếu có.",
+                                     "Scripts, cron jobs or n8n on this Mac can send cards to the notch, with a progress bar if you like."),
+                           isOn: $alerts.push)
                 SToggleRow(icon: "speaker.wave.2", title: L("Thay HUD âm lượng và độ sáng", "Replace the volume and brightness HUD"),
                            detail: perms.accessibilityTrusted
                                ? L("Âm lượng, độ sáng màn hình và đèn bàn phím hiện gọn ở hai bên notch.",

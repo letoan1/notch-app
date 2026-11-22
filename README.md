@@ -213,6 +213,36 @@ Xem thử thẻ mà không cần mở Claude: `scripts/demo-claude.sh` (thêm `-
 
 ---
 
+## Gửi thông báo từ script: `roost push`
+
+Script, cron, n8n hay bất cứ chương trình nào trên máy bạn đều có thể thả một thẻ xuống notch:
+
+```bash
+roost push "Deploy xong"
+roost push "Đang build" --body "Bước 3/5: chạy test" --progress 60 --id build
+roost push "Build xong" --progress 100 --id build      # cùng --id: cập nhật thẻ cũ, không tạo thẻ mới
+roost push "Backup lỗi" --tone red --urgent --open "https://example.com/logs"
+roost push --clear --id build                         # gỡ thẻ
+```
+
+| Tuỳ chọn | Ý nghĩa |
+|---|---|
+| `--body TEXT` | Dòng mô tả dưới tiêu đề |
+| `--progress N` | Thanh tiến độ 0 đến 100. Tới 100 thì thẻ chuyển xanh, có dấu tích |
+| `--id ID` | Cùng ID thì thẻ được cập nhật tại chỗ |
+| `--icon NAME` | Tên SF Symbol, ví dụ `hammer.fill` |
+| `--tone` | `red`, `green`, `yellow` hoặc `blue` |
+| `--duration GIÂY` | Thời gian hiện. Mặc định 6 giây, 30 giây khi đang có tiến độ. `0` là giữ tới khi `--clear` (tối đa 1 giờ) |
+| `--open URL` | Bấm vào thẻ thì mở URL |
+| `--urgent` | Hiện cả khi đang xem toàn màn hình |
+
+- Cài bằng Homebrew thì đã có lệnh `roost` trên PATH. Cài bằng DMG thì tự tạo: `sudo ln -sf /Applications/Roost.app/Contents/MacOS/roost-hook /usr/local/bin/roost`, hoặc gọi thẳng `/Applications/Roost.app/Contents/MacOS/roost-hook push …`.
+- Chỉ chạy trên máy này: lệnh gửi qua Unix socket của Roost, không mở cổng mạng nào. App không chạy thì lệnh in lỗi và thoát với mã 1.
+- **n8n**: dùng node *Execute Command* với đường dẫn đầy đủ (`/opt/homebrew/bin/roost push "…"` hoặc đường dẫn trong app), vì n8n thường không có PATH của Homebrew. n8n phải chạy trực tiếp trên máy (npx, app desktop); n8n trong Docker không thấy socket của Roost.
+- Tắt ở **Cài đặt › Thông báo › Thông báo từ lệnh roost push**.
+
+---
+
 ## Quyền riêng tư
 
 Roost không có analytics hay theo dõi. App chỉ kết nối Internet cho hai việc bạn chủ động dùng:
