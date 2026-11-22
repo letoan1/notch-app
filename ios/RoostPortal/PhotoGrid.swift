@@ -11,7 +11,11 @@ final class PhotoLibrary: NSObject, ObservableObject, PHPhotoLibraryChangeObserv
     var count: Int { result?.count ?? 0 }
     func asset(_ i: Int) -> PHAsset { result!.object(at: i) }
     @Published var status: PHAuthorizationStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-    let images = PHCachingImageManager()
+    let images: PHCachingImageManager = {
+        let m = PHCachingImageManager()
+        m.allowsCachingHighQualityImages = false
+        return m
+    }()
 
     enum Filter: CaseIterable { case all, photos, videos, screenshots
         var title: String {
@@ -105,6 +109,7 @@ struct PhotoCell: View {
     let side: CGFloat
     @ObservedObject var lifted: Lifted
     @State private var image: UIImage?
+    @State private var request: PHImageRequestID?
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -139,15 +144,24 @@ struct PhotoCell: View {
             }
         }
         .opacity(lifted.id == asset.localIdentifier ? 0.25 : 1)
-        .task(id: asset.localIdentifier) {
-            let px = side * UIScreen.main.scale
-            let opts = PHImageRequestOptions()
-            opts.deliveryMode = .opportunistic
-            opts.isNetworkAccessAllowed = true
-            library.images.requestImage(for: asset, targetSize: CGSize(width: px, height: px),
-                                        contentMode: .aspectFill, options: opts) { img, _ in
-                if let img { image = img }
-            }
+        .onAppear { load() }
+        .onDisappear {   // cuộn nhanh: huỷ ảnh chưa kịp tải của ô đã trôi qua
+            if let request { library.images.cancelImageRequest(request) }
+            request = nil
+        }
+    }
+
+    /// Ảnh thu nhỏ: chỉ lấy bản có sẵn trên máy (không tải iCloud khi cuộn), cắt nhanh.
+    private func load() {
+        guard image == nil else { return }
+        let px = side * UIScreen.main.scale
+        let opts = PHImageRequestOptions()
+        opts.deliveryMode = .opportunistic
+        opts.resizeMode = .fast
+        opts.isNetworkAccessAllowed = false
+        request = library.images.requestImage(for: asset, targetSize: CGSize(width: px, height: px),
+                                              contentMode: .aspectFill, options: opts) { img, _ in
+            if let img { image = img }
         }
     }
 
@@ -278,9 +292,13 @@ struct PhotoGrid: View {
         return (library.asset(i), center)
     }
 
+    private static let liftHaptic = UIImpactFeedbackGenerator(style: .medium)
+    private static let sendHaptic = UINotificationFeedbackGenerator()
+
     private func begin(_ local: CGPoint, _ global: CGPoint) {
         guard let (asset, center) = cell(at: local) else { return }
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        Self.liftHaptic.impactOccurred()
+        Self.sendHaptic.prepare()
         let s = side * 1.25
         drag.size = CGSize(width: s, height: s * 0.75)
         drag.home = CGPoint(x: global.x + center.x - local.x, y: global.y + center.y - local.y)
@@ -326,7 +344,7 @@ struct PhotoGrid: View {
     }
 
     private func throwLeft(_ asset: PHAsset, at p: CGPoint, velocity: CGFloat) {
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Self.sendHaptic.notificationOccurred(.success)
         let entry = Double(p.y / UIScreen.main.bounds.height)
         Portal.shared.hover(y: entry, near: 1, phase: "fling")
         let speed = max(900, -velocity)

@@ -64,6 +64,7 @@ struct ContentView: View {
             .animation(.spring(response: 0.35, dampingFraction: 0.8), value: portal.transfer)
         }
         .task {
+            PaperStage.shared.warmUp()
             await library.load()
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
@@ -108,13 +109,9 @@ struct MacCard: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(LinearGradient(colors: [Theme.glow.opacity(0.35), Theme.glow.opacity(0.08)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                Image(systemName: "laptopcomputer").font(.system(size: 24, weight: .medium)).foregroundStyle(Theme.paper)
-            }
-            .frame(width: 52, height: 52)
-            .shadow(color: Theme.glow.opacity(0.35), radius: 12)
+            NotchMark()
+                .frame(width: 52, height: 52)
+                .shadow(color: Color(red: 0.94, green: 0.42, blue: 0.66).opacity(0.35), radius: 12)
             VStack(alignment: .leading, spacing: 3) {
                 Text(mac.name).font(.title3.weight(.bold)).foregroundStyle(Theme.paper).lineLimit(1)
                 HStack(spacing: 6) {
@@ -135,7 +132,7 @@ struct MacCard: View {
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(.white.opacity(0.07)))
         .overlay(alignment: .bottomLeading) {
             HStack(spacing: 6) {
-                PlaneGlyph().fill(Theme.glow).frame(width: 14, height: 10)
+                PaperPlane().frame(height: 13).rotationEffect(.degrees(-90))
                 Text(L("Nhấn giữ ảnh, hất về mép trái", "Hold a photo, fling it to the left edge"))
                     .font(.caption2.weight(.medium)).foregroundStyle(Theme.glow)
             }
@@ -197,7 +194,7 @@ struct Dock: View {
                         }
                         .foregroundStyle(.black)
                         .padding(.horizontal, 22).padding(.vertical, 14)
-                        .background(lifted.picked.isEmpty ? Theme.paper.opacity(0.5) : Theme.glow, in: Capsule())
+                        .background(lifted.picked.isEmpty ? AnyShapeStyle(Theme.paper.opacity(0.5)) : AnyShapeStyle(Theme.brand), in: Capsule())
                     }
                     .disabled(lifted.picked.isEmpty)
                 }
@@ -219,7 +216,7 @@ struct Dock: View {
     private func item(_ title: String, _ icon: String, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 3) {
-                Image(systemName: icon).font(.system(size: 18, weight: .medium))
+                Image(systemName: icon).font(.system(size: 18, weight: .medium)).symbolRenderingMode(.hierarchical).frame(height: 22)
                 Text(title).font(.caption2.weight(.semibold))
             }
             .foregroundStyle(Theme.paper)
@@ -290,7 +287,7 @@ struct PairScreen: View {
                 }
                 Circle().fill(Theme.surface).frame(width: 96, height: 96)
                     .overlay(Circle().stroke(.white.opacity(0.08)))
-                PlaneGlyph().fill(Theme.paper).frame(width: 40, height: 28).shadow(color: Theme.glow, radius: 10)
+                PaperPlane().frame(height: 46).rotationEffect(.degrees(-12)).shadow(color: Theme.glow.opacity(0.8), radius: 12)
             }
             .frame(width: 200, height: 200)
             .onAppear { pulse = true }
@@ -324,7 +321,7 @@ struct PairScreen: View {
                 ForEach(portal.macs) { mac in
                     Button { Task { await portal.pair(mac) } } label: {
                         HStack(spacing: 14) {
-                            Image(systemName: "laptopcomputer").font(.title3).foregroundStyle(Theme.glow)
+                            NotchMark().frame(width: 34, height: 34)
                             Text(mac.name).font(.body.weight(.semibold)).foregroundStyle(Theme.paper)
                             Spacer()
                             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Theme.muted)

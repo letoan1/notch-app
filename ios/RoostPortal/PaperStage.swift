@@ -1,5 +1,6 @@
 import SceneKit
 import UIKit
+import CoreImage
 
 // MARK: - Sân khấu tờ giấy trên iPhone
 
@@ -11,8 +12,7 @@ final class PaperStage: SCNView {
 
     private let front = SCNMaterial()
     private var paper: OrigamiPaper?
-    private var shadowPaper: OrigamiPaper?
-    private let flatten = SCNNode()
+    private let shadow = SCNNode()   // bóng mờ vẽ sẵn, rẻ hơn filter blur mỗi khung
     private var paperSize = CGSize(width: 160, height: 120)
     private var near: Double = 0
     private var tilt: Double = 0
@@ -47,15 +47,16 @@ final class PaperStage: SCNView {
         amb.light!.type = .ambient
         amb.light!.intensity = 260
         scene.rootNode.addChildNode(amb)
-        var shear = SCNMatrix4Identity
-        shear.m31 = -0.3; shear.m32 = -0.5; shear.m33 = 0.001
-        flatten.transform = shear
-        let blur = CIFilter(name: "CIGaussianBlur")!
-        blur.name = "blur"
-        blur.setValue(8, forKey: kCIInputRadiusKey)
-        flatten.filters = [blur]
-        flatten.renderingOrder = -1
-        scene.rootNode.addChildNode(flatten)
+        let sm = SCNMaterial()
+        sm.lightingModel = .constant
+        sm.diffuse.contents = UIColor.black
+        sm.transparent.contents = Self.shadowTexture()
+        sm.transparencyMode = .aOne
+        sm.writesToDepthBuffer = false
+        shadow.geometry = SCNPlane(width: 1, height: 1)
+        shadow.geometry!.firstMaterial = sm
+        shadow.renderingOrder = -1
+        scene.rootNode.addChildNode(shadow)
         front.lightingModel = .physicallyBased
         front.roughness.contents = 0.55
         self.scene = scene
@@ -65,22 +66,14 @@ final class PaperStage: SCNView {
 
     private func build(size: CGSize) {
         paper?.root.removeFromParentNode()
-        shadowPaper?.root.removeFromParentNode()
         let back = SCNMaterial()
         back.lightingModel = .physicallyBased
         back.diffuse.contents = UIColor(red: 0.96, green: 0.95, blue: 0.93, alpha: 1)
         back.roughness.contents = 0.9
-        let black = SCNMaterial()
-        black.lightingModel = .constant
-        black.diffuse.contents = UIColor.black
-        black.isDoubleSided = true
         let keel = size.height * 0.155, nose = size.width * 0.357
         let p = OrigamiPaper(L: size.width, Wd: size.height, keel: keel, nose: nose, front: front, back: back)
-        let s = OrigamiPaper(L: size.width, Wd: size.height, keel: keel, nose: nose, front: black, back: black)
         scene?.rootNode.addChildNode(p.root)
-        flatten.addChildNode(s.root)
         paper = p
-        shadowPaper = s
         paperSize = size
     }
 
@@ -98,18 +91,18 @@ final class PaperStage: SCNView {
     }
 
     private func apply(z: Double, scale: Double = 1) {
-        guard let paper, let shadowPaper else { return }
+        guard let paper else { return }
         let pos = scenePoint(point)
         let k = near
-        for n in [paper.root, shadowPaper.root] {
-            n.position = SCNVector3(pos.x, pos.y, Float(z))
-            // phẳng: ảnh hướng về người xem; càng gấp càng quay mũi sang trái, nghiêng theo vận tốc
-            n.eulerAngles = SCNVector3(Float(0.5 * k), Float(tilt * .pi / 180 * 0.5), Float(0.12 * k))
-            n.scale = SCNVector3(scale, scale, scale)
-        }
+        paper.root.position = SCNVector3(pos.x, pos.y, Float(z))
+        // phẳng: ảnh hướng về người xem; càng gấp càng quay mũi sang trái, nghiêng theo vận tốc
+        paper.root.eulerAngles = SCNVector3(Float(0.5 * k), Float(tilt * .pi / 180 * 0.5), Float(0.12 * k))
+        paper.root.scale = SCNVector3(scale, scale, scale)
         paper.apply(fold(k))
-        shadowPaper.apply(fold(k))
-        flatten.opacity = CGFloat(0.35 / (1 + z / 160))
+        // bóng: lệch theo độ cao, hẹp lại khi gấp thành máy bay
+        shadow.position = SCNVector3(pos.x - Float(0.3 * z), pos.y - Float(0.5 * z), -1)
+        shadow.scale = SCNVector3(Float(paperSize.width * 1.35 * scale), Float(paperSize.height * 1.35 * scale * (1 - 0.55 * k)), 1)
+        shadow.opacity = CGFloat(0.45 / (1 + z / 160))
     }
 
     // MARK: API
@@ -122,6 +115,8 @@ final class PaperStage: SCNView {
         SCNTransaction.animationDuration = 0
         apply(z: 40)
         SCNTransaction.commit()
+        paper?.root.opacity = 1
+        inUse = true
         isHidden = false
         isPlaying = true
     }
@@ -159,9 +154,37 @@ final class PaperStage: SCNView {
         SCNTransaction.commit()
     }
 
+    /// Vẽ trước vài khung gần như trong suốt khi mở app để SceneKit biên dịch shader, lần nhấc ảnh đầu không khựng.
+    func warmUp() {
+        guard isHidden else { return }
+        if paper == nil { build(size: paperSize) }
+        paper?.root.opacity = 0.01
+        shadow.opacity = 0
+        isHidden = false
+        isPlaying = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+            guard let self, !self.inUse else { return }
+            self.hide()
+            self.paper?.root.opacity = 1
+        }
+    }
+    private var inUse = false
+
     private func hide() {
+        inUse = false
         isHidden = true
         isPlaying = false
+    }
+
+    private static func shadowTexture() -> UIImage {
+        let s = CGSize(width: 256, height: 192)
+        let base = UIGraphicsImageRenderer(size: s).image { ctx in
+            UIColor.black.setFill()
+            UIBezierPath(roundedRect: CGRect(x: 40, y: 34, width: 176, height: 124), cornerRadius: 14).fill()
+        }
+        let ci = CIImage(image: base)!.clampedToExtent().applyingGaussianBlur(sigma: 14).cropped(to: CGRect(origin: .zero, size: s))
+        guard let cg = CIContext().createCGImage(ci, from: CGRect(origin: .zero, size: s)) else { return base }
+        return UIImage(cgImage: cg)
     }
 
     /// Mặt trước tờ giấy 4:3, ảnh lấp đầy.
