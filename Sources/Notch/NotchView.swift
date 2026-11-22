@@ -74,6 +74,7 @@ struct NotchRootView: View {
                     case let .unlocked(name): UnlockWings(name: name, wing: peek.wing)
                     case let .claude(notice): ClaudeNoticeWings(notice: notice, wing: peek.wing)
                     case let .capsLock(on): CapsLockWings(on: on, wing: peek.wing)
+                    case let .inputSource(vi): InputSourceWings(vietnamese: vi, wing: peek.wing)
                     case let .hud(hud): HUDWings(hud: hud, wing: peek.wing)
                     }
                 }

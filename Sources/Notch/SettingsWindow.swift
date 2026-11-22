@@ -613,9 +613,22 @@ private struct MusicPane: View {
     @ObservedObject var settings: SettingsStore
     @ObservedObject var lock = LockScreenMusic.shared
     @ObservedObject var lyrics = LyricsStore.shared
+    @ObservedObject var perms = PermissionWatch.shared
 
     var body: some View {
         SPage {
+            if !perms.automationDenied.isEmpty {
+                let names = ListFormatter.localizedString(byJoining: perms.automationDenied.map(\.displayName))
+                SSection(nil) {
+                    SRow("exclamationmark.triangle", L("Chưa được phép điều khiển \(names)", "Not allowed to control \(names)"),
+                         detail: L("macOS đang chặn Roost gửi lệnh tới \(names), nên một số điều khiển nhạc và lời bài hát không chạy. Bật Roost trong Quyền riêng tư và Bảo mật, mục Tự động hoá.",
+                                   "macOS is blocking Roost from sending commands to \(names), so some music controls and lyrics don't work. Turn on Roost in Privacy and Security under Automation."),
+                         divider: false) {
+                        Button(L("Mở Cài đặt hệ thống", "Open System Settings")) { openPrivacyPane("Privacy_Automation") }
+                            .controlSize(.small)
+                    }
+                }
+            }
             SSection(L("Trình phát", "Player"),
                      note: L("Sóng nhạc thật cần quyền \"Chỉ ghi âm thanh hệ thống\": Roost chỉ nghe app đang phát, không ghi lại gì. Khi bật, macOS hiện chấm tím trên thanh menu lúc đang phát.",
                              "The live visualizer needs the \"System Audio Recording Only\" permission: Roost only listens to the playing app and records nothing. While on, macOS shows a purple dot in the menu bar during playback.")) {
@@ -823,16 +836,24 @@ struct AlertsPane: View {
             SSection(L("Báo trên notch", "Notch alerts"),
                      note: L("Mất mạng chỉ báo khi kéo dài hơn vài giây, Wi-Fi chập chờn thoáng qua sẽ không làm phiền bạn. Cắm sạc luôn được báo.",
                              "Connection loss only shows when it lasts more than a few seconds. Plugging in the charger is always shown."),
-                     reset: { alerts.battery = true; alerts.capsLock = true; alerts.network = true; alerts.hud = true }) {
+                     reset: { alerts.battery = true; alerts.capsLock = true; alerts.inputSource = true; alerts.network = true; alerts.hud = true; alerts.push = true }) {
                 SToggleRow(icon: "battery.25percent", title: L("Pin yếu và pin đầy", "Low and full battery"),
                            detail: L("Báo ở 20% và 10%, và khi sạc đầy.", "At 20% and 10%, and when charging finishes."),
                            divider: false, isOn: $alerts.battery)
                 SToggleRow(icon: "capslock", title: L("Bật tắt Caps Lock", "Caps Lock on and off"),
                            detail: L("Hiện ON hoặc OFF mỗi lần bấm.", "Shows ON or OFF every time you press it."),
                            isOn: $alerts.capsLock)
+                SToggleRow(icon: "keyboard", title: L("Đổi bộ gõ tiếng Việt", "Vietnamese input switch"),
+                           detail: L("Hiện V hoặc E khi bạn chuyển bộ gõ tiếng Việt có sẵn của macOS.",
+                                     "Shows V or E when you switch macOS's built-in Vietnamese input."),
+                           isOn: $alerts.inputSource)
                 SToggleRow(icon: "wifi.slash", title: L("Mất kết nối Internet", "Internet connection lost"),
                            detail: L("Và báo lại khi có mạng trở lại.", "And again when you're back online."),
                            isOn: $alerts.network)
+                SToggleRow(icon: "terminal", title: L("Thông báo từ lệnh roost push", "Alerts from roost push"),
+                           detail: L("Script, cron hay n8n trên máy này gửi thẻ lên notch, kèm thanh tiến độ nếu có.",
+                                     "Scripts, cron jobs or n8n on this Mac can send cards to the notch, with a progress bar if you like."),
+                           isOn: $alerts.push)
                 SToggleRow(icon: "speaker.wave.2", title: L("Thay HUD âm lượng và độ sáng", "Replace the volume and brightness HUD"),
                            detail: perms.accessibilityTrusted
                                ? L("Âm lượng, độ sáng màn hình và đèn bàn phím hiện gọn ở hai bên notch.",

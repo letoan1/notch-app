@@ -651,9 +651,10 @@ final class NotchController {
     private let batteryAlerts = BatteryAlerts()
     private let network = NetworkWatcher()
     private let capsLock = CapsLockWatcher()
+    private let inputSource = InputSourceWatcher()
     private let downloads = DownloadsWatcher()
 
-    /// Pin, mất mạng, Caps Lock, file tải về, giữ máy thức: tất cả theo sự kiện.
+    /// Pin, mất mạng, Caps Lock, bộ gõ, file tải về, giữ máy thức: tất cả theo sự kiện.
     private func startSystemAlerts() {
         AlertCenter.shared.apply = { [weak self] alert in
             guard let self else { return false }
@@ -672,6 +673,7 @@ final class NotchController {
         batteryAlerts.start()
         network.start()
         capsLock.onChange = { [weak self] on in self?.showPeek(.capsLock(on)) }
+        inputSource.onChange = { [weak self] vi in self?.showPeek(.inputSource(vi), duration: 1.6) }
         SystemHUD.shared.show = { [weak self] hud in
             guard let self, !self.model.expanded,
                   self.slots.contains(where: { !$0.model.expanded && !$0.model.minimal && $0.model.alert == nil }) else { return false }
@@ -681,6 +683,7 @@ final class NotchController {
         SystemHUD.shared.start()
         PermissionWatch.shared.start()
         capsLock.start()
+        inputSource.start()
         downloads.onFile = { [weak self] url in
             guard let self, self.settings.showTray else { return }
             self.tray.add(url)
@@ -706,7 +709,7 @@ final class NotchController {
             case .screenshot: PetState.shared.react(.surprise)
             case .unlocked: PetState.shared.react(.happy)
             case .claude: PetState.shared.react(.surprise)
-            case .capsLock, .hud: break
+            case .capsLock, .inputSource, .hud: break
             }
         }
         guard !model.expanded else { return }

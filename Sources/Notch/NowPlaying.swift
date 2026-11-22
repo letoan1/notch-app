@@ -32,6 +32,14 @@ enum Player: String, CaseIterable {
         end tell
         """
     }
+
+    /// Tên hiện cho người dùng (app Music trên macOS gọi là Apple Music).
+    var displayName: String { self == .music ? "Apple Music" : rawValue }
+
+    /// Player mà một AppleScript "tell application ..." nhắm tới.
+    static func target(of source: String) -> Player? {
+        allCases.first { source.contains("application \"\($0.rawValue)\"") }
+    }
 }
 
 struct Track: Equatable {
@@ -95,6 +103,7 @@ final class ScriptRunner: @unchecked Sendable {
         }()
         var error: NSDictionary?
         let result = script.executeAndReturnError(&error)
+        AutomationGuard.report(source: source, error: error)
         return error == nil ? result : nil
     }
 
