@@ -170,6 +170,11 @@ final class NotchController {
                                                             object: nil, queue: .main) { _ in
             MainActor.assumeIsolated { OnboardingWindowController.shared.show() }
         }
+        // Xem lại lời chào (nút "Xem thử" trong Cài đặt, hoặc script đo độ mượt).
+        DistributedNotificationCenter.default().addObserver(forName: Notification.Name("io.github.letoan1.roost.welcome"),
+                                                            object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.showWelcome() }
+        }
         DistributedNotificationCenter.default().addObserver(forName: Notification.Name("io.github.letoan1.roost.settings"),
                                                             object: nil, queue: .main) { _ in
             MainActor.assumeIsolated { SettingsWindowController.shared.show() }
@@ -387,6 +392,8 @@ final class NotchController {
 
     private func tick() {
         capsLock.check()
+        // Lời chào đang hiện: không mở / đóng notch theo chuột, không timer (nút trên thẻ tự nhận click).
+        if model.welcome || model.welcomePending { scheduleHover(nil); return }
         activateSlotUnderMouse()
         updatePet()
         let questions = permissions.current?.questions ?? []
@@ -656,7 +663,7 @@ final class NotchController {
                 return true
             }
             var shown = false
-            for slot in self.slots where !slot.model.expanded && (!slot.model.minimal || alert.priority >= 2) {
+            for slot in self.slots where !slot.model.expanded && !slot.model.welcome && !slot.model.welcomePending && (!slot.model.minimal || alert.priority >= 2) {
                 slot.model.alert = alert
                 shown = true
             }
@@ -823,6 +830,94 @@ final class NotchController {
     private func wingLayout() -> WingLayout {
         WingLayout.resolve(settings: settings, hasTrack: media.hasTrack, calendar: calendar,
                            battery: SystemMonitor.shared.batteryPercent, height: model.notchSize.height)
+    }
+
+    // MARK: - Lời chào khi mở app
+
+    private var welcomeToken = 0
+
+    /// Lúc mở app: lần đầu (chưa qua màn hướng dẫn) luôn chào, sau đó theo Cài đặt.
+    /// Trả về false nếu không chào (để main mở màn hướng dẫn ngay).
+    func launchWelcome() -> Bool {
+        let first = OnboardingWindowController.shared.needsOnboarding
+        guard first || settings.welcomeOnLaunch else { return false }
+        // Giữ notch trơn (không cánh, không thú cưng) tới lúc chào: thứ đầu tiên hiện ra là lời chào.
+        for slot in slots { slot.model.welcomePending = true }
+        // Đợi app khởi động xong (MediaRemote, CoreAudio…) để main thread rảnh: spring giãn notch không bị giật.
+        tryLaunchWelcome(attempt: 0, after: 0.7)
+        return true
+    }
+
+    /// Lúc khởi động có thể đang vướng (Claude đang hỏi, app toàn màn hình vừa được nhận ra): thử lại vài lần.
+    private func tryLaunchWelcome(attempt: Int, after delay: TimeInterval) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if self.showWelcome() { return }
+                if attempt < 4 {
+                    self.tryLaunchWelcome(attempt: attempt + 1, after: 0.5)
+                } else {
+                    NSLog("[welcome] bỏ qua: minimal=\(self.model.minimal) claude=\(self.permissions.current != nil)")
+                    for slot in self.slots { slot.model.welcomePending = false }
+                    OnboardingWindowController.shared.showIfNeeded()
+                }
+            }
+        }
+    }
+
+    @discardableResult
+    func showWelcome() -> Bool {
+        guard active != nil, !model.welcome, permissions.current == nil, !model.minimal else { return false }
+        if model.expanded { setExpanded(false) }
+        hoverStart = nil
+        pinned = false
+        let model = self.model
+        let panel = self.panel
+        if model.alert != nil { AlertCenter.shared.notchExpanded() }
+        model.peek = nil
+        model.onWelcomeStart = { [weak self] in self?.dismissWelcome() }
+        // Cùng một lần cập nhật: notch trơn giãn thẳng thành thẻ chào.
+        for slot in slots { slot.model.welcomePending = false }
+        model.welcome = true
+        // Nhận click cho nút "Bắt đầu" (không lấy focus: panel không thành key).
+        panel.ignoresMouseEvents = false
+        welcomeToken += 1
+        scheduleWelcomeClose(token: welcomeToken, after: WelcomeCard.penDelay + WelcomeCard.penDuration + 4.5)
+        return true
+    }
+
+    /// Tự thu sau vài giây; chuột còn trên thẻ thì đợi thêm.
+    private func scheduleWelcomeClose(token: Int, after seconds: TimeInterval) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + seconds) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, self.welcomeToken == token, self.model.welcome else { return }
+                if self.mouseOnWelcome() {
+                    self.scheduleWelcomeClose(token: token, after: 1)
+                } else {
+                    self.dismissWelcome()
+                }
+            }
+        }
+    }
+
+    private func mouseOnWelcome() -> Bool {
+        let size = model.shapeSize(wing: 0)
+        let f = screen.frame
+        return NSRect(x: f.midX - size.width / 2, y: f.maxY - size.height - model.topGap,
+                      width: size.width, height: size.height + model.topGap).contains(NSEvent.mouseLocation)
+    }
+
+    private func dismissWelcome() {
+        guard model.welcome else { return }
+        welcomeToken += 1
+        model.welcome = false
+        model.onWelcomeStart = nil
+        panel.ignoresMouseEvents = !model.expanded
+        // Chuột đang ở trên notch: không mở ngay lúc thẻ vừa thu, phải rê lại.
+        hoverStart = nil
+        lastInside = Date()
+        AlertCenter.shared.notchCollapsed()
+        OnboardingWindowController.shared.showIfNeeded()
     }
 
     private func setExpanded(_ value: Bool) {

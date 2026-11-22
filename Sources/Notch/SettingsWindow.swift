@@ -285,6 +285,19 @@ private struct GeneralPane: View {
                            detail: L("Một nhịp rung khi notch mở và khi bạn thả file vào khay.", "A tap when the notch opens and when you drop a file."),
                            isOn: $settings.haptics)
             }
+            SSection(L("Lời chào", "Welcome")) {
+                SToggleRow(icon: "hand.wave", title: L("Chào khi mở app", "Say hello on launch"),
+                           detail: L("Notch giãn ra và tự viết chữ hello. Lần mở đầu tiên luôn có.",
+                                     "The notch opens and writes hello by hand. Always shown the first time."),
+                           divider: false, isOn: $settings.welcomeOnLaunch)
+                SRow("play.circle", L("Xem thử", "Preview")) {
+                    Button(L("Xem", "Play")) {
+                        DistributedNotificationCenter.default().postNotificationName(
+                            Notification.Name("io.github.letoan1.roost.welcome"), object: nil, userInfo: nil, deliverImmediately: true)
+                    }
+                    .controlSize(.small)
+                }
+            }
             SSection(L("Màn hình", "Displays"),
                      note: L("Màn hình không có notch thật sẽ có một notch vẽ ở giữa mép trên, hoặc một viên bo tròn nổi ngay dưới mép.",
                              "Screens without a hardware notch get a drawn notch at the top center, or a rounded pill floating just below the edge."),
