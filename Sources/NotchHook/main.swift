@@ -6,6 +6,8 @@ import Foundation
 //   trả lời ở terminal (hộp thoại terminal chạy song song với hook), không chờ, không in gì.
 // - Notification: báo app phiên đang cần bạn (âm báo + thông báo nhanh), không chờ.
 // - --statusline: lệnh statusLine, xem bên dưới.
+// - `push`: lệnh `roost push "Deploy xong" --progress 80 --id deploy` cho script, cron, n8n… (xem pushUsage).
+//   Khác hook: lỗi thì in ra stderr và thoát 1 để script biết.
 // Mọi lỗi (app tắt, app chết giữa chừng, socket cũ, hết giờ, JSON hỏng) → thoát 0 không in gì
 // = không quyết định, Claude Code giữ luồng hỏi quyền bình thường.
 // Không bao giờ được treo quá timeout của Claude Code (110 s): có watchdog SIGALRM chặn cứng.
@@ -26,11 +28,90 @@ let socketPath = env["ROOST_HOOK_SOCKET"].flatMap { $0.isEmpty ? nil : $0 }
 let parent = getppid()
 let claudePid = Int32(env["CLAUDE_PID"] ?? "") ?? parent
 
+// `roost push`: thẻ thông báo từ script. Cask Homebrew đặt binary này lên PATH với tên `roost`.
+let args = Array(CommandLine.arguments.dropFirst())
+let pushUsage = """
+Cách dùng: roost push "Tiêu đề" [tuỳ chọn]
+  --body TEXT        dòng mô tả dưới tiêu đề
+  --progress N       thanh tiến độ 0-100 (100 = xong, thẻ chuyển xanh)
+  --id ID            cùng ID thì cập nhật thẻ cũ thay vì tạo thẻ mới
+  --icon NAME        tên SF Symbol, ví dụ hammer.fill
+  --tone TONE        red, green, yellow, blue
+  --duration GIÂY    thời gian hiện (0 = tới khi --clear, tối đa 1 giờ)
+  --open URL         bấm vào thẻ thì mở URL
+  --urgent           hiện cả khi đang toàn màn hình
+  --clear --id ID    gỡ thẻ có ID đó
+Ví dụ: roost push "Deploy xong" --progress 80 --id deploy
+
+"""
+let push = args.first == "push"
+if args.first.map({ ["help", "--help", "-h"].contains($0) }) == true
+    || (args.isEmpty && isatty(STDIN_FILENO) == 1) || (push && args.count == 1) {
+    FileHandle.standardOutput.write(Data(pushUsage.utf8))
+    exit(0)
+}
+
+/// Lỗi của `roost push`: báo rõ rồi thoát 1. Chế độ hook: im lặng, thoát 0.
+func fail(_ reason: String = "Không gửi được tới Roost. App có đang chạy không?") -> Never {
+    if push { FileHandle.standardError.write(Data("roost: \(reason)\n".utf8)); exit(1) }
+    exit(0)
+}
+
+/// Đọc tham số `roost push`: chữ tự do ghép thành tiêu đề, cờ dạng `--x giá trị` hoặc `--x=giá trị`.
+func parsePush(_ list: [String]) -> [String: Any] {
+    var out: [String: Any] = ["notch_event": "Push"]
+    var words: [String] = []
+    let valued: Set = ["body", "progress", "id", "icon", "tone", "duration", "open"]
+    var i = 0
+    while i < list.count {
+        let arg = list[i]
+        i += 1
+        guard arg.hasPrefix("--"), arg.count > 2 else { words.append(arg); continue }
+        var name = String(arg.dropFirst(2))
+        var value: String?
+        if let eq = name.firstIndex(of: "=") {
+            value = String(name[name.index(after: eq)...])
+            name = String(name[..<eq])
+        }
+        switch name {
+        case "clear", "urgent":
+            out[name] = true
+        case _ where valued.contains(name):
+            if value == nil {
+                guard i < list.count else { fail("thiếu giá trị cho --\(name)") }
+                value = list[i]
+                i += 1
+            }
+            out[name] = value!
+        default:
+            fail("không biết tuỳ chọn --\(name). Xem roost --help")
+        }
+    }
+    for key in ["progress", "duration"] {
+        guard let text = out[key] as? String else { continue }
+        guard let number = Double(text.replacingOccurrences(of: "%", with: "")), number.isFinite else {
+            fail("--\(key) phải là số")
+        }
+        out[key] = number
+    }
+    if let tone = out["tone"] as? String, !["red", "green", "yellow", "blue"].contains(tone) {
+        fail("--tone chỉ nhận red, green, yellow, blue")
+    }
+    let title = words.joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
+    if out["clear"] != nil {
+        guard out["id"] != nil else { fail("--clear cần --id") }
+    } else {
+        guard !title.isEmpty else { fail("thiếu tiêu đề. Ví dụ: roost push \"Deploy xong\"") }
+    }
+    out["title"] = title
+    return out
+}
+
 // `roost-hook --statusline`: dùng làm lệnh statusLine của Claude Code. In dòng trạng thái ngắn
 // (mức dùng 5 giờ / tuần) và chuyển `rate_limits` cho app. Không bao giờ chờ quá 2 giây.
 let statusline = CommandLine.arguments.contains("--statusline")
 
-let input = FileHandle.standardInput.readDataToEndOfFile()
+let input = push ? Data("{}".utf8) : FileHandle.standardInput.readDataToEndOfFile()
 guard let object = try? JSONSerialization.jsonObject(with: input) as? [String: Any] else { exit(0) }
 if statusline {
     let limits = object["rate_limits"] as? [String: Any]
@@ -41,13 +122,15 @@ if statusline {
     FileHandle.standardOutput.write(Data((text + "\n").utf8))
     guard limits != nil else { exit(0) }
 }
-let event = statusline ? "Usage" : object["hook_event_name"] as? String ?? "PermissionRequest"
+let event = push ? "Push" : statusline ? "Usage" : object["hook_event_name"] as? String ?? "PermissionRequest"
 let isRequest = event == "PermissionRequest"
 let deadline = started.addingTimeInterval(isRequest ? timeout : 2)
 if !isRequest { alarm(3) }
 
 var message: [String: Any] = object
-if isRequest {
+if push {
+    message = parsePush(Array(args.dropFirst()))
+} else if isRequest {
     var meta: [String: Any] = [
         "request_id": UUID().uuidString,
         "timeout": timeout,
@@ -82,7 +165,7 @@ func remainingMs() -> Int32 {
 }
 
 let fd = socket(AF_UNIX, SOCK_STREAM, 0)
-guard fd >= 0 else { exit(0) }
+guard fd >= 0 else { fail() }
 var one: Int32 = 1
 setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &one, socklen_t(MemoryLayout<Int32>.size))
 // Non-blocking: connect / write không thể kẹt quá hạn chót.
@@ -91,7 +174,7 @@ _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
 var addr = sockaddr_un()
 addr.sun_family = sa_family_t(AF_UNIX)
 let pathBytes = Array(socketPath.utf8)
-guard pathBytes.count < MemoryLayout.size(ofValue: addr.sun_path) else { exit(0) }
+guard pathBytes.count < MemoryLayout.size(ofValue: addr.sun_path) else { fail() }
 withUnsafeMutableBytes(of: &addr.sun_path) { $0.copyBytes(from: pathBytes) }
 let connected = withUnsafePointer(to: &addr) {
     $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
@@ -100,12 +183,12 @@ let connected = withUnsafePointer(to: &addr) {
 }
 // App không chạy: file socket không có (ENOENT) hoặc còn sót (ECONNREFUSED) → thoát ngay.
 if connected != 0 {
-    guard errno == EINPROGRESS || errno == EAGAIN else { exit(0) }
+    guard errno == EINPROGRESS || errno == EAGAIN else { fail() }
     var pfd = pollfd(fd: fd, events: Int16(POLLOUT), revents: 0)
-    guard poll(&pfd, 1, min(remainingMs(), 2000)) == 1, pfd.revents & Int16(POLLOUT) != 0 else { exit(0) }
+    guard poll(&pfd, 1, min(remainingMs(), 2000)) == 1, pfd.revents & Int16(POLLOUT) != 0 else { fail() }
     var err: Int32 = 0
     var len = socklen_t(MemoryLayout<Int32>.size)
-    guard getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len) == 0, err == 0 else { exit(0) }
+    guard getsockopt(fd, SOL_SOCKET, SO_ERROR, &err, &len) == 0, err == 0 else { fail() }
 }
 
 let sent = line.withUnsafeBytes { buf -> Bool in
@@ -120,7 +203,8 @@ let sent = line.withUnsafeBytes { buf -> Bool in
     }
     return true
 }
-guard sent, isRequest else { close(fd); exit(0) }
+guard sent else { close(fd); fail() }
+guard isRequest else { close(fd); exit(0) }
 
 // Chờ trả lời bằng kqueue: socket có dữ liệu / bị đóng (app chết, app bỏ qua), hoặc Claude Code chết.
 let kq = kqueue()
