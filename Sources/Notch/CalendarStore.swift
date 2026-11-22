@@ -6,7 +6,7 @@ import SwiftUI
 final class CalendarStore: ObservableObject {
     enum Access { case notDetermined, granted, denied }
 
-    struct Item: Identifiable {
+    struct Item: Identifiable, Equatable {
         let id: String
         let title: String
         let start: Date
@@ -16,13 +16,13 @@ final class CalendarStore: ObservableObject {
         let meeting: Meeting?
     }
 
-    struct Meeting {
+    struct Meeting: Equatable {
         let url: URL
         let provider: String
     }
 
     private static let meetingPattern =
-        #"https://(meet\.google\.com/[a-z0-9-]+|[a-z0-9.-]*zoom\.us/j/[^\s<>"']+|teams\.microsoft\.com/l/meetup-join/[^\s<>"']+)"#
+        #"https://(meet\.google\.com/[a-z0-9-]+|[a-z0-9.-]*zoom\.us/(j|my|w)/[^\s<>"']+|teams\.(microsoft\.com|live\.com)/(l/meetup-join|meet)/[^\s<>"']+|[a-z0-9.-]+\.webex\.com/(meet|join|[a-z0-9.-]+/j\.php)[^\s<>"']*)"#
 
     /// Tìm link họp trong url / location / notes của sự kiện (Google Calendar hay để ở notes).
     private static func meeting(in event: EKEvent) -> Meeting? {
@@ -32,7 +32,8 @@ final class CalendarStore: ObservableObject {
                   let url = URL(string: String(text[range]))
             else { continue }
             let host = url.host ?? ""
-            let provider = host.contains("zoom") ? "Zoom" : host.contains("teams") ? "Teams" : "Meet"
+            let provider = host.contains("zoom") ? "Zoom" : host.contains("teams") ? "Teams"
+                : host.contains("webex") ? "Webex" : "Meet"
             return Meeting(url: url, provider: provider)
         }
         return nil
@@ -96,19 +97,49 @@ final class CalendarStore: ObservableObject {
     }
 
     private let store = EKEventStore()
-    private var timer: Timer?
+    /// Hẹn một lần tới mốc kế tiếp (sự kiện sắp tới / bắt đầu / kết thúc, nửa đêm), không chạy đều mỗi phút.
+    private var boundaryTimer: Timer?
 
     init() {
         access = Self.currentAccess()
         NotificationCenter.default.addObserver(forName: .EKEventStoreChanged, object: store, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.reload() }
         }
-        // Cập nhật khi sự kiện kết thúc / sang ngày mới.
-        timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.reload() }
+        // Sang ngày mới, đổi múi giờ, máy thức dậy: giờ "bây giờ" đã nhảy, vẽ lại và đọc lại.
+        for name in [Notification.Name.NSCalendarDayChanged, .NSSystemTimeZoneDidChange] {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.boundaryReached() }
+            }
         }
-        timer?.tolerance = 10
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.boundaryReached() }
+        }
         reload()
+    }
+
+    /// Tới một mốc thời gian: dữ liệu có thể không đổi nhưng giao diện tính theo "bây giờ" (cánh họp, "sắp họp",
+    /// bỏ sự kiện đã qua) phải vẽ lại.
+    private func boundaryReached() {
+        objectWillChange.send()
+        reload()
+    }
+
+    private func scheduleBoundary() {
+        boundaryTimer?.invalidate()
+        boundaryTimer = nil
+        let now = Date()
+        let cal = Calendar.current
+        var marks: [Date] = [cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: now))!]
+        for e in windowEvents where !e.allDay {
+            marks += [e.start.addingTimeInterval(-Wings.meetingWindow), e.start.addingTimeInterval(-600), e.start, e.end]
+        }
+        guard let next = marks.filter({ $0 > now.addingTimeInterval(0.5) }).min() else { return }
+        let t = Timer(fire: next.addingTimeInterval(0.5), interval: 0, repeats: false) { [weak self] _ in
+            MainActor.assumeIsolated { self?.boundaryReached() }
+        }
+        t.tolerance = 2
+        RunLoop.main.add(t, forMode: .common)
+        boundaryTimer = t
     }
 
     /// Dải 7 ngày quanh tâm (hôm nay + weekOffset tuần): 3 ngày trước, tâm, 3 ngày sau.
@@ -147,9 +178,10 @@ final class CalendarStore: ObservableObject {
         // Sang ngày mới mà ngày đang chọn đã trôi khỏi dải → chọn ngày giữa dải.
         if !days.contains(selectedDay) { selectedDay = days[3] }
         guard access == .granted, let first = days.first, let last = days.last else {
-            windowEvents = []
-            busyDays = []
-            dayLoad = [:]
+            if !windowEvents.isEmpty { windowEvents = [] }
+            if !busyDays.isEmpty { busyDays = [] }
+            if !dayLoad.isEmpty { dayLoad = [:] }
+            scheduleBoundary()
             return
         }
         let windowEnd = Calendar.current.date(byAdding: .day, value: 1, to: last)!
@@ -178,18 +210,22 @@ final class CalendarStore: ObservableObject {
             let n = events.filter { $0.startDate < end && $0.endDate > day }.count
             if n > 0 { load[day] = n }
         }
-        dayLoad = load
-        busyDays = Set(load.keys)
+        // Chỉ gán khi khác: mỗi lần gán là cả notch vẽ lại.
+        if load != dayLoad { dayLoad = load }
+        if Set(load.keys) != busyDays { busyDays = Set(load.keys) }
 
-        windowEvents = events
+        let items = events
             .sorted { ($0.isAllDay ? 0 : 1, $0.startDate) < ($1.isAllDay ? 0 : 1, $1.startDate) }
             .map {
-                Item(id: $0.eventIdentifier ?? UUID().uuidString,
+                // Các lần lặp của một sự kiện lặp lại dùng chung eventIdentifier: thêm giờ bắt đầu cho id riêng, ổn định.
+                Item(id: "\($0.eventIdentifier ?? $0.title ?? "")|\($0.startDate.timeIntervalSince1970)",
                      title: $0.title ?? L("(Không tiêu đề)", "(No title)"),
                      start: $0.startDate, end: $0.endDate, allDay: $0.isAllDay,
                      color: Color(nsColor: $0.calendar?.color ?? .systemBlue),
                      meeting: Self.meeting(in: $0))
             }
+        if items != windowEvents { windowEvents = items }
+        scheduleBoundary()
     }
 
     /// Có cả lịch ngày lễ tiếng Anh lẫn tiếng Việt ("Holidays in Vietnam" + "Ngày lễ ở Việt Nam") thì mỗi ngày lễ

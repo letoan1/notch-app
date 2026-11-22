@@ -817,7 +817,10 @@ final class NotchController {
             if !wasLeftDown {
                 dragCountAtMouseDown = pasteboard.changeCount
             } else if !fileDragActive, pasteboard.changeCount != dragCountAtMouseDown {
-                fileDragActive = pasteboard.types?.contains(.fileURL) == true
+                // File, hoặc ảnh / link / chữ kéo từ app khác (khay lưu chúng thành file).
+                let kinds: [NSPasteboard.PasteboardType] = [.fileURL, .png, .tiff, .URL, .string,
+                                                            .init("com.apple.NSFilePromiseItemMetaData")]
+                fileDragActive = pasteboard.types?.contains(where: kinds.contains) == true
             }
         } else {
             fileDragActive = false

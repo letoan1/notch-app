@@ -686,8 +686,8 @@ private struct MusicPane: View {
     private func subtitle(_ style: LockScreenMusic.Style) -> String {
         switch style {
         case .off: return L("Không hiện gì", "Nothing shown")
-        case .compact: return L("Widget nhỏ dưới đồng hồ", "A small widget under the clock")
-        case .full: return L("Ảnh bìa lớn và lời", "Big artwork and lyrics")
+        case .compact: return L("Ảnh bìa lớn giữa màn hình", "Big artwork in the middle")
+        case .full: return L("Ảnh bìa và lời chạy theo nhạc", "Artwork and synced lyrics")
         }
     }
 }
@@ -705,15 +705,11 @@ private struct LockStylePreview: View {
                 case .off:
                     Spacer().frame(height: 22)
                 case .compact:
-                    HStack(spacing: 5) {
-                        RoundedRectangle(cornerRadius: 3).fill(Color.orange).frame(width: 14, height: 14)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Capsule().fill(.white.opacity(0.9)).frame(width: 34, height: 3)
-                            Capsule().fill(.white.opacity(0.5)).frame(width: 24, height: 3)
-                        }
+                    VStack(spacing: 3) {
+                        RoundedRectangle(cornerRadius: 3).fill(Color.orange).frame(width: 24, height: 24)
+                            .shadow(color: .black.opacity(0.35), radius: 3, y: 1)
+                        Capsule().fill(.white.opacity(0.9)).frame(width: 26, height: 3)
                     }
-                    .padding(5)
-                    .background(RoundedRectangle(cornerRadius: 6).fill(.black.opacity(0.35)))
                 case .full:
                     HStack(spacing: 6) {
                         RoundedRectangle(cornerRadius: 3).fill(Color.orange).frame(width: 22, height: 22)

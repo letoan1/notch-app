@@ -239,16 +239,21 @@ enum LyricsSource {
             }
         }
         var found: Cached?
+        // Mất mạng / LRCLIB lỗi: không ghi "không có lời", lần sau hỏi lại.
+        var answered = true
         if allowNetwork {
             for q in queries(track) {
                 if Task.isCancelled { return .none }
-                if let c = await lrclib(title: q.title, artist: q.artist, album: track.album, duration: track.duration) {
-                    found = c; break
+                switch await lrclib(title: q.title, artist: q.artist, album: track.album, duration: track.duration) {
+                case .found(let c): found = c
+                case .notFound: break
+                case .failed: answered = false
                 }
+                if found != nil { break }
             }
         }
         let cached = found ?? Cached(missingAt: Date())
-        if allowNetwork, let data = try? JSONEncoder().encode(cached) {
+        if allowNetwork, found != nil || answered, let data = try? JSONEncoder().encode(cached) {
             try? FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
             try? data.write(to: file)
         }
@@ -301,20 +306,29 @@ enum LyricsSource {
         let syncedLyrics: String?
     }
 
-    private static func lrclib(title: String, artist: String, album: String, duration: Double) async -> Cached? {
+    private enum Lookup { case found(Cached), notFound, failed }
+
+    private static func lrclib(title: String, artist: String, album: String, duration: Double) async -> Lookup {
         var get = URLComponents(string: "https://lrclib.net/api/get")!
         get.queryItems = [.init(name: "track_name", value: title), .init(name: "artist_name", value: artist),
                           .init(name: "album_name", value: album), .init(name: "duration", value: String(Int(duration.rounded())))]
-        if let item: Item = await fetch(get.url!), let c = cached(item) { return c }
+        let direct: Fetched<Item> = await fetch(get.url!)
+        if case .ok(let item) = direct, let c = cached(item) { return .found(c) }
         var search = URLComponents(string: "https://lrclib.net/api/search")!
         search.queryItems = [.init(name: "track_name", value: title), .init(name: "artist_name", value: artist)]
-        guard let items: [Item] = await fetch(search.url!) else { return nil }
+        let listed: Fetched<[Item]> = await fetch(search.url!)
+        guard case .ok(let items) = listed else {
+            // Chỉ tin "không có" khi LRCLIB trả lời được (404 / danh sách rỗng), không phải khi mất mạng.
+            if case .failed = listed { return .failed }
+            if case .failed = direct { return .failed }
+            return .notFound
+        }
         // Ưu tiên bản có lời đồng bộ và độ dài khớp (±4 s).
         let close = items.filter { abs(($0.duration ?? 0) - duration) <= 4 }
         let pick = close.first { $0.syncedLyrics?.isEmpty == false }
             ?? close.first { $0.plainLyrics?.isEmpty == false }
             ?? items.first { $0.syncedLyrics?.isEmpty == false && abs(($0.duration ?? 0) - duration) <= 10 }
-        return pick.flatMap(cached)
+        return pick.flatMap(cached).map(Lookup.found) ?? .notFound
     }
 
     private static func cached(_ i: Item) -> Cached? {
@@ -324,12 +338,17 @@ enum LyricsSource {
         return Cached(synced: s, plain: p)
     }
 
-    private static func fetch<T: Decodable>(_ url: URL) async -> T? {
+    /// notFound: LRCLIB trả lời 404. failed: mất mạng, hết giờ, lỗi máy chủ hay dữ liệu hỏng.
+    private enum Fetched<T> { case ok(T), notFound, failed }
+
+    private static func fetch<T: Decodable>(_ url: URL) async -> Fetched<T> {
         var req = URLRequest(url: url, timeoutInterval: 8)
         req.setValue(userAgent, forHTTPHeaderField: "User-Agent")
         guard let (data, resp) = try? await URLSession.shared.data(for: req),
-              (resp as? HTTPURLResponse)?.statusCode == 200 else { return nil }
-        return try? JSONDecoder().decode(T.self, from: data)
+              let code = (resp as? HTTPURLResponse)?.statusCode else { return .failed }
+        if code == 404 { return .notFound }
+        guard code == 200, let value = try? JSONDecoder().decode(T.self, from: data) else { return .failed }
+        return .ok(value)
     }
 
     // MARK: Lời nhúng trong app Music

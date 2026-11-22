@@ -540,7 +540,7 @@ struct ExpandedView: View {
         // Neo lên trên: tab nào thấp hơn thì hàng tab cũng không bị đẩy xuống.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         // Thả file vào bất kỳ đâu trên notch đang mở đều vào khay.
-        .onDrop(of: [.fileURL], isTargeted: Binding(
+        .onDrop(of: [.fileURL] + DropSaver.types, isTargeted: Binding(
             get: { model.dropTargeted },
             set: { model.dropTargeted = $0 }
         )) { providers in
