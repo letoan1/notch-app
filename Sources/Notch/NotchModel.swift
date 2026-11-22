@@ -54,6 +54,8 @@ final class NotchModel: ObservableObject {
         case claude(ClaudeNotice)
         /// Bật / tắt Caps Lock.
         case capsLock(Bool)
+        /// Đổi bộ gõ: true = tiếng Việt (V), false = khác (E).
+        case inputSource(Bool)
         /// Âm lượng / độ sáng / đèn bàn phím (thay HUD của macOS).
         case hud(HUDPeek)
 
@@ -61,7 +63,7 @@ final class NotchModel: ObservableObject {
             switch self {
             case .charge, .screenshot: return 80
             case .unlocked: return 96
-            case .capsLock: return 46
+            case .capsLock, .inputSource: return 46
             case .hud: return 64
             case .audio: return 118
             case .claude: return 120
