@@ -677,6 +677,7 @@ final class NotchController {
         PermissionWatch.shared.start()
         capsLock.start()
         inputSource.start()
+        startPortal()
         downloads.onFile = { [weak self] url in
             guard let self, self.settings.showTray else { return }
             self.tray.add(url)
@@ -692,6 +693,28 @@ final class NotchController {
             .receive(on: DispatchQueue.main).sink { percent, onAC in
                 MainActor.assumeIsolated { KeepAwake.shared.batteryChanged(percent: percent, onAC: onAC) }
             }.store(in: &cancellables)
+    }
+
+    /// Portal: file từ iPhone bị hút vào notch thì vào khay, notch "nuốt" như khi thả file.
+    private func startPortal() {
+        let portal = PortalCenter.shared
+        portal.addToTray = { [weak self] url in
+            guard let self, self.settings.showTray else { return }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.62)) { self.tray.add(url) }
+        }
+        var gulpToken = 0
+        portal.gulp = { [weak self] in
+            guard let self else { return }
+            let model = self.model
+            gulpToken += 1
+            let token = gulpToken
+            model.gulp = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                if token == gulpToken { model.gulp = false }
+            }
+        }
+        portal.willSave = { [weak self] url in self?.downloads.markSeen(url) }
+        PortalServer.shared.sync()
     }
 
     private func showPeek(_ peek: NotchModel.Peek, duration: TimeInterval = 3.2) {

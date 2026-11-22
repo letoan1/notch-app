@@ -30,6 +30,12 @@
 	<string>Roost hiển thị các sự kiện trong lịch của bạn. — Roost shows your calendar events.</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>Roost hiển thị các sự kiện trong lịch của bạn. — Roost shows your calendar events.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_roost-portal._tcp</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Roost nhận ảnh, video, file và clipboard từ iPhone của bạn qua mạng cục bộ (Portal). — Roost receives photos, videos, files and clipboard from your iPhone over the local network (Portal).</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Roost dùng camera cho tab Gương để bạn soi trước khi họp, và nếu bạn bật thì để nhận khuôn mặt mở khoá máy. Roost không quay video. Ảnh chỉ được lưu khi bạn bấm nút chụp, vào thư mục Pictures/Roost. — Roost uses the camera for the Mirror tab and, if you turn it on, face unlock. It never records video; a photo is saved to Pictures/Roost only when you press a capture button.</string>
 	<key>SUEnableAutomaticChecks</key>

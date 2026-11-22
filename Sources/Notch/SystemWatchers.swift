@@ -287,6 +287,9 @@ final class DownloadsWatcher {
         }
     }
 
+    /// File do chính Roost lưu vào Downloads (Portal): không tính là tải về.
+    func markSeen(_ url: URL) { seen.insert(url.standardizedFileURL.path) }
+
     private func isFreshDownload(_ url: URL, created: Date?) -> Bool {
         if getxattr(url.path, "com.apple.quarantine", nil, 0, 0, 0) > 0 { return true }
         return (created.map { Date().timeIntervalSince($0) < 600 }) ?? false
