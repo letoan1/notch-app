@@ -106,11 +106,20 @@ final class TrayStore: ObservableObject {
     func accept(_ providers: [NSItemProvider], at point: NSPoint? = nil) {
         let group = DispatchGroup()
         let loaded = DroppedURLs()
-        for (i, provider) in providers.enumerated() where provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
-            group.enter()
-            _ = provider.loadObject(ofClass: URL.self) { url, _ in
-                if let url, url.isFileURL { loaded.append(i, url) }
-                group.leave()
+        for (i, provider) in providers.enumerated() {
+            if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                group.enter()
+                _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                    if let url, url.isFileURL { loaded.append(i, url) }
+                    group.leave()
+                }
+            } else {
+                // Ảnh, link, đoạn chữ kéo từ trình duyệt / app khác: lưu thành file rồi mới vào khay.
+                group.enter()
+                DropSaver.save(provider) { url in
+                    if let url { loaded.append(i, url) }
+                    group.leave()
+                }
             }
         }
         group.notify(queue: .main) { [weak self] in
@@ -227,6 +236,7 @@ final class TrayStore: ObservableObject {
         if files != keptURLs { files = keptURLs }
         save()
         if !dropped.isEmpty { remove(dropped) }
+        DropSaver.cleanup(keeping: Set(keptURLs.map(\.path)))
     }
 
     // MARK: - Lưu trữ
@@ -277,7 +287,8 @@ final class TrayStore: ObservableObject {
                                       relativeTo: nil, bookmarkDataIsStale: &stale)
         else { return fallback(item) }
         let url = resolved.standardizedFileURL
-        if url.path.contains("/.Trash/") { return .trashed }
+        // Ổ trong: ~/.Trash; ổ ngoài: /Volumes/<ổ>/.Trashes/<uid>/.
+        if url.path.contains("/.Trash/") || url.path.contains("/.Trashes/") { return .trashed }
         guard FileManager.default.fileExists(atPath: url.path) else { return fallback(item) }
         // File đã đổi chỗ / tên: làm mới bookmark + đường dẫn, giữ nguyên thời điểm thêm vào khay.
         if stale || url.path != item.path, let fresh = makeItem(url, addedAt: item.addedAt) {
@@ -293,4 +304,107 @@ private final class DroppedURLs: @unchecked Sendable {
     private var items: [(Int, URL)] = []
     func append(_ i: Int, _ url: URL) { lock.lock(); items.append((i, url)); lock.unlock() }
     var sorted: [URL] { lock.lock(); defer { lock.unlock() }; return items.sorted { $0.0 < $1.0 }.map(\.1) }
+}
+
+/// Lưu thứ được kéo vào khay mà không phải file (ảnh, link, chữ) thành file trong thư mục riêng của Roost.
+enum DropSaver {
+    static let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        .appendingPathComponent("Roost/Dropped", isDirectory: true)
+
+    /// Kiểu kéo thả khay nhận (ngoài file): notch mở ra khi kéo các kiểu này tới.
+    static let types: [UTType] = [.image, .url, .plainText]
+
+    private static let imageExtensions: Set<String> = ["png", "jpg", "jpeg", "gif", "webp", "heic", "tiff", "bmp", "svg"]
+
+    static func save(_ provider: NSItemProvider, done: @escaping @Sendable (URL?) -> Void) {
+        if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+            let type = provider.registeredTypeIdentifiers.compactMap { UTType($0) }.first { $0.conforms(to: .image) } ?? .png
+            _ = provider.loadDataRepresentation(forTypeIdentifier: type.identifier) { data, _ in
+                guard let data else { return done(nil) }
+                let name = provider.suggestedName ?? L("Ảnh ", "Image ") + stamp()
+                done(write(data, name: name, ext: type.preferredFilenameExtension ?? "png"))
+            }
+        } else if provider.hasItemConformingToTypeIdentifier(UTType.url.identifier) {
+            _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                guard let url, let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme) else { return done(nil) }
+                // Link trỏ thẳng tới ảnh (kéo ảnh từ Chrome): tải ảnh về; còn lại lưu thành link .webloc.
+                if imageExtensions.contains(url.pathExtension.lowercased()) {
+                    downloadImage(url, done: done)
+                } else {
+                    done(webloc(url))
+                }
+            }
+        } else if provider.hasItemConformingToTypeIdentifier(UTType.plainText.identifier) {
+            _ = provider.loadObject(ofClass: String.self) { text, _ in
+                guard let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return done(nil) }
+                if let url = URL(string: text.trimmingCharacters(in: .whitespacesAndNewlines)),
+                   let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme), url.host != nil {
+                    return done(webloc(url))
+                }
+                done(write(Data(text.utf8), name: title(from: text), ext: "txt"))
+            }
+        } else {
+            done(nil)
+        }
+    }
+
+    private static func downloadImage(_ url: URL, done: @escaping @Sendable (URL?) -> Void) {
+        var req = URLRequest(url: url, timeoutInterval: 15)
+        req.setValue("Roost", forHTTPHeaderField: "User-Agent")
+        URLSession.shared.dataTask(with: req) { data, resp, _ in
+            guard let data, (resp as? HTTPURLResponse)?.statusCode == 200, NSImage(data: data) != nil else {
+                return done(webloc(url))
+            }
+            let name = url.deletingPathExtension().lastPathComponent
+            done(write(data, name: name.isEmpty ? L("Ảnh ", "Image ") + stamp() : name, ext: url.pathExtension.lowercased()))
+        }.resume()
+    }
+
+    private static func webloc(_ url: URL) -> URL? {
+        guard let data = try? PropertyListSerialization.data(fromPropertyList: ["URL": url.absoluteString],
+                                                             format: .xml, options: 0) else { return nil }
+        let host = url.host?.replacingOccurrences(of: "www.", with: "") ?? "Link"
+        return write(data, name: host, ext: "webloc")
+    }
+
+    /// Dòng đầu của đoạn chữ, tối đa 40 ký tự, làm tên file.
+    private static func title(from text: String) -> String {
+        let first = text.split(whereSeparator: \.isNewline).first.map(String.init) ?? text
+        let t = String(first.trimmingCharacters(in: .whitespaces).prefix(40))
+        return t.isEmpty ? L("Ghi chú ", "Note ") + stamp() : t
+    }
+
+    private static func stamp() -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd HH.mm.ss"
+        return f.string(from: Date())
+    }
+
+    /// Ghi file, tên trùng thì thêm " 2", " 3"…
+    private static func write(_ data: Data, name: String, ext: String) -> URL? {
+        let fm = FileManager.default
+        try? fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        let clean = name.replacingOccurrences(of: "/", with: "-").replacingOccurrences(of: ":", with: "-")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let base = clean.isEmpty ? stamp() : clean
+        var url = folder.appendingPathComponent(base).appendingPathExtension(ext)
+        var n = 2
+        while fm.fileExists(atPath: url.path) {
+            url = folder.appendingPathComponent("\(base) \(n)").appendingPathExtension(ext)
+            n += 1
+        }
+        do { try data.write(to: url) } catch { return nil }
+        return url
+    }
+
+    /// File đã rời khay hơn 1 ngày thì xoá (file trong thư mục này do Roost tạo ra, không phải file của bạn).
+    static func cleanup(keeping kept: Set<String>) {
+        let fm = FileManager.default
+        guard let files = try? fm.contentsOfDirectory(at: folder, includingPropertiesForKeys: [.creationDateKey]) else { return }
+        let cutoff = Date().addingTimeInterval(-86_400)
+        for url in files where !kept.contains(url.standardizedFileURL.path) {
+            let created = (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate ?? .distantPast
+            if created < cutoff { try? fm.removeItem(at: url) }
+        }
+    }
 }

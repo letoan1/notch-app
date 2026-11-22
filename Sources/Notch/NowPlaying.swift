@@ -503,9 +503,10 @@ final class NowPlaying: ObservableObject {
         case .spotify:
             guard let url = URL(string: track.artworkURL) else { artwork = nil; return }
             Task {
-                guard let (data, _) = try? await URLSession.shared.data(from: url),
-                      self.artworkKey == key else { return }
-                self.artwork = NSImage(data: data)
+                let data = try? await URLSession.shared.data(from: url).0
+                guard self.artworkKey == key else { return }
+                // Tải lỗi: bỏ ảnh bài trước, không hiện nhầm.
+                self.artwork = data.flatMap(NSImage.init(data:))
             }
         case .music:
             runner.async { [weak self] r in

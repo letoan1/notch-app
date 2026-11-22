@@ -616,6 +616,7 @@ struct ThemeSwatch: View {
 private struct MusicPane: View {
     @ObservedObject var settings: SettingsStore
     @ObservedObject var lock = LockScreenMusic.shared
+    @ObservedObject var info = LockScreenInfo.shared
     @ObservedObject var lyrics = LyricsStore.shared
     @ObservedObject var perms = PermissionWatch.shared
 
@@ -684,14 +685,29 @@ private struct MusicPane: View {
                     }
                 }
             }
+            SSection(L("Dưới đồng hồ màn hình khoá", "Under the lock screen clock"),
+                     note: L("Đồng hồ là của macOS nên không đổi được font hay màu. Roost thêm một dòng của riêng bạn ngay bên dưới, chỉ hiện khi máy đang khoá.",
+                             "The clock belongs to macOS, so its font and color can't change. Roost adds your own line right below it, only while the Mac is locked.")) {
+                SToggleRow(icon: "text.below.photo", title: L("Dòng thông tin dưới đồng hồ", "Info line under the clock"),
+                           divider: false, isOn: $info.enabled)
+                if info.enabled {
+                    SToggleRow(icon: "moon.stars", title: L("Ngày âm lịch", "Lunar date"),
+                               detail: LockScreenInfo.lunarText(Date()), isOn: $info.lunar)
+                    SToggleRow(icon: "calendar", title: L("Cuộc họp kế tiếp hôm nay", "Next meeting today"), isOn: $info.meeting)
+                    SToggleRow(icon: "battery.75", title: L("Pin", "Battery"), isOn: $info.battery)
+                    SRow("quote.opening", L("Câu của bạn", "Your line")) {
+                        STextField(L("Ví dụ: Về nhà sớm nhé", "e.g. Go home early"), text: $info.note, width: 220)
+                    }
+                }
+            }
         }
     }
 
     private func subtitle(_ style: LockScreenMusic.Style) -> String {
         switch style {
         case .off: return L("Không hiện gì", "Nothing shown")
-        case .compact: return L("Widget nhỏ dưới đồng hồ", "A small widget under the clock")
-        case .full: return L("Ảnh bìa lớn và lời", "Big artwork and lyrics")
+        case .compact: return L("Ảnh bìa lớn giữa màn hình", "Big artwork in the middle")
+        case .full: return L("Ảnh bìa và lời chạy theo nhạc", "Artwork and synced lyrics")
         }
     }
 }
@@ -709,15 +725,11 @@ private struct LockStylePreview: View {
                 case .off:
                     Spacer().frame(height: 22)
                 case .compact:
-                    HStack(spacing: 5) {
-                        RoundedRectangle(cornerRadius: 3).fill(Color.orange).frame(width: 14, height: 14)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Capsule().fill(.white.opacity(0.9)).frame(width: 34, height: 3)
-                            Capsule().fill(.white.opacity(0.5)).frame(width: 24, height: 3)
-                        }
+                    VStack(spacing: 3) {
+                        RoundedRectangle(cornerRadius: 3).fill(Color.orange).frame(width: 24, height: 24)
+                            .shadow(color: .black.opacity(0.35), radius: 3, y: 1)
+                        Capsule().fill(.white.opacity(0.9)).frame(width: 26, height: 3)
                     }
-                    .padding(5)
-                    .background(RoundedRectangle(cornerRadius: 6).fill(.black.opacity(0.35)))
                 case .full:
                     HStack(spacing: 6) {
                         RoundedRectangle(cornerRadius: 3).fill(Color.orange).frame(width: 22, height: 22)

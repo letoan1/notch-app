@@ -291,7 +291,7 @@ final class NotchController {
         // Claude: phiên chờ bạn / hạn mức đặt lại → thông báo nhanh; nhạc trên màn hình khoá.
         permissions.onNotice = { [weak self] notice in self?.showPeek(.claude(notice)) }
         ClaudeUsage.shared.onReset = { [weak self] w in self?.showPeek(.claude(.reset(w))) }
-        LockScreenMusic.shared.start(media: media)
+        LockScreenMusic.shared.start(media: media, calendar: calendar)
         SoundCenter.shared.start()
         startSystemAlerts()
         settings.$realVisualizer.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in
@@ -840,7 +840,10 @@ final class NotchController {
             if !wasLeftDown {
                 dragCountAtMouseDown = pasteboard.changeCount
             } else if !fileDragActive, pasteboard.changeCount != dragCountAtMouseDown {
-                fileDragActive = pasteboard.types?.contains(.fileURL) == true
+                // File, hoặc ảnh / link / chữ kéo từ app khác (khay lưu chúng thành file).
+                let kinds: [NSPasteboard.PasteboardType] = [.fileURL, .png, .tiff, .URL, .string,
+                                                            .init("com.apple.NSFilePromiseItemMetaData")]
+                fileDragActive = pasteboard.types?.contains(where: kinds.contains) == true
             }
         } else {
             fileDragActive = false
