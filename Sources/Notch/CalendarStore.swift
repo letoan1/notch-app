@@ -131,7 +131,7 @@ final class CalendarStore: ObservableObject {
         let cal = Calendar.current
         var marks: [Date] = [cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: now))!]
         for e in windowEvents where !e.allDay {
-            marks += [e.start.addingTimeInterval(-Wings.meetingWindow), e.start.addingTimeInterval(-600), e.start, e.end]
+            marks += [e.start.addingTimeInterval(-WingLayout.meetingWindow), e.start.addingTimeInterval(-600), e.start, e.end]
         }
         guard let next = marks.filter({ $0 > now.addingTimeInterval(0.5) }).min() else { return }
         let t = Timer(fire: next.addingTimeInterval(0.5), interval: 0, repeats: false) { [weak self] _ in
