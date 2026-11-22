@@ -74,6 +74,12 @@ final class NotchModel: ObservableObject {
     @Published var peek: Peek?
     /// Thẻ thông báo thả xuống (pin yếu, mất mạng, giữ máy thức...). Ưu tiên hơn `peek`.
     @Published var alert: NotchAlert?
+    /// Lời chào khi mở app (chữ "hello" tự viết). Ưu tiên hơn thẻ thông báo và `peek`.
+    @Published var welcome = false
+    /// Vừa mở app, đang chờ lời chào: notch trơn, chưa hiện cánh / thú cưng.
+    @Published var welcomePending = false
+    /// Nút "Bắt đầu" trên thẻ chào.
+    var onWelcomeStart: (() -> Void)?
     /// Nhịp "nuốt" ngắn khi file bay vào khay.
     @Published var gulp = false
 
@@ -98,13 +104,15 @@ final class NotchModel: ObservableObject {
     static let pillGap: CGFloat = 5
     var topGap: CGFloat { pill ? Self.pillGap : 0 }
 
-    var topRadius: CGFloat { expanded || alert != nil ? 14 : 6 }
+    /// Notch đang giãn ra thành thẻ (mở, thẻ thông báo, lời chào).
+    var card: Bool { expanded || alert != nil || welcome }
+    var topRadius: CGFloat { card ? 14 : 6 }
     /// Viên nổi: thu gọn = con nhộng (bán kính bị kẹp ở nửa chiều cao), mở = chữ nhật bo góc.
-    var bottomRadius: CGFloat { pill ? (expanded || alert != nil ? 22 : 99) : (expanded || alert != nil ? 24 : 10) }
+    var bottomRadius: CGFloat { pill ? (card ? 22 : 99) : (card ? 24 : 10) }
 
     /// Thú cưng ngồi ở cánh phải khi notch thu gọn (không che thông báo nhanh).
     var petShown: Bool {
-        SettingsStore.shared.showPet && !expanded && alert == nil && !minimal && !SystemMonitor.shared.lowPower
+        SettingsStore.shared.showPet && !card && !minimal && !welcomePending && !SystemMonitor.shared.lowPower
     }
     var petWing: CGFloat { petShown ? notchSize.height : 0 }
     /// Cánh thú cưng chỉ thêm bên phải: dời khung sang phải nửa cánh để mép trái vẫn khớp notch.
@@ -128,11 +136,14 @@ final class NotchModel: ObservableObject {
         if expanded {
             return CGSize(width: Self.expandedWidth * Self.scale, height: notchSize.height + expandedBodyHeight * Self.scale)
         }
+        if welcome {
+            return CGSize(width: max(WelcomeCard.width, notchSize.width + 120), height: notchSize.height + WelcomeCard.bodyHeight)
+        }
         if alert != nil {
             // Thẻ thông báo: rộng hơn notch, cao thêm một khoảng dưới camera.
             return CGSize(width: max(NotchAlert.cardWidth, notchSize.width + 200), height: notchSize.height + (alert?.height ?? NotchAlert.cardHeight))
         }
-        let wings = minimal ? 0 : peek.map { $0.wing * 2 } ?? wing * 2
+        let wings = minimal || welcomePending ? 0 : peek.map { $0.wing * 2 } ?? wing * 2
         return CGSize(width: notchSize.width + topRadius * 2 + wings + petWing, height: notchSize.height)
     }
 }

@@ -105,14 +105,22 @@ final class VietQRStore: ObservableObject {
     func toggle() { withAnimation(.easeOut(duration: 0.2)) { panelOpen.toggle() } }
     @Published private(set) var bin: String = UserDefaults.standard.string(forKey: "vietqr.bin") ?? ""
     @Published private(set) var name: String = UserDefaults.standard.string(forKey: "vietqr.name") ?? ""
-    @Published private(set) var account: String = VietQRStore.readAccount() ?? ""
+    /// Đọc Keychain lần đầu khi cần (màn Ngân hàng), không lúc mở app: hộp thoại Keychain sẽ chặn main thread.
+    private var accountCache: String?
+    var account: String {
+        if let accountCache { return accountCache }
+        let v = Self.readAccount() ?? ""
+        accountCache = v
+        return v
+    }
 
     var configured: Bool { !bin.isEmpty && !account.isEmpty }
     var bank: VietQR.Bank? { VietQR.banks.first { $0.bin == bin } }
 
     func save(bin: String, account: String, name: String) {
         self.bin = bin
-        self.account = account.filter(\.isNumber)
+        objectWillChange.send()
+        accountCache = account.filter(\.isNumber)
         self.name = name.trimmingCharacters(in: .whitespaces).uppercased()
         UserDefaults.standard.set(bin, forKey: "vietqr.bin")
         UserDefaults.standard.set(self.name, forKey: "vietqr.name")

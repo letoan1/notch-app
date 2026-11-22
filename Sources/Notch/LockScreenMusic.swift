@@ -40,7 +40,10 @@ final class LockScreenMusic: ObservableObject {
     @Published var style: Style { didSet { UserDefaults.standard.set(style.rawValue, forKey: "lockMusic.style"); refresh() } }
 
     private var media: NowPlaying?
+    private var calendar: CalendarStore?
     private var window: LockMusicWindow?
+    /// Dòng thông tin dưới đồng hồ (LockScreenInfo).
+    private var infoWindow: LockInfoWindow?
     private var locked = false
     private var observers: [NSObjectProtocol] = []
     private var cancellables = Set<AnyCancellable>()
@@ -55,9 +58,13 @@ final class LockScreenMusic: ObservableObject {
         mode = savedMode == .off ? .playing : savedMode
     }
 
-    func start(media: NowPlaying) {
+    func start(media: NowPlaying, calendar: CalendarStore) {
         guard self.media == nil else { return }
         self.media = media
+        self.calendar = calendar
+        LockScreenInfo.shared.onChange = { [weak self] in
+            DispatchQueue.main.async { MainActor.assumeIsolated { self?.refresh() } }
+        }
         let center = DistributedNotificationCenter.default()
         // Thông báo khoá / mở khoá giả mạo được → chỉ là tín hiệu, luôn xác nhận lại bằng CGSession.
         observers.append(center.addObserver(forName: Notification.Name("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in
@@ -104,14 +111,35 @@ final class LockScreenMusic: ObservableObject {
 
     private func refresh() {
         if shouldShow { show() } else { hide() }
+        if locked, !asleep, LockScreenInfo.shared.hasContent { showInfo() } else { hideInfo() }
+    }
+
+    private func showInfo() {
+        guard let calendar else { return }
+        let w = infoWindow ?? LockInfoWindow(calendar: calendar)
+        infoWindow = w
+        guard !w.isVisible else { return }
+        w.place()
+        w.orderFrontRegardless()
+        if !FaceUnlockService.moveToLockScreen(w) { w.orderOut(nil) }
+    }
+
+    private func hideInfo() {
+        guard let w = infoWindow else { return }
+        if w.isVisible {
+            FaceUnlockService.restoreFromLockScreen(w)
+            w.orderOut(nil)
+        }
+        // Huỷ hẳn view như cửa sổ nhạc: ẩn mà còn sống thì vẫn theo dõi lịch, pin.
+        w.contentView = nil
+        infoWindow = nil
     }
 
     private func show() {
         guard let media else { return }
-        let full = style == .full
-        // Đổi kiểu hiển thị thì dựng lại cửa sổ (nội dung và cỡ khác nhau).
-        if let old = window, old.full != full { hide(); window = nil }
-        let w = window ?? LockMusicWindow(media: media, full: full)
+        // Đổi kiểu hiển thị thì dựng lại cửa sổ (nội dung khác nhau).
+        if let old = window, old.style != style { hide(); window = nil }
+        let w = window ?? LockMusicWindow(media: media, style: style)
         window = w
         guard !w.isVisible else { return }
         w.place()
@@ -134,13 +162,12 @@ final class LockScreenMusic: ObservableObject {
 
 /// Cửa sổ không lấy focus (không chen vào ô mật khẩu), đặt dưới đồng hồ màn hình khoá.
 final class LockMusicWindow: NSPanel {
-    static let size = CGSize(width: 360, height: 104)
-    let full: Bool
+    let style: LockScreenMusic.Style
 
     @MainActor
-    init(media: NowPlaying, full: Bool = false) {
-        self.full = full
-        super.init(contentRect: NSRect(origin: .zero, size: Self.size),
+    init(media: NowPlaying, style: LockScreenMusic.Style) {
+        self.style = style
+        super.init(contentRect: NSRect(x: 0, y: 0, width: 640, height: 400),
                    styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         isOpaque = false
         backgroundColor = .clear
@@ -150,27 +177,21 @@ final class LockMusicWindow: NSPanel {
         animationBehavior = .none
         level = NSWindow.Level(rawValue: NSWindow.Level.mainMenu.rawValue + 3)
         collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle]
-        contentView = full ? NSHostingView(rootView: AnyView(LockFullPlayerView(media: media)))
-                           : NSHostingView(rootView: AnyView(LockMusicView(media: media)))
+        // Gọn: ảnh bìa lớn giữa màn hình. Đầy đủ: thêm cột lời (bài không có lời thì cũng như Gọn).
+        contentView = style == .full ? NSHostingView(rootView: AnyView(LockFullPlayerView(media: media)))
+                                     : NSHostingView(rootView: AnyView(LockHeroView(media: media)))
     }
 
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
 
-    /// Giữa màn hình theo chiều ngang, ngay dưới đồng hồ (khoảng 1/3 từ trên xuống); ô mật khẩu ở dưới đáy.
+    /// Giữa màn hình, trong dải giữa đồng hồ và ô mật khẩu.
     @MainActor
     func place() {
         guard let screen = NSScreen.screens.first(where: { $0.safeAreaInsets.top > 0 }) ?? NSScreen.main ?? NSScreen.screens.first
         else { return }
-        let f = screen.frame
-        if full {
-            setFrame(Self.fullFrame(in: f), display: true)
-            return
-        }
-        let top = f.maxY - f.height * 0.34
-        setFrame(NSRect(x: f.midX - Self.size.width / 2, y: top - Self.size.height,
-                        width: Self.size.width, height: Self.size.height), display: true)
+        setFrame(Self.fullFrame(in: screen.frame), display: true)
     }
 
     /// Dải giữa đồng hồ (kết thúc ~32% từ trên) và ảnh đại diện (bắt đầu ~80%): rộng ~55% màn hình.
@@ -192,63 +213,71 @@ private enum LockTint {
     }
 }
 
-struct LockMusicView: View {
+/// Gọn (và Trình phát đầy đủ khi bài không có lời): ảnh bìa lớn nổi giữa màn hình như trình phát toàn màn hình
+/// của Apple Music, tên bài và nút điều khiển nhỏ bên dưới. Không có tấm nền: hình nền màn hình khoá lộ ra xung quanh.
+struct LockHeroView: View {
     @ObservedObject var media: NowPlaying
 
     var body: some View {
-        let accent = LockTint.accent(media)
-        HStack(spacing: 14) {
-            Artwork(image: media.artwork, corner: Theme.isPixel ? 2 : 12)
-                .frame(width: 72, height: 72)
-                .overlay(alignment: .bottomTrailing) {
-                    if let track = media.track { LockSourceIcon(bundleID: track.bundleID, size: 22).offset(x: 6, y: 6) }
+        GeometryReader { geo in
+            let art = max(min(geo.size.height - 112, geo.size.width * 0.6), 120)
+            let accent = LockTint.accent(media)
+            VStack(spacing: 0) {
+                Artwork(image: media.artwork, corner: Theme.isPixel ? 3 : 14)
+                    .frame(width: art, height: art)
+                    .overlay {
+                        if Theme.isVanGogh {
+                            RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(VG.yellow.opacity(0.6), lineWidth: 1.5)
+                        } else if Theme.isPixel {
+                            Rectangle().stroke(.white.opacity(0.5), lineWidth: 2)
+                        }
+                    }
+                    .shadow(color: .black.opacity(0.5), radius: 30, y: 14)
+                    .overlay(alignment: .bottomTrailing) {
+                        if let track = media.track { LockSourceIcon(bundleID: track.bundleID, size: 30).offset(x: 8, y: 8) }
+                    }
+                VStack(spacing: 2) {
+                    Text(media.track?.title ?? L("Chưa phát gì", "Nothing playing"))
+                        .font(.ui(19, weight: .bold))
+                        .foregroundStyle(.white)
+                    Text(media.track?.artist ?? "")
+                        .font(.ui(14))
+                        .foregroundStyle(.white.opacity(0.75))
                 }
-            VStack(alignment: .leading, spacing: 5) {
-                Text(media.track?.title ?? L("Chưa phát gì", "Nothing playing"))
-                    .font(.ui(14, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .lineLimit(1)
-                Text(media.track?.artist ?? "")
-                    .font(.ui(12))
-                    .foregroundStyle(.white.opacity(0.65))
-                    .lineLimit(1)
+                .lineLimit(1)
+                .frame(maxWidth: art * 1.6)
+                .shadow(color: .black.opacity(0.55), radius: 6, y: 1)
+                .padding(.top, 16)
+                HStack(spacing: media.modes == nil ? 22 : 12) {
+                    if let modes = media.modes {
+                        ModeButton(kind: .shuffle, modes: modes, plain: true, side: 24, action: media.toggleShuffle)
+                    }
+                    Self.button("backward.fill", 15) { media.previous() }
+                    Self.button(media.isPlaying ? "pause.fill" : "play.fill", 21) { media.playPause() }
+                    Self.button("forward.fill", 15) { media.next() }
+                    if let modes = media.modes {
+                        ModeButton(kind: .repeatMode, modes: modes, plain: true, side: 24, action: media.cycleRepeat)
+                    }
+                }
+                .shadow(color: .black.opacity(0.5), radius: 5, y: 1)
+                .padding(.top, 8)
                 if let track = media.track, track.duration > 0 {
                     LockProgress(track: track, accent: accent)
-                } else if media.track != nil {
-                    LiveBadge()
+                        .frame(width: min(art, 260))
+                        .padding(.top, 4)
                 }
-                HStack(spacing: media.modes == nil ? 18 : 10) {
-                    if let modes = media.modes {
-                        ModeButton(kind: .shuffle, modes: modes, plain: true, side: 22, action: media.toggleShuffle)
-                    }
-                    button("backward.fill", 13) { media.previous() }
-                    button(media.isPlaying ? "pause.fill" : "play.fill", 17) { media.playPause() }
-                    button("forward.fill", 13) { media.next() }
-                    if let modes = media.modes {
-                        ModeButton(kind: .repeatMode, modes: modes, plain: true, side: 22, action: media.cycleRepeat)
-                    }
-                }
-                .padding(.top, 1)
             }
-            Spacer(minLength: 0)
+            .frame(width: geo.size.width, height: geo.size.height)
         }
-        .padding(.horizontal, 16)
-        .frame(width: LockMusicWindow.size.width, height: LockMusicWindow.size.height)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.isPixel ? 4 : 22, style: .continuous)
-                .fill(.black.opacity(0.5))
-                .overlay(RoundedRectangle(cornerRadius: Theme.isPixel ? 4 : 22, style: .continuous)
-                    .stroke(Theme.isVanGogh ? VG.yellow.opacity(0.6) : .white.opacity(0.14), lineWidth: Theme.isPixel ? 2 : 1))
-        )
         .environment(\.colorScheme, .dark)
     }
 
-    private func button(_ symbol: String, _ size: CGFloat, action: @escaping () -> Void) -> some View {
+    static func button(_ symbol: String, _ size: CGFloat, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: size, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 28, height: 24)
+                .frame(width: size * 2, height: size * 1.6)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -304,12 +333,22 @@ struct LockFullPlayerView: View {
     @ObservedObject var media: NowPlaying
     @ObservedObject var store = LyricsStore.shared
 
+    /// Bài có lời (hoặc đang tải). LRCLIB không có lời thì hiện như Gọn, không để trống một cột.
     private var showLyrics: Bool {
-        guard let track = media.track, LyricsStore.supports(track) else { return false }
+        guard let track = media.track, LyricsStore.supports(track), store.status != .missing else { return false }
         return store.enabled || track.bundleID == "com.apple.Music"
     }
 
     var body: some View {
+        Group {
+            if showLyrics { player } else { LockHeroView(media: media) }
+        }
+        .environment(\.locale, SettingsStore.shared.locale)
+        .onAppear { store.bind(media); store.attach() }
+        .onDisappear { store.detach() }
+    }
+
+    private var player: some View {
         GeometryReader { geo in
             let corner: CGFloat = Theme.isPixel ? 6 : 30
             let art = min(geo.size.height - (showLyrics ? 190 : 80), showLyrics ? 210 : 250)
@@ -343,9 +382,6 @@ struct LockFullPlayerView: View {
                 .stroke(Theme.isVanGogh ? VG.yellow.opacity(0.6) : .white.opacity(0.16), lineWidth: Theme.isPixel ? 2 : 1))
         }
         .environment(\.colorScheme, .dark)
-        .environment(\.locale, SettingsStore.shared.locale)
-        .onAppear { store.bind(media); store.attach() }
-        .onDisappear { store.detach() }
     }
 
     /// stacked: ảnh bìa trên, chữ và nút dưới (có cột lời). Không có lời: ảnh bìa trái, chữ và nút phải.
