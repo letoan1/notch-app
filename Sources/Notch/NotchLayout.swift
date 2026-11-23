@@ -5,7 +5,7 @@ import AppKit
 // hoặc không dùng (ẩn hẳn). Nút Cài đặt luôn có ở cuối thanh công cụ. Mỗi cột tối đa 3 nút.
 
 enum NotchAction: String, CaseIterable, Codable, Identifiable {
-    case keepAwake, usage, vietQR, lyrics, headphones, cleanKeyboard, quit
+    case keepAwake, usage, vietQR, chirp, lyrics, headphones, cleanKeyboard, quit
     var id: String { rawValue }
 
     var title: String {
@@ -13,6 +13,7 @@ enum NotchAction: String, CaseIterable, Codable, Identifiable {
         case .keepAwake: return L("Giữ máy thức", "Keep awake")
         case .usage: return L("Mức dùng Claude", "Claude usage")
         case .vietQR: return L("Mã QR nhận tiền", "Bank QR")
+        case .chirp: return L("Ôn từ Chirp", "Chirp review")
         case .lyrics: return L("Lời bài hát", "Lyrics")
         case .headphones: return L("Pin tai nghe", "Headphone battery")
         case .cleanKeyboard: return L("Lau phím", "Clean keyboard")
@@ -25,6 +26,7 @@ enum NotchAction: String, CaseIterable, Codable, Identifiable {
         case .keepAwake: return "cup.and.saucer"
         case .usage: return "gauge.with.dots.needle.33percent"
         case .vietQR: return "qrcode"
+        case .chirp: return "bird"
         case .lyrics: return "quote.bubble"
         case .headphones: return "headphones"
         case .cleanKeyboard: return "keyboard"
@@ -38,6 +40,7 @@ enum NotchAction: String, CaseIterable, Codable, Identifiable {
         case .lyrics: return LyricsStore.shared.enabled && LyricsStore.supports(media.track)
         case .headphones: return BluetoothAudio.shared.name != nil
         case .vietQR: return Lang.isVietnamese
+        case .chirp: return ChirpClient.shared.hasToken
         default: return true
         }
     }
@@ -56,6 +59,7 @@ enum NotchAction: String, CaseIterable, Codable, Identifiable {
             LyricsStore.shared.showInNotch.toggle()
         case .headphones: BluetoothAudio.shared.refresh()
         case .vietQR: VietQRStore.shared.toggle()
+        case .chirp: ChirpClient.shared.toggle()
         case .cleanKeyboard: KeyboardCleaner.shared.toggle()
         case .quit: NSApp.terminate(nil)
         }
@@ -69,7 +73,7 @@ struct NotchLayout: Codable, Equatable {
 
     var left: [NotchAction] = []
     var right: [NotchAction] = []
-    var toolbar: [NotchAction] = [.usage, .keepAwake]
+    var toolbar: [NotchAction] = [.usage, .keepAwake, .chirp]
 
     static let standard = NotchLayout()
 

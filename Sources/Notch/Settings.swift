@@ -108,7 +108,7 @@ final class SettingsStore: ObservableObject {
 
     /// Nội dung một bên cánh notch lúc thu gọn. Tự động = ảnh bìa bên trái, sóng nhạc bên phải.
     enum WingItem: String, CaseIterable, Identifiable {
-        case auto, artwork, equalizer, meeting, battery, clock, claude, none
+        case auto, artwork, equalizer, meeting, battery, clock, claude, chirp, none
         var id: String { rawValue }
         var title: String {
             switch self {
@@ -119,6 +119,7 @@ final class SettingsStore: ObservableObject {
             case .battery: return L("Pin", "Battery")
             case .clock: return L("Giờ", "Time")
             case .claude: return L("Mức dùng Claude", "Claude usage")
+            case .chirp: return L("Thẻ Chirp đến hạn", "Chirp cards due")
             case .none: return L("Trống", "Nothing")
             }
         }

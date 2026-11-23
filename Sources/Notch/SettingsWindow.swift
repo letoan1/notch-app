@@ -26,7 +26,7 @@ final class SettingsWindowController {
 
     /// id dạng chuỗi để thêm / bớt mục không làm lệch mục đã nhớ.
     enum PaneID: String, CaseIterable, Identifiable {
-        case general, appearance, music, sound, calendar, tray, portal, mirror, bank, claude, usage, alerts, awake, pet, face, about
+        case general, appearance, music, sound, calendar, tray, portal, mirror, bank, chirp, claude, usage, alerts, awake, pet, face, about
         var id: String { rawValue }
 
         var title: String {
@@ -46,6 +46,7 @@ final class SettingsWindowController {
             case .pet: return L("Thú cưng", "Pet")
             case .face: return L("Khuôn mặt", "Face unlock")
             case .bank: return L("Ngân hàng", "Bank")
+            case .chirp: return "Chirp"
             case .about: return L("Giới thiệu", "About")
             }
         }
@@ -67,6 +68,7 @@ final class SettingsWindowController {
             case .pet: return "pawprint.fill"
             case .face: return "faceid"
             case .bank: return "qrcode"
+            case .chirp: return "bird.fill"
             case .about: return "info"
             }
         }
@@ -88,6 +90,7 @@ final class SettingsWindowController {
             case .pet: return Color(red: 0.36, green: 0.42, blue: 0.95)
             case .face: return Color(red: 0.14, green: 0.6, blue: 0.95)
             case .bank: return Color(red: 0.2, green: 0.7, blue: 0.45)
+            case .chirp: return Color(red: 0.98, green: 0.55, blue: 0.2)
             case .about: return Color(red: 0.55, green: 0.57, blue: 0.62)
             }
         }
@@ -110,6 +113,7 @@ final class SettingsWindowController {
             case .pet: PetPane(settings: s)
             case .face: FaceUnlockPane()
             case .bank: SPage { VietQRSettingsSection(); SePaySettingsSection() }
+            case .chirp: ChirpPane()
             case .about: AboutPane()
             }
         }
@@ -117,7 +121,7 @@ final class SettingsWindowController {
         /// Các nhóm trên thanh bên (nhóm đầu không có tiêu đề).
         static var groups: [(String?, [PaneID])] {
             [(nil, [.general, .appearance]),
-             (L("Tính năng", "Features"), [.music, .sound, .calendar, .tray, .portal, .mirror, .bank, .claude, .usage]),
+             (L("Tính năng", "Features"), [.music, .sound, .calendar, .tray, .portal, .mirror, .bank, .chirp, .claude, .usage]),
              (L("Trải nghiệm", "Experiences"), [.alerts, .awake, .pet, .face]),
              (L("Khác", "Other"), [.about])]
         }
@@ -242,6 +246,7 @@ private struct SettingsRoot: View {
             .padding(.horizontal, 2)
             .padding(.top, 42)   // chừa chỗ cho 3 nút cửa sổ (tâm cách mép trên cửa sổ 26 pt)
             .padding(.bottom, 10)
+            .background(OverlayScrollers())
         }
         .scrollIndicators(.automatic)
         // Cuộn gọn trong thẻ: mục cuối không bị cắt ngang ở góc bo khi cửa sổ thấp.
@@ -509,6 +514,7 @@ private struct WingPreview: View {
             case .battery: label("battery.75percent", "76%")
             case .clock: Text("9:41").font(.system(size: 11, weight: .semibold)).foregroundStyle(.white)
             case .claude: label("gauge.with.dots.needle.67percent", "29%")
+            case .chirp: label("flame.fill", "12")
             case .none, .auto: Color.clear
             }
         }

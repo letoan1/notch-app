@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Nội dung một bên cánh notch lúc thu gọn, đã quyết theo Cài đặt + trạng thái hiện tại.
 enum WingContent: Equatable {
-    case artwork, equalizer, battery, clock, coffee, claudeUsage
+    case artwork, equalizer, battery, clock, coffee, claudeUsage, chirp
     case meeting(start: Date, end: Date, video: Bool)
 
     func width(height: CGFloat) -> CGFloat {
@@ -10,6 +10,7 @@ enum WingContent: Equatable {
         case .artwork, .equalizer: return height
         case .clock: return 46
         case .claudeUsage: return 52
+        case .chirp: return 64
         case .coffee: return 26
         case .battery: return 58
         case .meeting: return 64
@@ -38,6 +39,7 @@ struct WingLayout: Equatable {
             case .battery: return battery == nil ? nil : .battery
             case .clock: return .clock
             case .claude: return ClaudeUsage.shared.hasData ? .claudeUsage : nil
+            case .chirp: return ChirpClient.shared.hasToken && ChirpClient.shared.summary != nil ? .chirp : nil
             case .none: return nil
             case .meeting:
                 guard calendar.weekOffset == 0 else { return nil }
@@ -143,6 +145,8 @@ struct CollapsedWings: View {
             }
         case .claudeUsage?:
             ClaudeUsageWing()
+        case .chirp?:
+            ChirpWing()
         case .coffee?:
             Image(systemName: "cup.and.saucer.fill")
                 .font(.system(size: 11, weight: .semibold))

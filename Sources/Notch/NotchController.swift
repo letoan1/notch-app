@@ -966,6 +966,7 @@ final class NotchController {
         if !value {
             pinned = false
             if VietQRStore.shared.panelOpen { VietQRStore.shared.panelOpen = false }
+            if ChirpClient.shared.panelOpen { ChirpClient.shared.panelOpen = false }
             model.dropTargeted = false
             if !tray.selection.isEmpty { tray.selection = [] }
             // Đợi hiệu ứng đóng chạy xong mới đưa lịch về hôm nay (tránh vẽ lại giữa chừng).

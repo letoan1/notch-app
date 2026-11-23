@@ -16,6 +16,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if !controller.launchWelcome() { OnboardingWindowController.shared.showIfNeeded() }
         // Lần mở sau một crash: hỏi có mở GitHub issue điền sẵn không (không tự gửi gì).
         DispatchQueue.main.asyncAfter(deadline: .now() + 4) { MainActor.assumeIsolated { CrashReport.checkOnLaunch() } }
+        // Chirp: đồng bộ thẻ + hẹn 30 phút một lần (không làm gì nếu chưa có token).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6) { MainActor.assumeIsolated { Task { await ChirpClient.shared.sync(force: true) } } }
     }
 
     private static func editMenu() -> NSMenu {

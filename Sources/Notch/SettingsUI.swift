@@ -25,6 +25,7 @@ struct SPage<Content: View>: View {
                 .padding(.top, 8)
                 .padding(.bottom, 32)
                 .frame(maxWidth: .infinity)
+                .background(OverlayScrollers())
         }
         .scrollIndicators(.automatic)
     }
@@ -64,6 +65,21 @@ struct SSection<Content: View>: View {
                     .padding(.horizontal, 6)
             }
         }
+    }
+}
+
+/// Thanh cuộn mảnh nổi trên nội dung (chỉ hiện lúc cuộn), kể cả khi macOS đang dùng thanh cuộn rộng có rãnh
+/// (Cài đặt hệ thống › Thanh cuộn: Tự động + có chuột). Đặt làm nền cho nội dung bên trong ScrollView.
+struct OverlayScrollers: NSViewRepresentable {
+    final class Probe: NSView {
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            DispatchQueue.main.async { [weak self] in self?.enclosingScrollView?.scrollerStyle = .overlay }
+        }
+    }
+    func makeNSView(context: Context) -> Probe { Probe() }
+    func updateNSView(_ view: Probe, context: Context) {
+        if let s = view.enclosingScrollView, s.scrollerStyle != .overlay { s.scrollerStyle = .overlay }
     }
 }
 

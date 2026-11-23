@@ -11,6 +11,7 @@ struct NotchRootView: View {
     @ObservedObject var system = SystemMonitor.shared
     @ObservedObject var awake = KeepAwake.shared
     @ObservedObject var usage = ClaudeUsage.shared
+    @ObservedObject var chirp = ChirpClient.shared   // cánh Chirp đổi số thẻ / chuỗi ngày
 
     private let spring = Animation.spring(response: 0.42, dampingFraction: 0.82)
     // Không dùng macro @Namespace/@State (plugin chỉ có trong Xcode).
@@ -333,6 +334,7 @@ private struct BatteryGlyph: View {
 
 struct ExpandedView: View {
     @ObservedObject var qr = VietQRStore.shared
+    @ObservedObject var chirp = ChirpClient.shared
     @ObservedObject var model: NotchModel
     @ObservedObject var media: NowPlaying
     @ObservedObject var permissions: PermissionCenter
@@ -359,27 +361,32 @@ struct ExpandedView: View {
                                 selected: model.tab == .media) {
                             model.tab = .media
                             qr.panelOpen = false
+                            chirp.panelOpen = false
                         }
                     case .tray:
                         TabPill(symbol: "tray.full.fill", label: nil, selected: model.tab == .tray,
                                 badge: tray.files.isEmpty ? nil : tray.files.count) {
                             model.tab = .tray
                             qr.panelOpen = false
+                            chirp.panelOpen = false
                         }
                     case .mirror:
                         TabPill(symbol: "camera.fill", label: nil, selected: model.tab == .mirror) {
                             model.tab = .mirror
                             qr.panelOpen = false
+                            chirp.panelOpen = false
                         }
                     case .sound:
                         TabPill(symbol: "speaker.wave.2.fill", label: nil, selected: model.tab == .sound) {
                             model.tab = .sound
                             qr.panelOpen = false
+                            chirp.panelOpen = false
                         }
                     case .system:
                         TabPill(symbol: "cpu", label: nil, selected: model.tab == .system) {
                             model.tab = .system
                             qr.panelOpen = false
+                            chirp.panelOpen = false
                         }
 
                     }
@@ -451,6 +458,9 @@ struct ExpandedView: View {
             } else if qr.panelOpen && !model.dropTargeted {
                 // Nút QR (Bố cục notch) mở màn hình Ngân hàng thay cho nội dung tab; bấm tab khác là đóng.
                 BankPanel()
+                    .transition(.opacity)
+            } else if chirp.panelOpen && !model.dropTargeted {
+                ChirpReviewPanel()
                     .transition(.opacity)
             } else if settings.showTray && (model.tab == .tray || model.dropTargeted) {
                 if Theme.isCassette {

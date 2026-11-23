@@ -95,6 +95,7 @@ final class NetworkWatcher {
         defer { online = ok }
         guard let was = online else { return }   // lần đọc đầu: chỉ ghi nhận
         if ok {
+            if !was { ChirpClient.shared.networkBack() }
             pending?.cancel()
             pending = nil
             if shownLost {

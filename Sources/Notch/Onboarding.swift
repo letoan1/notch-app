@@ -121,6 +121,7 @@ private struct OnboardingView: View {
             .padding(.horizontal, 28)
             .padding(.top, 10)
             .padding(.bottom, 20)
+            .background(OverlayScrollers())
         }
         .scrollIndicators(.automatic)
         .safeAreaInset(edge: .bottom, spacing: 0) { footer }
