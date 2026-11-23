@@ -245,6 +245,9 @@ struct ShareMenu: View {
         Button("AirDrop") {
             NSSharingService(named: .sendViaAirDrop)?.perform(withItems: [url])
         }
+        ForEach(PortalPhones.shared.phones) { phone in
+            Button(L("Gửi sang \(phone.name)", "Send to \(phone.name)")) { PortalPhones.shared.send(url, to: phone) }
+        }
         Menu(L("Chia sẻ", "Share")) {
             ForEach(NSSharingService.sharingServices(forItems: [url]), id: \.title) { service in
                 Button {
@@ -350,6 +353,9 @@ private struct TrayMenuOverlay: ViewModifier {
             .init(title: L("Hiện trong Finder", "Show in Finder"), action: { NSWorkspace.shared.activateFileViewerSelecting([url]) }),
             .init(title: "", action: nil),
             .init(title: "AirDrop", action: { NSSharingService(named: .sendViaAirDrop)?.perform(withItems: [url]) }),
+        ] + PortalPhones.shared.phones.map { phone in
+            ThemedMenu.Item(title: L("Gửi sang \(phone.name)", "Send to \(phone.name)"), action: { PortalPhones.shared.send(url, to: phone) })
+        } + [
             .init(title: L("Chia sẻ…", "Share…"), action: { showSharePicker(url) }),
             .init(title: "", action: nil),
             .init(title: L("Gỡ khỏi khay", "Remove from tray"), action: { tray.remove(url) }),

@@ -1,4 +1,5 @@
 import AppKit
+import Carbon
 import Network
 
 // MARK: - Pin yếu / pin đầy
@@ -165,6 +166,50 @@ final class CapsLockWatcher {
     }
 }
 
+// MARK: - Bộ gõ V/E
+
+/// Bộ gõ tiếng Việt có sẵn của macOS (Telex, VNI...) bật hay tắt. Nghe thông báo đổi bộ gõ của hệ thống,
+/// không poll. Chỉ báo khi chuyển giữa Việt và không Việt (đổi hai bàn phím tiếng Anh thì im).
+@MainActor
+final class InputSourceWatcher {
+    var onChange: ((Bool) -> Void)?
+    private var last = InputSourceWatcher.isVietnamese()
+    private var observer: NSObjectProtocol?
+
+    func start() {
+        guard observer == nil else { return }
+        observer = DistributedNotificationCenter.default().addObserver(
+            forName: NSNotification.Name(kTISNotifySelectedKeyboardInputSourceChanged as String),
+            object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.report() }
+        }
+    }
+
+    private func report() {
+        let vi = Self.isVietnamese()
+        guard vi != last else { return }
+        last = vi
+        guard AlertSettings.shared.inputSource else { return }
+        onChange?(vi)
+    }
+
+    /// Ngôn ngữ đầu tiên của bộ gõ hiện tại là "vi", hoặc mã bộ gõ là của VietnameseIM.
+    static func isVietnamese() -> Bool {
+        guard let src = TISCopyCurrentKeyboardInputSource()?.takeRetainedValue() else { return false }
+        if let ptr = TISGetInputSourceProperty(src, kTISPropertyInputSourceLanguages),
+           let langs = Unmanaged<CFArray>.fromOpaque(ptr).takeUnretainedValue() as? [String],
+           let first = langs.first, first.hasPrefix("vi") {
+            return true
+        }
+        if let ptr = TISGetInputSourceProperty(src, kTISPropertyInputSourceID) {
+            let id = Unmanaged<CFString>.fromOpaque(ptr).takeUnretainedValue() as String
+            return id.contains("Vietnamese")
+        }
+        return false
+    }
+}
+
 // MARK: - File tải về
 
 /// Theo dõi ~/Downloads bằng FSEvents (theo sự kiện, CPU ~0 khi rảnh). File chỉ được thêm khi đã tải xong:
@@ -241,6 +286,9 @@ final class DownloadsWatcher {
             }
         }
     }
+
+    /// File do chính Roost lưu vào Downloads (Portal): không tính là tải về.
+    func markSeen(_ url: URL) { seen.insert(url.standardizedFileURL.path) }
 
     private func isFreshDownload(_ url: URL, created: Date?) -> Bool {
         if getxattr(url.path, "com.apple.quarantine", nil, 0, 0, 0) > 0 { return true }

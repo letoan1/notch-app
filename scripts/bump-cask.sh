@@ -18,6 +18,11 @@ if [ "$REMOTE" != "$SHA" ]; then
 fi
 
 git -C "$TAP" pull -q --ff-only
+# Lệnh `roost` trên PATH (roost push …): cask link binary roost-hook trong app. Thêm một lần nếu cask chưa có.
+if ! grep -q 'target: "roost"' "$CASK"; then
+  perl -pi -e 's|^(\s*)app "Roost\.app"\n|$1app "Roost.app"\n$1binary "#{appdir}/Roost.app/Contents/MacOS/roost-hook", target: "roost"\n|' "$CASK"
+  grep -q 'target: "roost"' "$CASK" || { echo "✗ Không thêm được dòng binary vào $CASK" >&2; exit 1; }
+fi
 sed -i '' -e "s/^  version \".*\"/  version \"$VERSION\"/" -e "s/^  sha256 \".*\"/  sha256 \"$SHA\"/" "$CASK"
 grep -q "version \"$VERSION\"" "$CASK" && grep -q "sha256 \"$SHA\"" "$CASK" || { echo "✗ Không sửa được $CASK" >&2; exit 1; }
 if git -C "$TAP" diff --quiet; then echo "→ cask đã ở bản $VERSION"; exit 0; fi

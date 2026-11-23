@@ -30,6 +30,7 @@ struct NotchRootView: View {
             : Color.white.opacity(open ? 0.08 : 0)
         let strokeWidth: CGFloat = Theme.isPixel ? 3 : Theme.isVanGogh ? 2.5 : 1
         let shadowOpacity: Double = open ? 0.6 : model.pill && !model.minimal ? 0.35 : 0
+        // Lời chào: giãn ra có nảy nhẹ, thu về êm không nảy.
         let welcomeAnim: Animation = model.welcome ? .spring(response: 0.55, dampingFraction: 0.74)
                                                    : .spring(response: 0.38, dampingFraction: 0.92)
 
@@ -74,6 +75,7 @@ struct NotchRootView: View {
                     case let .unlocked(name): UnlockWings(name: name, wing: peek.wing)
                     case let .claude(notice): ClaudeNoticeWings(notice: notice, wing: peek.wing)
                     case let .capsLock(on): CapsLockWings(on: on, wing: peek.wing)
+                    case let .inputSource(vi): InputSourceWings(vietnamese: vi, wing: peek.wing)
                     case let .hud(hud): HUDWings(hud: hud, wing: peek.wing)
                     }
                 }
@@ -163,7 +165,6 @@ struct NotchRootView: View {
         .animation(spring, value: model.mirrorMode)
         .animation(spring, value: model.peek)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: model.alert)
-        // Lời chào: giãn ra có nảy nhẹ, thu về êm không nảy.
         .animation(welcomeAnim, value: model.welcome)
         .animation(spring, value: wings)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -540,7 +541,7 @@ struct ExpandedView: View {
         // Neo lên trên: tab nào thấp hơn thì hàng tab cũng không bị đẩy xuống.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         // Thả file vào bất kỳ đâu trên notch đang mở đều vào khay.
-        .onDrop(of: [.fileURL], isTargeted: Binding(
+        .onDrop(of: [.fileURL] + DropSaver.types, isTargeted: Binding(
             get: { model.dropTargeted },
             set: { model.dropTargeted = $0 }
         )) { providers in

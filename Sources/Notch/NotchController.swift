@@ -291,7 +291,7 @@ final class NotchController {
         // Claude: phiên chờ bạn / hạn mức đặt lại → thông báo nhanh; nhạc trên màn hình khoá.
         permissions.onNotice = { [weak self] notice in self?.showPeek(.claude(notice)) }
         ClaudeUsage.shared.onReset = { [weak self] w in self?.showPeek(.claude(.reset(w))) }
-        LockScreenMusic.shared.start(media: media)
+        LockScreenMusic.shared.start(media: media, calendar: calendar)
         SoundCenter.shared.start()
         startSystemAlerts()
         settings.$realVisualizer.dropFirst().receive(on: DispatchQueue.main).sink { [weak self] _ in
@@ -651,9 +651,10 @@ final class NotchController {
     private let batteryAlerts = BatteryAlerts()
     private let network = NetworkWatcher()
     private let capsLock = CapsLockWatcher()
+    private let inputSource = InputSourceWatcher()
     private let downloads = DownloadsWatcher()
 
-    /// Pin, mất mạng, Caps Lock, file tải về, giữ máy thức: tất cả theo sự kiện.
+    /// Pin, mất mạng, Caps Lock, bộ gõ, file tải về, giữ máy thức: tất cả theo sự kiện.
     private func startSystemAlerts() {
         AlertCenter.shared.apply = { [weak self] alert in
             guard let self else { return false }
@@ -672,6 +673,7 @@ final class NotchController {
         batteryAlerts.start()
         network.start()
         capsLock.onChange = { [weak self] on in self?.showPeek(.capsLock(on)) }
+        inputSource.onChange = { [weak self] vi in self?.showPeek(.inputSource(vi), duration: 1.6) }
         SystemHUD.shared.show = { [weak self] hud in
             guard let self, !self.model.expanded,
                   self.slots.contains(where: { !$0.model.expanded && !$0.model.minimal && $0.model.alert == nil }) else { return false }
@@ -681,6 +683,8 @@ final class NotchController {
         SystemHUD.shared.start()
         PermissionWatch.shared.start()
         capsLock.start()
+        inputSource.start()
+        startPortal()
         downloads.onFile = { [weak self] url in
             guard let self, self.settings.showTray else { return }
             self.tray.add(url)
@@ -698,6 +702,28 @@ final class NotchController {
             }.store(in: &cancellables)
     }
 
+    /// Portal: file từ iPhone bị hút vào notch thì vào khay, notch "nuốt" như khi thả file.
+    private func startPortal() {
+        let portal = PortalCenter.shared
+        portal.addToTray = { [weak self] url in
+            guard let self, self.settings.showTray else { return }
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.62)) { self.tray.add(url) }
+        }
+        var gulpToken = 0
+        portal.gulp = { [weak self] in
+            guard let self else { return }
+            let model = self.model
+            gulpToken += 1
+            let token = gulpToken
+            model.gulp = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                if token == gulpToken { model.gulp = false }
+            }
+        }
+        portal.willSave = { [weak self] url in self?.downloads.markSeen(url) }
+        PortalServer.shared.sync()
+    }
+
     private func showPeek(_ peek: NotchModel.Peek, duration: TimeInterval = 3.2) {
         if settings.showPet {
             switch peek {
@@ -706,7 +732,7 @@ final class NotchController {
             case .screenshot: PetState.shared.react(.surprise)
             case .unlocked: PetState.shared.react(.happy)
             case .claude: PetState.shared.react(.surprise)
-            case .capsLock, .hud: break
+            case .capsLock, .inputSource, .hud: break
             }
         }
         guard !model.expanded else { return }
@@ -814,7 +840,10 @@ final class NotchController {
             if !wasLeftDown {
                 dragCountAtMouseDown = pasteboard.changeCount
             } else if !fileDragActive, pasteboard.changeCount != dragCountAtMouseDown {
-                fileDragActive = pasteboard.types?.contains(.fileURL) == true
+                // File, hoặc ảnh / link / chữ kéo từ app khác (khay lưu chúng thành file).
+                let kinds: [NSPasteboard.PasteboardType] = [.fileURL, .png, .tiff, .URL, .string,
+                                                            .init("com.apple.NSFilePromiseItemMetaData")]
+                fileDragActive = pasteboard.types?.contains(where: kinds.contains) == true
             }
         } else {
             fileDragActive = false

@@ -32,6 +32,14 @@ enum Player: String, CaseIterable {
         end tell
         """
     }
+
+    /// Tên hiện cho người dùng (app Music trên macOS gọi là Apple Music).
+    var displayName: String { self == .music ? "Apple Music" : rawValue }
+
+    /// Player mà một AppleScript "tell application ..." nhắm tới.
+    static func target(of source: String) -> Player? {
+        allCases.first { source.contains("application \"\($0.rawValue)\"") }
+    }
 }
 
 struct Track: Equatable {
@@ -95,6 +103,7 @@ final class ScriptRunner: @unchecked Sendable {
         }()
         var error: NSDictionary?
         let result = script.executeAndReturnError(&error)
+        AutomationGuard.report(source: source, error: error)
         return error == nil ? result : nil
     }
 
@@ -494,9 +503,10 @@ final class NowPlaying: ObservableObject {
         case .spotify:
             guard let url = URL(string: track.artworkURL) else { artwork = nil; return }
             Task {
-                guard let (data, _) = try? await URLSession.shared.data(from: url),
-                      self.artworkKey == key else { return }
-                self.artwork = NSImage(data: data)
+                let data = try? await URLSession.shared.data(from: url).0
+                guard self.artworkKey == key else { return }
+                // Tải lỗi: bỏ ảnh bài trước, không hiện nhầm.
+                self.artwork = data.flatMap(NSImage.init(data:))
             }
         case .music:
             runner.async { [weak self] r in

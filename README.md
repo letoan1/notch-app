@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/letoan1/notch-app/releases/latest/download/Roost-1.0.3.dmg"><b>Tải Roost cho Mac (.dmg)</b></a>
+  <a href="https://github.com/letoan1/notch-app/releases/latest/download/Roost-1.2.0.dmg"><b>Tải Roost cho Mac (.dmg)</b></a>
   &nbsp;·&nbsp;
   <a href="site/index.html">Trang giới thiệu</a>
   &nbsp;·&nbsp;
@@ -153,7 +153,7 @@ Mỗi giao diện có một thú cưng ngồi ở cánh notch: nhảy theo nhạ
 - **HUD âm lượng và độ sáng**: bấm phím âm lượng, độ sáng hay đèn bàn phím thì giá trị hiện ở hai cánh notch thay cho HUD của macOS (cần quyền Trợ năng).
 - **Giữ máy thức**: giữ Mac và màn hình thức theo giờ, tự tắt khi pin còn 10%, khi gập máy hoặc khi app bạn chọn thoát.
 - **Lau phím**: khoá bàn phím để lau. Bấm Esc 5 lần hoặc bấm thẻ trên notch để mở, tự mở sau 3 phút.
-- **Thông báo nhanh**: cắm sạc, kết nối tai nghe, bật Caps Lock, Claude đang chờ bạn đều hiện vài giây ở hai cánh notch.
+- **Thông báo nhanh**: cắm sạc, kết nối tai nghe, bật Caps Lock, đổi bộ gõ tiếng Việt (V/E), Claude đang chờ bạn đều hiện vài giây ở hai cánh notch.
 
 <details>
 <summary><b>🧪 Mở khoá bằng khuôn mặt (thử nghiệm, mặc định tắt)</b></summary>
@@ -210,6 +210,36 @@ Xem thử thẻ mà không cần mở Claude: `scripts/demo-claude.sh` (thêm `-
 - "Luôn cho phép" chỉ áp đúng quy tắc hẹp nhất Claude gợi ý, ví dụ `Bash(npm test:*)`. Thẻ ghi rõ quy tắc và nơi lưu (chỉ phiên này, hay `.claude/settings.local.json` của project) trước khi bạn bấm. Roost không bao giờ bật chế độ bỏ qua quyền.
 - **Cài đặt › Claude Code** liệt kê các quy tắc Roost đã cấp, kèm nút Thu hồi. App sao lưu file rồi chỉ gỡ đúng dòng đó.
 </details>
+
+---
+
+## Gửi thông báo từ script: `roost push`
+
+Script, cron, n8n hay bất cứ chương trình nào trên máy bạn đều có thể thả một thẻ xuống notch:
+
+```bash
+roost push "Deploy xong"
+roost push "Đang build" --body "Bước 3/5: chạy test" --progress 60 --id build
+roost push "Build xong" --progress 100 --id build      # cùng --id: cập nhật thẻ cũ, không tạo thẻ mới
+roost push "Backup lỗi" --tone red --urgent --open "https://example.com/logs"
+roost push --clear --id build                         # gỡ thẻ
+```
+
+| Tuỳ chọn | Ý nghĩa |
+|---|---|
+| `--body TEXT` | Dòng mô tả dưới tiêu đề |
+| `--progress N` | Thanh tiến độ 0 đến 100. Tới 100 thì thẻ chuyển xanh, có dấu tích |
+| `--id ID` | Cùng ID thì thẻ được cập nhật tại chỗ |
+| `--icon NAME` | Tên SF Symbol, ví dụ `hammer.fill` |
+| `--tone` | `red`, `green`, `yellow` hoặc `blue` |
+| `--duration GIÂY` | Thời gian hiện. Mặc định 6 giây, 30 giây khi đang có tiến độ. `0` là giữ tới khi `--clear` (tối đa 1 giờ) |
+| `--open URL` | Bấm vào thẻ thì mở URL |
+| `--urgent` | Hiện cả khi đang xem toàn màn hình |
+
+- Cài bằng Homebrew thì đã có lệnh `roost` trên PATH. Cài bằng DMG thì tự tạo: `sudo ln -sf /Applications/Roost.app/Contents/MacOS/roost-hook /usr/local/bin/roost`, hoặc gọi thẳng `/Applications/Roost.app/Contents/MacOS/roost-hook push …`.
+- Chỉ chạy trên máy này: lệnh gửi qua Unix socket của Roost, không mở cổng mạng nào. App không chạy thì lệnh in lỗi và thoát với mã 1.
+- **n8n**: dùng node *Execute Command* với đường dẫn đầy đủ (`/opt/homebrew/bin/roost push "…"` hoặc đường dẫn trong app), vì n8n thường không có PATH của Homebrew. n8n phải chạy trực tiếp trên máy (npx, app desktop); n8n trong Docker không thấy socket của Roost.
+- Tắt ở **Cài đặt › Thông báo › Thông báo từ lệnh roost push**.
 
 ---
 

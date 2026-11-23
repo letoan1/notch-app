@@ -455,6 +455,8 @@ final class PermissionCenter: ObservableObject {
                 if let limits = obj["rate_limits"] as? [String: Any] { ClaudeUsage.shared.ingest(limits) }
             case "Notification":
                 notify(obj)
+            case "Push":
+                PushAlerts.handle(obj)
             default:
                 clear(after: event, obj)
             }
