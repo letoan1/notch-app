@@ -393,7 +393,7 @@ final class NotchController {
     private func tick() {
         capsLock.check()
         // Lời chào đang hiện: không mở / đóng notch theo chuột, không timer (nút trên thẻ tự nhận click).
-        if model.welcome { scheduleHover(nil); return }
+        if model.welcome || model.welcomePending { scheduleHover(nil); return }
         activateSlotUnderMouse()
         updatePet()
         let questions = permissions.current?.questions ?? []
@@ -662,7 +662,7 @@ final class NotchController {
                 return true
             }
             var shown = false
-            for slot in self.slots where !slot.model.expanded && !slot.model.welcome && (!slot.model.minimal || alert.priority >= 2) {
+            for slot in self.slots where !slot.model.expanded && !slot.model.welcome && !slot.model.welcomePending && (!slot.model.minimal || alert.priority >= 2) {
                 slot.model.alert = alert
                 shown = true
             }
@@ -838,14 +838,28 @@ final class NotchController {
     func launchWelcome() -> Bool {
         let first = OnboardingWindowController.shared.needsOnboarding
         guard first || settings.welcomeOnLaunch else { return false }
+        // Giữ notch trơn (không cánh, không thú cưng) tới lúc chào: thứ đầu tiên hiện ra là lời chào.
+        for slot in slots { slot.model.welcomePending = true }
         // Đợi app khởi động xong (MediaRemote, CoreAudio…) để main thread rảnh: spring giãn notch không bị giật.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { [weak self] in
+        tryLaunchWelcome(attempt: 0, after: 0.7)
+        return true
+    }
+
+    /// Lúc khởi động có thể đang vướng (Claude đang hỏi, app toàn màn hình vừa được nhận ra): thử lại vài lần.
+    private func tryLaunchWelcome(attempt: Int, after delay: TimeInterval) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
             MainActor.assumeIsolated {
                 guard let self else { return }
-                if !self.showWelcome() { OnboardingWindowController.shared.showIfNeeded() }
+                if self.showWelcome() { return }
+                if attempt < 4 {
+                    self.tryLaunchWelcome(attempt: attempt + 1, after: 0.5)
+                } else {
+                    NSLog("[welcome] bỏ qua: minimal=\(self.model.minimal) claude=\(self.permissions.current != nil)")
+                    for slot in self.slots { slot.model.welcomePending = false }
+                    OnboardingWindowController.shared.showIfNeeded()
+                }
             }
         }
-        return true
     }
 
     @discardableResult
@@ -859,6 +873,8 @@ final class NotchController {
         if model.alert != nil { AlertCenter.shared.notchExpanded() }
         model.peek = nil
         model.onWelcomeStart = { [weak self] in self?.dismissWelcome() }
+        // Cùng một lần cập nhật: notch trơn giãn thẳng thành thẻ chào.
+        for slot in slots { slot.model.welcomePending = false }
         model.welcome = true
         // Nhận click cho nút "Bắt đầu" (không lấy focus: panel không thành key).
         panel.ignoresMouseEvents = false

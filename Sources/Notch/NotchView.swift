@@ -63,7 +63,7 @@ struct NotchRootView: View {
                 AlertCard(alert: alert, notchHeight: notch.height)
                     .frame(width: size.width, height: size.height)
                     .transition(.notchContent)
-            } else if model.minimal {
+            } else if model.minimal || model.welcomePending {
                 EmptyView()
             } else if let peek = model.peek {
                 Group {
