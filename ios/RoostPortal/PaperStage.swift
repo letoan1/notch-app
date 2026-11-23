@@ -143,6 +143,32 @@ final class PaperStage: SCNView {
         SCNTransaction.commit()
     }
 
+    /// File từ Mac tới: máy bay giấy bay vào từ mép trái (phía Mac), mở thành tờ ảnh ở giữa rồi mờ đi.
+    func arrive(image: UIImage?) {
+        guard isHidden else { return }
+        let size = CGSize(width: 220, height: 165)
+        show(image: image, size: size, at: CGPoint(x: -size.width, y: bounds.height * 0.42))
+        near = 1; tilt = 20
+        SCNTransaction.begin(); SCNTransaction.animationDuration = 0; apply(z: 120); SCNTransaction.commit()
+        point = CGPoint(x: bounds.width / 2, y: bounds.height * 0.45); near = 0; tilt = 0
+        SCNTransaction.begin()
+        SCNTransaction.animationDuration = 0.9
+        SCNTransaction.animationTimingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.8, 0.3, 1)
+        SCNTransaction.completionBlock = { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                guard let self else { return }
+                SCNTransaction.begin()
+                SCNTransaction.animationDuration = 0.35
+                SCNTransaction.completionBlock = { [weak self] in self?.hide(); self?.paper?.root.opacity = 1 }
+                self.paper?.root.opacity = 0
+                self.shadow.opacity = 0
+                SCNTransaction.commit()
+            }
+        }
+        apply(z: 40)
+        SCNTransaction.commit()
+    }
+
     /// Không đủ lực: mở phẳng lại và về chỗ cũ.
     func drop(to p: CGPoint, done: @escaping () -> Void) {
         point = p; near = 0; tilt = 0

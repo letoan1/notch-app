@@ -2,10 +2,28 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>vi</string>
+		<string>en</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>io.github.letoan1.RoostPortal.send.*</string>
+	</array>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_roost-portal._tcp</string>
+		<string>_roost-iphone._tcp</string>
 	</array>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Lưu ảnh, video Mac gửi sang vào thư viện Ảnh. / Saves photos and videos sent from your Mac.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Roost Portal tìm và gửi ảnh, file tới Mac của bạn ở gần đây. / Finds your nearby Mac to send photos and files.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

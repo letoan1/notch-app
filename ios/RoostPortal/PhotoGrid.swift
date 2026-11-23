@@ -56,12 +56,11 @@ final class PhotoLibrary: NSObject, ObservableObject, PHPhotoLibraryChangeObserv
         case .photos: result = PHAsset.fetchAssets(with: .image, options: opts)
         case .videos: result = PHAsset.fetchAssets(with: .video, options: opts)
         case .screenshots:
-            if let album = PHAssetCollection.fetchAssetCollections(with: .smartAlbum, subtype: .smartAlbumScreenshots, options: nil).firstObject {
-                result = PHAsset.fetchAssets(in: album, options: opts)
-            } else {
-                result = nil
-            }
+            // Lọc theo cờ ảnh chụp màn hình của từng ảnh (album thông minh Ảnh chụp màn hình có lúc không trả về).
+            opts.predicate = NSPredicate(format: "(mediaSubtypes & %d) != 0", PHAssetMediaSubtype.photoScreenshot.rawValue)
+            result = PHAsset.fetchAssets(with: .image, options: opts)
         }
+
     }
 
     /// Xuất bản gốc ra file tạm (ảnh HEIC / JPEG, video MOV) để gửi nguyên chất lượng.
@@ -117,6 +116,7 @@ struct PhotoCell: View {
             if let image {
                 Image(uiImage: image).resizable().scaledToFill()
                     .frame(width: side, height: side).clipped()
+                    .allowsHitTesting(false)
             }
             if asset.mediaType == .video {
                 Text(Self.duration(asset.duration))
@@ -126,6 +126,8 @@ struct PhotoCell: View {
         }
         .frame(width: side, height: side)
         .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        // Ảnh dọc phóng lấp ô bị tràn ra ngoài (chỉ cắt phần vẽ, không cắt vùng chạm): giới hạn vùng chạm đúng ô.
+        .contentShape(Rectangle())
         .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(.white.opacity(0.06), lineWidth: 1))
         .overlay(alignment: .topTrailing) {
             if lifted.selecting {
@@ -151,14 +153,14 @@ struct PhotoCell: View {
         }
     }
 
-    /// Ảnh thu nhỏ: chỉ lấy bản có sẵn trên máy (không tải iCloud khi cuộn), cắt nhanh.
+    /// Ảnh thu nhỏ, cắt nhanh.
     private func load() {
         guard image == nil else { return }
         let px = side * UIScreen.main.scale
         let opts = PHImageRequestOptions()
         opts.deliveryMode = .opportunistic
         opts.resizeMode = .fast
-        opts.isNetworkAccessAllowed = false
+        opts.isNetworkAccessAllowed = true    // ảnh chỉ có trên iCloud vẫn hiện; cuộn qua thì bị huỷ ở onDisappear
         request = library.images.requestImage(for: asset, targetSize: CGSize(width: px, height: px),
                                               contentMode: .aspectFill, options: opts) { img, _ in
             if let img { image = img }
@@ -261,6 +263,8 @@ struct PhotoGrid: View {
     let fling: ([PHAsset], Double) -> Void
 
     var header: AnyView = AnyView(EmptyView())
+    /// Chạm một ảnh (khi không ở chế độ chọn): mở xem toàn màn hình.
+    var open: (PHAsset) -> Void = { _ in }
     private let gap: CGFloat = 6
     private let pad: CGFloat = 12
     private var side: CGFloat { (UIScreen.main.bounds.width - pad * 2 - gap * 2) / 3 }
@@ -273,7 +277,7 @@ struct PhotoGrid: View {
                     let asset = library.asset(i)
                     PhotoCell(asset: asset, library: library, side: side, lifted: lifted)
                         .id(asset.localIdentifier)
-                        .onTapGesture { if lifted.selecting { lifted.toggle(asset.localIdentifier) } }
+                        .onTapGesture { if lifted.selecting { lifted.toggle(asset.localIdentifier) } else { open(asset) } }
                 }
             }
             .gesture(LiftGesture(began: begin, moved: move, ended: end))

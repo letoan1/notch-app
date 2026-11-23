@@ -163,6 +163,9 @@ final class PortalServer: @unchecked Sendable {
 
     let queue = DispatchQueue(label: "roost.portal")
     private var listener: NWListener?
+    /// Cổng thứ hai mã hoá TLS 1.2 PSK cho app RoostPortal (khoá = SHA-256 của token, danh tính = id thiết bị).
+    /// Cổng thường vẫn mở cho /hello, /pair và Phím tắt iOS.
+    private var tlsListener: NWListener?
     private var pathMonitor: NWPathMonitor?
     private var serviceName = "", serviceID = ""
     private var sessions: [ObjectIdentifier: PortalSession] = [:]
@@ -173,6 +176,7 @@ final class PortalServer: @unchecked Sendable {
 
     @MainActor func sync() {
         let settings = PortalSettings.shared
+        PortalPhones.shared.setEnabled(settings.enabled)
         if settings.enabled {
             settings.loadDevices()
             let name = PortalSettings.macName
@@ -233,6 +237,7 @@ final class PortalServer: @unchecked Sendable {
         }
         self.listener = listener
         listener.start(queue: queue)
+        startTLS()
         // Đổi mạng (Wi-Fi khác, cắm cáp) thì cập nhật địa chỉ trong TXT. Chỉ chạy khi Portal bật.
         let monitor = NWPathMonitor()
         monitor.pathUpdateHandler = { [weak self] _ in
@@ -248,6 +253,7 @@ final class PortalServer: @unchecked Sendable {
     private func advertise(_ listener: NWListener) {
         var fields = ["id": serviceID, "v": "1", "ip": Self.ipv4Addresses().joined(separator: ",")]
         if let port = listener.port?.rawValue { fields["port"] = String(port) }
+        if let tls = tlsListener?.port?.rawValue { fields["tls"] = String(tls) }
         listener.service = NWListener.Service(name: serviceName, type: Self.serviceType, domain: nil,
                                               txtRecord: NWTXTRecord(fields).data)
     }
@@ -274,6 +280,8 @@ final class PortalServer: @unchecked Sendable {
     private func stop() {
         pathMonitor?.cancel()
         pathMonitor = nil
+        tlsListener?.cancel()
+        tlsListener = nil
         listener?.cancel()
         listener = nil
         for session in sessions.values { session.close() }
@@ -294,6 +302,53 @@ final class PortalServer: @unchecked Sendable {
         lock.lock()
         byHash = Dictionary(devices.map { ($0.tokenHash, $0) }, uniquingKeysWith: { a, _ in a })
         lock.unlock()
+        queue.async { if self.listener != nil { self.startTLS() } }   // ghép / gỡ thiết bị: nạp lại bộ khoá
+    }
+
+    private var allDevices: [PortalDevice] {
+        lock.lock()
+        defer { lock.unlock() }
+        return Array(byHash.values)
+    }
+
+    /// Mỗi thiết bị app một khoá PSK. Không có thiết bị nào thì không mở cổng TLS.
+    private func startTLS() {
+        tlsListener?.cancel()
+        tlsListener = nil
+        let apps = allDevices.filter { $0.kind == "app" }
+        guard !apps.isEmpty else { if let l = listener { advertise(l) }; return }
+        let tls = NWProtocolTLS.Options()
+        let sec = tls.securityProtocolOptions
+        for d in apps {
+            sec_protocol_options_add_pre_shared_key(sec, Self.dispatchData(Data(d.tokenHash.utf8)), Self.dispatchData(Data(d.id.utf8)))
+        }
+        sec_protocol_options_append_tls_ciphersuite(sec, tls_ciphersuite_t(rawValue: UInt16(TLS_PSK_WITH_AES_128_GCM_SHA256))!)
+        sec_protocol_options_set_min_tls_protocol_version(sec, .TLSv12)
+        sec_protocol_options_set_max_tls_protocol_version(sec, .TLSv12)
+        let tcp = NWProtocolTCP.Options()
+        tcp.noDelay = true
+        let params = NWParameters(tls: tls, tcp: tcp)
+        params.includePeerToPeer = true
+        params.allowLocalEndpointReuse = true
+        guard let l = (try? NWListener(using: params, on: 52526)) ?? (try? NWListener(using: params)) else { return }
+        l.stateUpdateHandler = { [weak self, weak l] state in
+            guard let self, let l else { return }
+            if case .ready = state, let plain = self.listener { self.advertise(plain) }
+            if case .failed = state { l.cancel(); if self.tlsListener === l { self.tlsListener = nil } }
+        }
+        l.newConnectionHandler = { [weak self] connection in
+            guard let self else { connection.cancel(); return }
+            guard self.sessions.count < Self.maxSessions else { connection.cancel(); return }
+            let session = PortalSession(connection: connection, server: self)
+            self.sessions[ObjectIdentifier(session)] = session
+            session.start()
+        }
+        tlsListener = l
+        l.start(queue: queue)
+    }
+
+    static func dispatchData(_ d: Data) -> __DispatchData {
+        d.withUnsafeBytes { DispatchData(bytes: $0) } as __DispatchData
     }
 
     func device(token: String?) -> PortalDevice? {
@@ -457,6 +512,14 @@ final class PortalSession {
             if length == 0 { pair(Data()) }
         case ("POST", "/send"):
             beginFile(r)
+        case ("POST", "/link"):
+            // Mở link trên Mac (trình duyệt mặc định) và chép vào clipboard. Body là URL.
+            guard authorize(r) else { return }
+            guard let length = r.contentLength, length > 0, length <= Self.maxPairBody else {
+                respond(r.contentLength == nil ? 411 : 413, ["error": "length"]); return
+            }
+            expected = length
+            continueIfAsked(r)
         case ("POST", "/hover"):
             // iPhone đang kéo ảnh gần mép: Mac sáng mép phải trước khi file tới. Không có body.
             guard authorize(r) else { return }
@@ -500,6 +563,7 @@ final class PortalSession {
         guard body.count >= expected else { return }
         switch request.path {
         case "/pair": pair(body)
+        case "/link": link(body)
         case "/clipboard": clipboard(body, type: request.contentType)
         default: break
         }
@@ -527,6 +591,19 @@ final class PortalSession {
                 }
             }
         }
+    }
+
+    // MARK: Link
+
+    private func link(_ data: Data) {
+        let text = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        guard let url = URL(string: text), let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme), url.host != nil else {
+            respond(400, ["error": "not a web link"]); return
+        }
+        DispatchQueue.main.async {
+            MainActor.assumeIsolated { PortalCenter.shared.link(url) }
+        }
+        respond(200, ["ok": true])
     }
 
     // MARK: Clipboard

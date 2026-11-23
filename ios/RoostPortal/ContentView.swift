@@ -9,6 +9,9 @@ struct ContentView: View {
     @State private var drag = DragState()
     @State private var lifted = Lifted()
     @State private var importing = false
+    @State private var viewing: PHAsset?
+    @AppStorage("language") private var language = "auto"
+    @Environment(\.scenePhase) private var phase
 
     var body: some View {
         ZStack {
@@ -19,8 +22,13 @@ struct ContentView: View {
                 PairScreen(portal: portal)
             }
         }
+        .id(language)                          // đổi ngôn ngữ: dựng lại cả cây view để mọi chuỗi L() đổi theo
+        .environment(\.locale, Lang.locale)
         .preferredColorScheme(.dark)
         .onAppear { portal.start() }
+        // Nhận file từ Mac chỉ khi app đang mở và đã ghép.
+        .onChange(of: phase) { _, p in if p == .active, portal.current != nil { PortalReceiver.shared.start() } else if p != .active { PortalReceiver.shared.stop() } }
+        .onChange(of: portal.current?.id) { _, id in if id != nil, phase == .active { PortalReceiver.shared.start() } else { PortalReceiver.shared.stop() } }
     }
 
     private func sendScreen(_ mac: PortalMac) -> some View {
@@ -33,7 +41,7 @@ struct ContentView: View {
                     }, header: AnyView(VStack(spacing: 14) {
                         MacCard(mac: mac, portal: portal)
                         FilterChips(library: library)
-                    }.padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 4)))
+                    }.padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 4)), open: { viewing = $0 })
                 case .notDetermined:
                     ProgressView()
                 default:
@@ -56,7 +64,7 @@ struct ContentView: View {
             DragOverlay(drag: drag, macName: mac.name)
             PaperStageView().ignoresSafeArea().allowsHitTesting(false)
             VStack {
-                if let t = portal.transfer { TransferHUD(transfer: t).padding(.top, 4) }
+                if let t = portal.transfer { TransferHUD(transfer: t, note: portal.receivedNote).padding(.top, 4) }
                 Spacer()
                 Dock(lifted: lifted, importing: $importing, portal: portal) { assets in Task { await send(assets, entry: nil) } }
                     .padding(.bottom, 8)
@@ -66,6 +74,9 @@ struct ContentView: View {
         .task {
             PaperStage.shared.warmUp()
             await library.load()
+        }
+        .fullScreenCover(item: $viewing) { asset in
+            AssetViewer(asset: asset, library: library) { a in Task { await send([a], entry: nil) } }
         }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.item], allowsMultipleSelection: true) { result in
             guard case .success(let urls) = result else { return }
@@ -117,10 +128,16 @@ struct MacCard: View {
                 HStack(spacing: 6) {
                     Circle().fill(.green).frame(width: 7, height: 7)
                     Text(L("Đã kết nối", "Connected")).font(.caption).foregroundStyle(Theme.muted)
+                    if mac.encrypted {
+                        Label(L("Mã hoá", "Encrypted"), systemImage: "lock.fill").font(.caption).foregroundStyle(Theme.muted)
+                            .labelStyle(.titleAndIcon)
+                    }
                 }
             }
             Spacer()
             Menu {
+                LanguageMenu()
+                Divider()
                 Button(role: .destructive) { portal.forget() } label: { Label(L("Quên Mac này", "Forget this Mac"), systemImage: "xmark.circle") }
             } label: {
                 Image(systemName: "ellipsis").font(.body.weight(.semibold)).foregroundStyle(Theme.paper)
@@ -132,7 +149,7 @@ struct MacCard: View {
         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(.white.opacity(0.07)))
         .overlay(alignment: .bottomLeading) {
             HStack(spacing: 6) {
-                PaperPlane().frame(height: 13).rotationEffect(.degrees(-90))
+                PaperPlane().frame(height: 12).scaleEffect(x: -1)   // mũi chỉ sang trái, về phía Mac
                 Text(L("Nhấn giữ ảnh, hất về mép trái", "Hold a photo, fling it to the left edge"))
                     .font(.caption2.weight(.medium)).foregroundStyle(Theme.glow)
             }
@@ -187,7 +204,7 @@ struct Dock: View {
                         sendSelected(assets)
                     } label: {
                         HStack(spacing: 8) {
-                            PlaneGlyph().fill(.black).frame(width: 16, height: 11)
+                            PlaneGlyph().fill(.black).frame(width: 15, height: 15)
                             Text(lifted.picked.isEmpty ? L("Chạm ảnh để chọn", "Tap photos to select")
                                  : L("Gửi \(lifted.picked.count) mục", "Send \(lifted.picked.count)"))
                                 .font(.subheadline.weight(.bold))
@@ -229,6 +246,7 @@ struct Dock: View {
 
 struct TransferHUD: View {
     let transfer: Portal.Transfer
+    var note: String? = nil
 
     var body: some View {
         HStack(spacing: 12) {
@@ -237,7 +255,7 @@ struct TransferHUD: View {
                 Circle().trim(from: 0, to: transfer.state == .sending ? transfer.progress : 1)
                     .stroke(color, style: StrokeStyle(lineWidth: 3, lineCap: .round)).rotationEffect(.degrees(-90))
                 switch transfer.state {
-                case .sending: PlaneGlyph().fill(Theme.paper).frame(width: 13, height: 9)
+                case .sending: PlaneGlyph().fill(Theme.paper).frame(width: 12, height: 12)
                 case .done: Image(systemName: "checkmark").font(.caption.weight(.bold)).foregroundStyle(.green)
                 case .failed: Image(systemName: "exclamationmark").font(.caption.weight(.bold)).foregroundStyle(.orange)
                 }
@@ -263,7 +281,7 @@ struct TransferHUD: View {
     private var subtitle: String {
         switch transfer.state {
         case .sending: return "\(Int(transfer.progress * 100))%"
-        case .done: return L("Đã tới Mac", "Arrived on the Mac")
+        case .done: return note ?? L("Đã tới Mac", "Arrived on the Mac")
         case .failed(let why): return why.isEmpty ? L("Không gửi được", "Not sent") : why
         }
     }
@@ -278,7 +296,15 @@ struct PairScreen: View {
 
     var body: some View {
         VStack(spacing: 22) {
-            Spacer(minLength: 20)
+            HStack {
+                Spacer()
+                Menu { LanguageMenu() } label: {
+                    Image(systemName: "globe").font(.body.weight(.semibold)).foregroundStyle(Theme.paper)
+                        .frame(width: 38, height: 38).background(.white.opacity(0.08), in: Circle())
+                }
+            }
+            .padding(.horizontal, 20)
+            Spacer(minLength: 0)
             ZStack {
                 ForEach(0..<3) { i in
                     Circle().stroke(Theme.glow.opacity(0.35), lineWidth: 1.5)
@@ -287,7 +313,7 @@ struct PairScreen: View {
                 }
                 Circle().fill(Theme.surface).frame(width: 96, height: 96)
                     .overlay(Circle().stroke(.white.opacity(0.08)))
-                PaperPlane().frame(height: 46).rotationEffect(.degrees(-12)).shadow(color: Theme.glow.opacity(0.8), radius: 12)
+                PaperPlane().frame(height: 40).shadow(color: Theme.glow.opacity(0.8), radius: 12)
             }
             .frame(width: 200, height: 200)
             .onAppear { pulse = true }
@@ -339,5 +365,24 @@ struct PairScreen: View {
                    "On the Mac: Roost > Settings > Portal > turn on Receive from iPhone. No shared Wi-Fi needed."))
                 .font(.footnote).foregroundStyle(Theme.muted).multilineTextAlignment(.center).padding(.horizontal, 30).padding(.bottom, 16)
         }
+    }
+}
+
+extension PHAsset: @retroactive Identifiable {
+    public var id: String { localIdentifier }
+}
+
+/// Chọn ngôn ngữ app.
+struct LanguageMenu: View {
+    @AppStorage("language") private var language = "auto"
+    var body: some View {
+        Picker(selection: $language) {
+            Text(L("Tự động (theo máy)", "Automatic (system)")).tag("auto")
+            Text("Tiếng Việt").tag("vi")
+            Text("English").tag("en")
+        } label: {
+            Label(L("Ngôn ngữ", "Language"), systemImage: "globe")
+        }
+        .pickerStyle(.menu)
     }
 }

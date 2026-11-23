@@ -12,21 +12,25 @@ enum Theme {
                                                Color(red: 1, green: 0.6, blue: 0.3)], startPoint: .leading, endPoint: .trailing)
 }
 
-/// Máy bay giấy gấp 3 mặt (giống icon app): cánh trái đón sáng, sống thân trong bóng, cánh phải.
+/// Máy bay giấy kiểu cổ điển (mũi hướng lên phải): mặt trên đón sáng, mặt dưới trong bóng, khe gấp ở giữa.
+/// Toạ độ chuẩn hoá dùng chung cho icon app và hình trên Mac.
+enum PlaneShape {
+    static let nose = CGPoint(x: 1, y: 0), wing = CGPoint(x: 0, y: 0.44), fold = CGPoint(x: 0.38, y: 0.6)
+    static let fold2 = CGPoint(x: 0.45, y: 0.64), tail = CGPoint(x: 0.6, y: 1), flap = CGPoint(x: 0.3, y: 0.66)
+}
+
 struct PaperPlane: View {
     var body: some View {
         Canvas { ctx, size in
-            let w = size.width, h = size.height
-            func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: x * w, y: y * h) }
-            let nose = p(0.5, 0), lw = p(0, 0.88), rw = p(1, 0.88), tail = p(0.5, 0.72), keel = p(0.56, 0.95)
+            func p(_ q: CGPoint) -> CGPoint { CGPoint(x: q.x * size.width, y: q.y * size.height) }
             func face(_ pts: [CGPoint], _ c: Color) {
-                var path = Path(); path.addLines(pts); path.closeSubpath(); ctx.fill(path, with: .color(c))
+                var path = Path(); path.addLines(pts.map(p)); path.closeSubpath(); ctx.fill(path, with: .color(c))
             }
-            face([nose, lw, tail], Color(white: 1))
-            face([nose, tail, keel], Color(red: 0.62, green: 0.56, blue: 0.75))
-            face([nose, keel, rw], Color(red: 0.87, green: 0.84, blue: 0.93))
+            face([PlaneShape.nose, PlaneShape.wing, PlaneShape.fold], .white)
+            face([PlaneShape.wing, PlaneShape.fold, PlaneShape.flap], Color(red: 0.7, green: 0.65, blue: 0.82))
+            face([PlaneShape.nose, PlaneShape.fold2, PlaneShape.tail], Color(red: 0.84, green: 0.8, blue: 0.92))
         }
-        .aspectRatio(0.82, contentMode: .fit)
+        .aspectRatio(1, contentMode: .fit)
     }
 }
 
@@ -66,15 +70,13 @@ struct EdgeRail: View {
     }
 }
 
-/// Máy bay giấy nhỏ vẽ bằng Path (dùng ở thẻ Mac và thanh tiến độ).
-struct PlaneGlyph: Shape {   // bản một màu, dùng ở chỗ nhỏ
+/// Máy bay giấy một màu (cùng hình PaperPlane), dùng ở chỗ nhỏ: nút Gửi, vòng tiến độ.
+struct PlaneGlyph: Shape {
     func path(in r: CGRect) -> Path {
-        var p = Path()
-        p.move(to: CGPoint(x: r.minX, y: r.midY))
-        p.addLine(to: CGPoint(x: r.maxX, y: r.minY + r.height * 0.15))
-        p.addLine(to: CGPoint(x: r.maxX * 0.82, y: r.midY))
-        p.addLine(to: CGPoint(x: r.maxX, y: r.maxY - r.height * 0.15))
-        p.closeSubpath()
-        return p
+        func p(_ q: CGPoint) -> CGPoint { CGPoint(x: r.minX + q.x * r.width, y: r.minY + q.y * r.height) }
+        var path = Path()
+        path.addLines([PlaneShape.nose, PlaneShape.wing, PlaneShape.fold].map(p)); path.closeSubpath()
+        path.addLines([PlaneShape.nose, PlaneShape.fold2, PlaneShape.tail].map(p)); path.closeSubpath()
+        return path
     }
 }

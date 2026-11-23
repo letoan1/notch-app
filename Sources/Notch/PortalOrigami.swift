@@ -31,6 +31,21 @@ final class PortalFlight: NSObject {
     private var failedAt: Double?
     private var done: (() -> Void)?
     private var finished = false
+    /// Chiều ngược (Mac gửi sang iPhone): máy bay cất cánh từ notch, bay ra mép phải.
+    private var outbound = false
+
+    static func depart(image: NSImage, url: URL) {
+        let f = PortalFlight(title: url.lastPathComponent, image: image, entry: 0.45)
+        f.outbound = true
+        if FileThumbnails.isVisual(url) {
+            Task { @MainActor in
+                if let thumb = await FileThumbnails.load(url, size: CGSize(width: 448, height: 336)) {
+                    f.front.diffuse.contents = Self.sheet(for: thumb, photo: true)
+                }
+            }
+        }
+        f.arrive()
+    }
 
     // Mốc thời gian (giây): lao vào, đáp.
     private let tEnter = 0.10, tTouch = 0.80
@@ -284,6 +299,7 @@ final class PortalFlight: NSObject {
     }
 
     private func pose(_ t: Double) -> Pose {
+        if outbound { return departPose(t) }
         var p = Pose(x: w, y: 0, z: 0, yaw: 0, pitch: 0, roll: 0, scale: 1, opacity: 1, fold: fold(t))
         guard t >= tEnter else { return p }
         if t < tTouch {
@@ -339,6 +355,21 @@ final class PortalFlight: NSObject {
             if v > 0.93 { fire() }
             if t > l1 + 0.1 { DispatchQueue.main.async { self.teardown() } }
         }
+        return p
+    }
+
+    /// Cất cánh từ notch, lượn xuống rồi lao ra mép phải ở độ cao giữa màn hình.
+    private func departPose(_ t: Double) -> Pose {
+        let u = min(1, t / 1.1)
+        let k = easeInOut(u)
+        let p0 = (0.0, h / 2 - 12), p2 = (w / 2 + 220, entryY), p1 = (w * 0.18, h / 2 - 80)
+        func at(_ k: Double) -> (Double, Double) {
+            (pow(1 - k, 2) * p0.0 + 2 * (1 - k) * k * p1.0 + k * k * p2.0, pow(1 - k, 2) * p0.1 + 2 * (1 - k) * k * p1.1 + k * k * p2.1)
+        }
+        let a = at(k), b = at(min(1, k + 0.01))
+        var p = Pose(x: a.0, y: a.1, z: 20 + 140 * sin(k * .pi), yaw: heading(b.0 - a.0, b.1 - a.1), pitch: 0,
+                     roll: 0.4 * sin(u * .pi * 1.5), scale: lerp(0.2, 1, min(1, k * 1.6)), opacity: 1, fold: .folded)
+        if t > 1.15 { p.opacity = 0; DispatchQueue.main.async { self.teardown() } }
         return p
     }
 
@@ -405,7 +436,7 @@ final class PortalHover {
         glow.position = CGPoint(x: Self.width, y: cy)
         glow.opacity = Float(0.25 + 0.75 * n)
         glow.transform = CATransform3DMakeScale(0.7 + 0.5 * n, 0.7 + 0.5 * n, 1)
-        tip.position = CGPoint(x: Self.width + 34 - 46 * n * n, y: cy)   // mũi giấy ló ra khi rất gần
+        tip.position = CGPoint(x: Self.width + 6 - 64 * n * n, y: cy)   // máy bay giấy ló ra khi rất gần
         tip.opacity = n > 0.35 ? 1 : 0
         CATransaction.commit()
         // fling: file sắp tới, PortalFlight sẽ gọi handOff; phòng khi không tới thì tự tắt.
@@ -444,31 +475,32 @@ final class PortalHover {
         glow.opacity = 0
         root.addSublayer(glow)
 
-        // Mũi máy bay giấy (nhìn từ trên), trắng như mặt sau tờ giấy, có nếp gấp giữa.
-        let path = CGMutablePath()
-        path.move(to: CGPoint(x: 0, y: 0))
-        path.addLine(to: CGPoint(x: 70, y: 34))
-        path.addLine(to: CGPoint(x: 70, y: -34))
-        path.closeSubpath()
-        tip.path = path
-        tip.fillColor = NSColor(srgbRed: 0.96, green: 0.95, blue: 0.93, alpha: 1).cgColor
-        tip.strokeColor = NSColor(white: 0.8, alpha: 1).cgColor
-        tip.lineWidth = 0.5
+        // Máy bay giấy kiểu cổ điển (cùng hình icon app), mũi chỉ sang trái, ló ra từ viền phải.
+        // Toạ độ chuẩn hoá (mũi ở phải trên) lật ngang, y lật vì CALayer gốc ở dưới.
+        let W: CGFloat = 84, H: CGFloat = 84
+        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: (1 - x) * W, y: (1 - y) * H) }
+        let top = CGMutablePath()
+        top.addLines(between: [pt(1, 0), pt(0, 0.44), pt(0.38, 0.6)]); top.closeSubpath()
+        let flap = CGMutablePath()
+        flap.addLines(between: [pt(0, 0.44), pt(0.38, 0.6), pt(0.3, 0.66)]); flap.closeSubpath()
+        let under = CGMutablePath()
+        under.addLines(between: [pt(1, 0), pt(0.45, 0.64), pt(0.6, 1)]); under.closeSubpath()
+        tip.path = top
+        tip.fillColor = NSColor.white.cgColor
         tip.shadowColor = NSColor.black.cgColor
         tip.shadowOpacity = 0.35
         tip.shadowRadius = 8
         tip.shadowOffset = CGSize(width: 6, height: -10)
-        tip.bounds = CGRect(x: 0, y: -34, width: 70, height: 68)
+        tip.bounds = CGRect(x: 0, y: 0, width: W, height: H)
         tip.anchorPoint = CGPoint(x: 0, y: 0.5)
         tip.opacity = 0
-        let crease = CAShapeLayer()
-        let c = CGMutablePath()
-        c.move(to: CGPoint(x: 2, y: 0))
-        c.addLine(to: CGPoint(x: 70, y: 0))
-        crease.path = c
-        crease.strokeColor = NSColor(white: 0.72, alpha: 1).cgColor
-        crease.lineWidth = 1
-        tip.addSublayer(crease)
+        for (path, color) in [(flap, NSColor(srgbRed: 0.7, green: 0.65, blue: 0.82, alpha: 1)),
+                              (under, NSColor(srgbRed: 0.84, green: 0.8, blue: 0.92, alpha: 1))] {
+            let face = CAShapeLayer()
+            face.path = path
+            face.fillColor = color.cgColor
+            tip.addSublayer(face)
+        }
         root.addSublayer(tip)
 
         w.contentView = host

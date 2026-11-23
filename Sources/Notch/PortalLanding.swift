@@ -105,6 +105,17 @@ final class PortalCenter {
         return true
     }
 
+    /// Link từ iPhone: mở bằng trình duyệt mặc định, chép vào clipboard, máy bay giấy mang tên miền.
+    func link(_ url: URL) {
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(url.absoluteString, forType: .string)
+        NSWorkspace.shared.open(url)
+        let flight = PortalFlight(title: url.host ?? url.absoluteString, image: Self.symbol("safari"))
+        flight.arrive()
+        flight.complete(url: nil, intoNotch: false, hold: 0.5) {}
+    }
+
     static func symbol(_ name: String) -> NSImage {
         let config = NSImage.SymbolConfiguration(pointSize: 40, weight: .regular)
             .applying(NSImage.SymbolConfiguration(paletteColors: [.white]))

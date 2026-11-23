@@ -58,7 +58,7 @@ final class SettingsWindowController {
             case .sound: return "speaker.wave.2.fill"
             case .calendar: return "calendar"
             case .tray: return "tray.full.fill"
-            case .portal: return "iphone.and.arrow.forward"
+            case .portal: return "paperplane.fill"
             case .mirror: return "camera.fill"
             case .claude: return "sparkle"
             case .usage: return "gauge.with.dots.needle.67percent"

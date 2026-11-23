@@ -9,6 +9,8 @@ import SwiftUI
 
 @main
 struct RoostPortalApp: App {
+    init() { Portal.registerBackgroundSending() }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
