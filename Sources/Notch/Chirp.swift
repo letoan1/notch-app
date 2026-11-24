@@ -253,11 +253,13 @@ struct ChirpReviewPanel: View {
     @ObservedObject var chirp = ChirpClient.shared
     private var flipped = State(initialValue: false)
     private var shownAt = State(initialValue: Date())
+    /// Rái phản ứng ngắn sau mỗi lần trả lời: .yay (Nhớ) hoặc .oops (Quên).
+    private var reaction = State<RaiPose?>(initialValue: nil)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
-                Image(systemName: "bird.fill").font(.system(size: 10, weight: .semibold)).foregroundStyle(.orange)
+                RaiView(pose: .wave, size: 18, animated: false)
                 Text(L("Ôn từ", "Review")).font(.ui(11.5, weight: .semibold)).foregroundStyle(.white)
                 if !chirp.cards.isEmpty {
                     Text(L("còn \(chirp.cards.count) thẻ", "\(chirp.cards.count) left"))
@@ -270,13 +272,14 @@ struct ChirpReviewPanel: View {
                 }
             }
             if !chirp.hasToken {
-                empty(L("Chưa kết nối Chirp.", "Chirp isn't connected."), setup: true)
+                empty(L("Chưa kết nối Chirp.", "Chirp isn't connected."), pose: .sleep, setup: true)
             } else if let card = chirp.cards.first {
                 cardView(card)
             } else {
                 empty(chirp.queue.isEmpty ? L("Hết thẻ cần ôn. Giỏi lắm!", "No cards due. Nice work!")
                       : L("Hết thẻ. \(chirp.queue.count) kết quả sẽ gửi khi có mạng.",
-                          "All done. \(chirp.queue.count) results will be sent when you're online."), setup: false)
+                          "All done. \(chirp.queue.count) results will be sent when you're online."),
+                      pose: .yay, setup: false)
             }
         }
         .padding(.horizontal, 16)
@@ -289,6 +292,14 @@ struct ChirpReviewPanel: View {
     }
 
     private func cardView(_ card: ChirpCard) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            RaiView(pose: reaction.wrappedValue ?? (flipped.wrappedValue ? .card : .think), size: 46, word: card.lemma)
+                .padding(.top, 4)
+            cardBody(card)
+        }
+    }
+
+    private func cardBody(_ card: ChirpCard) -> some View {
         VStack(spacing: 8) {
             Button { withAnimation(.easeOut(duration: 0.18)) { flipped.wrappedValue.toggle() } } label: {
                 VStack(spacing: 4) {
@@ -328,6 +339,11 @@ struct ChirpReviewPanel: View {
 
     private func answer(_ card: ChirpCard, _ remembered: Bool) {
         let seconds = Int(Date().timeIntervalSince(shownAt.wrappedValue))
+        let pose: RaiPose = remembered ? .yay : .oops
+        reaction.wrappedValue = pose
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [reaction] in
+            if reaction.wrappedValue == pose { reaction.wrappedValue = nil }
+        }
         withAnimation(.easeOut(duration: 0.18)) { chirp.answer(card, remembered: remembered, seconds: seconds) }
     }
 
@@ -340,9 +356,12 @@ struct ChirpReviewPanel: View {
         .buttonStyle(.plain)
     }
 
-    private func empty(_ text: String, setup: Bool) -> some View {
+    private func empty(_ text: String, pose: RaiPose, setup: Bool) -> some View {
         VStack(spacing: 8) {
-            Text(text).font(.ui(12)).foregroundStyle(.white.opacity(0.7)).multilineTextAlignment(.center)
+            HStack(spacing: 10) {
+                RaiView(pose: pose, size: 44)
+                Text(text).font(.ui(12)).foregroundStyle(.white.opacity(0.7)).multilineTextAlignment(.leading)
+            }
             if setup {
                 Button { SettingsWindowController.shared.show(pane: "chirp") } label: {
                     Text(L("Thiết lập", "Set up")).font(.ui(11, weight: .bold)).foregroundStyle(.black)
